@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=TableScan Local
+Comment=Offline table OCR and Excel export
+Exec=tablescan-local
+Icon=tablescan-local
+Terminal=false
+Type=Application
+Categories=Office;Science;
+MimeType=application/pdf;image/png;image/jpeg;image/tiff;
+

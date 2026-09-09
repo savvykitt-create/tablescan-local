@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-14, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - name: Test on Linux
+        if: runner.os == 'Linux'
+        run: QT_QPA_PLATFORM=offscreen pytest
+      - name: Test on Windows or macOS
+        if: runner.os != 'Linux'
+        run: pytest
+      - run: pyinstaller --clean --noconfirm packaging/tablescan_local.spec
+      - name: Create Ubuntu packages
+        if: runner.os == 'Linux'
+        run: bash packaging/linux/make_packages.sh
+      - name: Create macOS DMG
+        if: runner.os == 'macOS'
+        run: bash packaging/macos/make_dmg.sh
+      - name: Create Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging\windows\TableScanLocal.iss'
+      - name: Upload native bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: TableScanLocal-${{ matrix.os }}
+          path: |
+            dist/TableScanLocal
+            dist/TableScan Local.app
+            release/*

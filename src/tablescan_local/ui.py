@@ -1,0 +1,2603 @@
+from __future__ import annotations
+
+import json
+import os
+from bisect import bisect_right
+from dataclasses import asdict
+from pathlib import Path
+from uuid import uuid4
+
+import cv2
+import numpy as np
+from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QThread, QStandardPaths, QTimer, Signal
+from PySide6.QtGui import QAction, QColor, QImage, QPainter, QPen, QPixmap
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGraphicsItem,
+    QGraphicsLineItem,
+    QGraphicsPixmapItem,
+    QGraphicsRectItem,
+    QGraphicsScene,
+    QGraphicsView,
+    QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QMessageBox,
+    QProgressDialog,
+    QPushButton,
+    QScrollArea,
+    QSpinBox,
+    QSizePolicy,
+    QSplitter,
+    QStackedWidget,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from .domain import CellRuleRegion, ColumnRule, FieldRegion, JobResult, NormalizedRect, TableTemplate, excel_column_name
+from .constraints import ValueConstraints
+from .rule_editor import ValueRuleDialog, optional_number
+from . import __version__
+from .exporter import export_job
+from .imaging import GridDetection, detect_grid, evenly_spaced_guides, load_document, rotate_document
+from .ocr import LocalOcrEngine, OcrValue, canonical_numeric, constrain_reading
+from .pipeline import process_document, suggest_standard_fields
+from .storage import LocalStore
+from .template_matcher import TemplateMatch, rank_templates
+
+
+BLUE = "#4F46E5"
+LIGHT_BLUE = "#EFF6FF"
+AMBER = "#D97706"
+GREEN = "#15803D"
+BORDER = "#D7DCE3"
+TEXT = "#20242B"
+MUTED = "#68707C"
+SURFACE = "#F7F8FA"
+
+
+APP_STYLE = f"""
+QWidget {{
+    background: #FFFFFF;
+    color: {TEXT};
+    font-size: 13px;
+}}
+QMainWindow {{ background: #FFFFFF; }}
+QPushButton, QToolButton {{
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid {BORDER};
+    border-radius: 7px;
+    background: #FFFFFF;
+    font-weight: 600;
+}}
+QPushButton:hover, QToolButton:hover {{ background: #F4F7FB; border-color: #AEB7C4; }}
+QPushButton:pressed, QToolButton:pressed {{ background: #E9EEF5; }}
+QPushButton[primary="true"] {{ background: {BLUE}; color: white; border-color: {BLUE}; }}
+QPushButton[primary="true"]:hover {{ background: #4338CA; }}
+QPushButton[danger="true"] {{ color: #B91C1C; border-color: #F1B5B5; }}
+QLineEdit, QComboBox, QSpinBox {{
+    min-height: 34px;
+    padding: 0 9px;
+    border: 1px solid {BORDER};
+    border-radius: 7px;
+    background: #FFFFFF;
+    selection-background-color: {BLUE};
+}}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus {{ border: 2px solid {BLUE}; }}
+QTabWidget::pane {{ border: 0; border-top: 1px solid {BORDER}; top: -1px; }}
+QTabBar::tab {{ padding: 12px 17px; color: {MUTED}; background: #FFFFFF; border: 0; }}
+QTabBar::tab:selected {{ color: {TEXT}; font-weight: 700; border-bottom: 2px solid {BLUE}; }}
+QTableWidget {{ border: 1px solid {BORDER}; gridline-color: #E2E5EA; selection-background-color: #DBEAFE; }}
+QHeaderView::section {{ background: #F8FAFC; border: 0; border-right: 1px solid #E2E5EA; border-bottom: 1px solid {BORDER}; padding: 7px; font-weight: 700; }}
+QListWidget {{ border: 1px solid {BORDER}; border-radius: 7px; outline: none; }}
+QListWidget::item {{ min-height: 34px; padding: 3px 8px; }}
+QListWidget::item:selected {{ background: {LIGHT_BLUE}; color: {BLUE}; }}
+QGroupBox {{ border: 0; margin-top: 12px; font-weight: 700; }}
+QGroupBox::title {{ subcontrol-origin: margin; left: 0; padding: 0 0 8px 0; }}
+QSplitter::handle {{ background: {BORDER}; width: 1px; height: 1px; }}
+"""
+
+
+def pixmap_from_bgr(image: np.ndarray) -> QPixmap:
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    height, width, channels = rgb.shape
+    qimage = QImage(rgb.data, width, height, width * channels, QImage.Format.Format_RGB888).copy()
+    return QPixmap.fromImage(qimage)
+
+
+class OverlayRectItem(QGraphicsRectItem):
+    def __init__(self, rect: QRectF, color: str, callback=None, label: str = "") -> None:
+        super().__init__(rect)
+        self.callback = callback
+        self.label = label
+        self.setPen(QPen(QColor(color), 2))
+        fill = QColor(color)
+        fill.setAlpha(20)
+        self.setBrush(fill)
+        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        self.setZValue(10)
+
+    def mouseReleaseEvent(self, event) -> None:
+        super().mouseReleaseEvent(event)
+        if self.callback:
+            self.callback(self.mapRectToScene(self.rect()))
+
+
+class GuideLineItem(QGraphicsLineItem):
+    def __init__(self, orientation: str, position: float, extent: tuple[float, float], bounds: QRectF, callback) -> None:
+        self.orientation = orientation
+        self.bounds = bounds
+        self.callback = callback
+        if orientation == "vertical":
+            super().__init__(0, extent[0], 0, extent[1])
+            self.setPos(position, 0)
+        else:
+            super().__init__(extent[0], 0, extent[1], 0)
+            self.setPos(0, position)
+        self.setPen(QPen(QColor("#3B82F6"), 1, Qt.PenStyle.DashLine))
+        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.setCursor(Qt.CursorShape.SizeHorCursor if orientation == "vertical" else Qt.CursorShape.SizeVerCursor)
+        self.setZValue(8)
+
+    def itemChange(self, change, value):
+        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and isinstance(value, QPointF):
+            if self.orientation == "vertical":
+                return QPointF(max(self.bounds.left(), min(self.bounds.right(), value.x())), 0)
+            return QPointF(0, max(self.bounds.top(), min(self.bounds.bottom(), value.y())))
+        return super().itemChange(change, value)
+
+    def mouseReleaseEvent(self, event) -> None:
+        super().mouseReleaseEvent(event)
+        self.callback(self.pos().x() if self.orientation == "vertical" else self.pos().y())
+
+
+class DocumentCanvas(QGraphicsView):
+    regionCreated = Signal(str, QRectF)
+    cellSelectionChanged = Signal(object)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setScene(QGraphicsScene(self))
+        self.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform)
+        self.setBackgroundBrush(QColor("#EEF1F5"))
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.image: np.ndarray | None = None
+        self.template: TableTemplate | None = None
+        self.draw_kind = ""
+        self.draw_start: QPointF | None = None
+        self.preview_rect: QGraphicsRectItem | None = None
+        self.show_grid = True
+        self.show_fields = True
+        self.show_rules = False
+        self.active_rule = -1
+        self.active_field = -1
+        self.active_cell: tuple[int, int] | None = None
+        self.guide_callback = None
+        self.selection_enabled = False
+        self.selected_cells: set[tuple[int, int]] = set()
+        self.selection_anchor: tuple[int, int] | None = None
+        self._selection_drag_start: tuple[int, int] | None = None
+        self._selection_drag_base: set[tuple[int, int]] = set()
+        self._selection_subtract = False
+        self._selection_history: list[frozenset[tuple[int, int]]] = [frozenset()]
+        self._selection_history_index = 0
+
+    def set_document(self, image: np.ndarray, template: TableTemplate | None = None) -> None:
+        self.image = image
+        self.template = template
+        self.selected_cells = set()
+        self.active_cell = None
+        self.selection_anchor = None
+        self._selection_history = [frozenset()]
+        self._selection_history_index = 0
+        self.redraw()
+        self.fit_document()
+
+    def set_active_cell(self, row: int | None, column: int | None = None) -> None:
+        """Highlight one result cell over the source image."""
+        if row is None or column is None or not self.template:
+            active = None
+        elif 0 <= row < self.template.rows and 0 <= column < self.template.columns:
+            active = (row, column)
+        else:
+            active = None
+        if active == self.active_cell:
+            return
+        self.active_cell = active
+        self.redraw()
+
+    def fit_document(self) -> None:
+        if not self.scene() or self.scene().itemsBoundingRect().isEmpty():
+            return
+        target = self.scene().itemsBoundingRect()
+        if self.image is not None and self.template is not None:
+            image_height, image_width = self.image.shape[:2]
+            x, y, width, height = self.template.table_rect.to_pixels(self.image.shape)
+            left = max(0, x - image_width * 0.025)
+            right = min(image_width, x + width + image_width * 0.025)
+            top = max(0, y - image_height * 0.10)
+            bottom = min(image_height, y + height + image_height * 0.08)
+            target = QRectF(left, top, right - left, bottom - top)
+        self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
+
+    def zoom_by(self, factor: float) -> None:
+        self.scale(factor, factor)
+
+    def begin_draw(self, kind: str) -> None:
+        self.draw_kind = kind
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+
+    def set_selection_enabled(self, enabled: bool) -> None:
+        self.selection_enabled = enabled
+        self.setDragMode(QGraphicsView.DragMode.NoDrag if enabled else QGraphicsView.DragMode.ScrollHandDrag)
+        self.setCursor(Qt.CursorShape.ArrowCursor if enabled else Qt.CursorShape.OpenHandCursor)
+        self.redraw()
+
+    def select_cells(self, cells: set[tuple[int, int]], *, emit: bool = True, record: bool = True) -> None:
+        if not self.template:
+            return
+        self.selected_cells = {
+            (row, column) for row, column in cells
+            if 0 <= row < self.template.rows and 0 <= column < self.template.columns
+        }
+        if self.selected_cells:
+            self.selection_anchor = min(self.selected_cells)
+        if record:
+            self._record_selection()
+        self.redraw()
+        if emit:
+            self.cellSelectionChanged.emit(set(self.selected_cells))
+
+    def _record_selection(self) -> None:
+        current = frozenset(self.selected_cells)
+        if self._selection_history[self._selection_history_index] == current:
+            return
+        self._selection_history = self._selection_history[: self._selection_history_index + 1]
+        self._selection_history.append(current)
+        self._selection_history_index += 1
+
+    def undo_selection(self) -> None:
+        if self._selection_history_index <= 0:
+            return
+        self._selection_history_index -= 1
+        self.select_cells(set(self._selection_history[self._selection_history_index]), record=False)
+
+    def redo_selection(self) -> None:
+        if self._selection_history_index >= len(self._selection_history) - 1:
+            return
+        self._selection_history_index += 1
+        self.select_cells(set(self._selection_history[self._selection_history_index]), record=False)
+
+    def select_region(self, row_start: int, row_end: int, column_start: int, column_end: int) -> None:
+        self.select_cells({
+            (row, column)
+            for row in range(row_start, row_end + 1)
+            for column in range(column_start, column_end + 1)
+        })
+
+    def select_all_data(self) -> None:
+        if self.template:
+            self.select_region(
+                self.template.header_rows, self.template.rows - 1,
+                self.template.row_label_columns, self.template.columns - 1,
+            )
+
+    def _header_band(self) -> float:
+        if not self.template or self.image is None or not self.template.rows or not self.template.columns:
+            return 28.0
+        height, width = self.image.shape[:2]
+        cell_width = (self.template.column_guides[-1] - self.template.column_guides[0]) * width / self.template.columns
+        cell_height = (self.template.row_guides[-1] - self.template.row_guides[0]) * height / self.template.rows
+        return max(20.0, min(42.0, min(cell_width, cell_height) * .55))
+
+    def _cell_or_header_at(self, point: QPointF) -> tuple[str, int, int] | None:
+        if not self.template or self.image is None:
+            return None
+        height, width = self.image.shape[:2]
+        xs = [value * width for value in self.template.column_guides]
+        ys = [value * height for value in self.template.row_guides]
+        band = self._header_band()
+        if xs[0] <= point.x() < xs[-1] and ys[0] <= point.y() < ys[-1]:
+            column = bisect_right(xs, point.x()) - 1
+            row = bisect_right(ys, point.y()) - 1
+            return "cell", row, column
+        if xs[0] <= point.x() < xs[-1] and ys[0] - band <= point.y() < ys[0]:
+            return "column", -1, bisect_right(xs, point.x()) - 1
+        if ys[0] <= point.y() < ys[-1] and xs[0] - band <= point.x() < xs[0]:
+            return "row", bisect_right(ys, point.y()) - 1, -1
+        if xs[0] - band <= point.x() < xs[0] and ys[0] - band <= point.y() < ys[0]:
+            return "all", -1, -1
+        return None
+
+    @staticmethod
+    def _rectangle_cells(start: tuple[int, int], end: tuple[int, int]) -> set[tuple[int, int]]:
+        row_start, row_end = sorted((start[0], end[0]))
+        column_start, column_end = sorted((start[1], end[1]))
+        return {(row, column) for row in range(row_start, row_end + 1) for column in range(column_start, column_end + 1)}
+
+    def _apply_live_selection(self, end: tuple[int, int]) -> None:
+        if self._selection_drag_start is None:
+            return
+        block = self._rectangle_cells(self._selection_drag_start, end)
+        self.selected_cells = self._selection_drag_base - block if self._selection_subtract else self._selection_drag_base | block
+        self.redraw()
+
+    def redraw(self) -> None:
+        self.scene().clear()
+        if self.image is None:
+            return
+        pixmap_item = QGraphicsPixmapItem(pixmap_from_bgr(self.image))
+        self.scene().addItem(pixmap_item)
+        self.scene().setSceneRect(pixmap_item.boundingRect())
+        if not self.template:
+            return
+        height, width = self.image.shape[:2]
+        x, y, rect_width, rect_height = self.template.table_rect.to_pixels(self.image.shape)
+        table_bounds = QRectF(x, y, rect_width, rect_height)
+        table_item = OverlayRectItem(table_bounds, BLUE, self._table_moved)
+        if self.show_rules:
+            table_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+            table_item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.scene().addItem(table_item)
+
+        if self.show_grid:
+            for index, normalized in enumerate(self.template.column_guides):
+                item = GuideLineItem(
+                    "vertical", normalized * width, (table_bounds.top(), table_bounds.bottom()), table_bounds,
+                    lambda value, guide=index: self._guide_moved("column", guide, value / width),
+                )
+                self.scene().addItem(item)
+            for index, normalized in enumerate(self.template.row_guides):
+                item = GuideLineItem(
+                    "horizontal", normalized * height, (table_bounds.left(), table_bounds.right()), table_bounds,
+                    lambda value, guide=index: self._guide_moved("row", guide, value / height),
+                )
+                self.scene().addItem(item)
+
+        if self.show_fields:
+            for index, region in enumerate(self.template.fields):
+                rx, ry, rw, rh = region.rect.to_pixels(self.image.shape)
+                item = OverlayRectItem(
+                    QRectF(rx, ry, rw, rh), region.color,
+                    lambda rect, field_index=index: self._field_moved(field_index, rect), region.name,
+                )
+                if index == self.active_field:
+                    item.setPen(QPen(QColor(region.color), 3))
+                    item.setSelected(True)
+                self.scene().addItem(item)
+
+        if self.active_cell is not None:
+            row, column = self.active_cell
+            left = self.template.column_guides[column] * width
+            right = self.template.column_guides[column + 1] * width
+            top = self.template.row_guides[row] * height
+            bottom = self.template.row_guides[row + 1] * height
+            color = QColor("#F97316")
+            fill = QColor(color)
+            fill.setAlpha(48)
+            item = self.scene().addRect(
+                QRectF(left, top, right - left, bottom - top),
+                QPen(color, 4), fill,
+            )
+            item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            item.setZValue(30)
+
+        if self.show_rules:
+            for index, region in enumerate(self.template.cell_rules):
+                if not (0 <= region.row_start <= region.row_end < self.template.rows and 0 <= region.column_start <= region.column_end < self.template.columns):
+                    continue
+                x1, x2 = self.template.column_guides[region.column_start], self.template.column_guides[region.column_end + 1]
+                y1, y2 = self.template.row_guides[region.row_start], self.template.row_guides[region.row_end + 1]
+                rect = QRectF(x1 * width, y1 * height, (x2 - x1) * width, (y2 - y1) * height)
+                color = QColor(region.color)
+                item = self.scene().addRect(rect, QPen(color, 4 if index == self.active_rule else 2))
+                fill = QColor(color); fill.setAlpha(32); item.setBrush(fill)
+                item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                text = self.scene().addSimpleText(f"{index + 1}. {region.name}")
+                text.setPos(rect.left() + 5, rect.top() + 3); text.setBrush(color)
+                text.setScale(1.15); text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
+        if self.selection_enabled:
+            static_pen = QPen(QColor("#CBD5E1"), 1)
+            for normalized in self.template.column_guides:
+                self.scene().addLine(normalized * width, table_bounds.top(), normalized * width, table_bounds.bottom(), static_pen).setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            for normalized in self.template.row_guides:
+                self.scene().addLine(table_bounds.left(), normalized * height, table_bounds.right(), normalized * height, static_pen).setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            band = self._header_band()
+            header_fill = QColor("#F8FAFC")
+            header_pen = QPen(QColor("#CBD5E1"), 1)
+            for column in range(self.template.columns):
+                left, right = self.template.column_guides[column] * width, self.template.column_guides[column + 1] * width
+                self.scene().addRect(QRectF(left, table_bounds.top() - band, right - left, band), header_pen, header_fill).setZValue(20)
+                label = self.scene().addSimpleText(excel_column_name(column)); label.setBrush(QColor(MUTED)); label.setZValue(21)
+                label.setPos((left + right - label.boundingRect().width()) / 2, table_bounds.top() - band + (band - label.boundingRect().height()) / 2)
+            for row in range(self.template.rows):
+                top, bottom = self.template.row_guides[row] * height, self.template.row_guides[row + 1] * height
+                self.scene().addRect(QRectF(table_bounds.left() - band, top, band, bottom - top), header_pen, header_fill).setZValue(20)
+                label = self.scene().addSimpleText(str(row + 1)); label.setBrush(QColor(MUTED)); label.setZValue(21)
+                label.setPos(table_bounds.left() - band + (band - label.boundingRect().width()) / 2, (top + bottom - label.boundingRect().height()) / 2)
+            self.scene().addRect(QRectF(table_bounds.left() - band, table_bounds.top() - band, band, band), header_pen, header_fill).setZValue(20)
+            selection_fill = QColor("#2563EB"); selection_fill.setAlpha(38)
+            selection_pen = QPen(QColor("#2563EB"), 2)
+            for row, column in self.selected_cells:
+                left, right = self.template.column_guides[column] * width, self.template.column_guides[column + 1] * width
+                top, bottom = self.template.row_guides[row] * height, self.template.row_guides[row + 1] * height
+                item = self.scene().addRect(QRectF(left, top, right - left, bottom - top), selection_pen, selection_fill)
+                item.setAcceptedMouseButtons(Qt.MouseButton.NoButton); item.setZValue(25)
+            for row in range(self.template.rows):
+                for column in range(self.template.columns):
+                    left, right = self.template.column_guides[column] * width, self.template.column_guides[column + 1] * width
+                    top, bottom = self.template.row_guides[row] * height, self.template.row_guides[row + 1] * height
+                    hover = self.scene().addRect(QRectF(left, top, right - left, bottom - top), QPen(Qt.PenStyle.NoPen))
+                    rule, source = self.template.value_constraints(row, column)
+                    hover.setToolTip(f"{excel_column_name(column)}{row + 1}\n{source}\n{rule.summary()}")
+                    hover.setAcceptHoverEvents(True)
+                    hover.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                    hover.setZValue(24)
+
+    def _table_moved(self, rect: QRectF) -> None:
+        if self.image is None or not self.template:
+            return
+        self.template.table_rect = NormalizedRect.from_pixels(
+            (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
+        )
+
+    def _field_moved(self, index: int, rect: QRectF) -> None:
+        if self.image is None or not self.template or index >= len(self.template.fields):
+            return
+        self.template.fields[index].rect = NormalizedRect.from_pixels(
+            (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
+        )
+
+    def _guide_moved(self, kind: str, index: int, value: float) -> None:
+        if not self.template:
+            return
+        guides = self.template.column_guides if kind == "column" else self.template.row_guides
+        lower = guides[index - 1] + 0.002 if index > 0 else value
+        upper = guides[index + 1] - 0.002 if index < len(guides) - 1 else value
+        guides[index] = max(lower, min(upper, value)) if 0 < index < len(guides) - 1 else value
+        guides.sort()
+
+    def mousePressEvent(self, event) -> None:
+        if self.draw_kind and event.button() == Qt.MouseButton.LeftButton:
+            self.draw_start = self.mapToScene(event.position().toPoint())
+            self.preview_rect = self.scene().addRect(QRectF(self.draw_start, self.draw_start), QPen(QColor(BLUE), 2, Qt.PenStyle.DashLine))
+            return
+        if self.selection_enabled and event.button() == Qt.MouseButton.LeftButton:
+            hit = self._cell_or_header_at(self.mapToScene(event.position().toPoint()))
+            if hit is None:
+                return
+            kind, row, column = hit
+            modifiers = event.modifiers()
+            additive = bool(modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier))
+            if kind == "all":
+                self.select_region(0, self.template.rows - 1, 0, self.template.columns - 1)
+                return
+            if kind == "row":
+                cells = {(row, value) for value in range(self.template.columns)}
+                self.select_cells((self.selected_cells ^ cells) if additive else cells)
+                return
+            if kind == "column":
+                cells = {(value, column) for value in range(self.template.rows)}
+                self.select_cells((self.selected_cells ^ cells) if additive else cells)
+                return
+            current = (row, column)
+            start = self.selection_anchor if modifiers & Qt.KeyboardModifier.ShiftModifier and self.selection_anchor else current
+            self._selection_drag_start = start
+            self._selection_subtract = additive and current in self.selected_cells
+            self._selection_drag_base = set(self.selected_cells) if additive else set()
+            if not additive:
+                self.selection_anchor = start
+            self._apply_live_selection(current)
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self.draw_start is not None and self.preview_rect:
+            current = self.mapToScene(event.position().toPoint())
+            self.preview_rect.setRect(QRectF(self.draw_start, current).normalized().intersected(self.sceneRect()))
+            return
+        if self.selection_enabled and self._selection_drag_start is not None:
+            hit = self._cell_or_header_at(self.mapToScene(event.position().toPoint()))
+            if hit and hit[0] == "cell":
+                self._apply_live_selection((hit[1], hit[2]))
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if self.draw_start is not None and self.preview_rect:
+            rect = self.preview_rect.rect()
+            self.scene().removeItem(self.preview_rect)
+            kind = self.draw_kind
+            self.draw_kind = ""
+            self.draw_start = None
+            self.preview_rect = None
+            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+            self.unsetCursor()
+            if rect.width() >= 10 and rect.height() >= 10:
+                self.regionCreated.emit(kind, rect)
+            return
+        if self.selection_enabled and self._selection_drag_start is not None:
+            self._selection_drag_start = None
+            self._selection_drag_base = set()
+            self._selection_subtract = False
+            self._record_selection()
+            self.cellSelectionChanged.emit(set(self.selected_cells))
+            return
+        super().mouseReleaseEvent(event)
+
+
+class DropArea(QFrame):
+    filesDropped = Signal(list)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setAcceptDrops(True)
+        self.setObjectName("dropArea")
+        self.setStyleSheet(
+            f"#dropArea {{ border: 2px dashed #6B8FEA; border-radius: 10px; background: #FFFFFF; }}"
+            f"#dropArea:hover {{ background: {LIGHT_BLUE}; }}"
+        )
+
+    def dragEnterEvent(self, event) -> None:
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event) -> None:
+        paths = [url.toLocalFile() for url in event.mimeData().urls() if url.isLocalFile()]
+        if paths:
+            self.filesDropped.emit(paths)
+            event.acceptProposedAction()
+
+
+class FilesPage(QWidget):
+    chooseRequested = Signal()
+    filesDropped = Signal(list)
+    recentOpened = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(36, 30, 36, 30)
+        layout.setSpacing(24)
+
+        area = DropArea()
+        area.filesDropped.connect(self.filesDropped)
+        area_layout = QVBoxLayout(area)
+        area_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        area_layout.setSpacing(14)
+        icon = QLabel("▦")
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon.setStyleSheet(f"font-size: 68px; color: {BLUE};")
+        heading = QLabel("Добавьте изображения таблиц")
+        heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        heading.setStyleSheet("font-size: 27px; font-weight: 750;")
+        choose = QPushButton("Выбрать файлы")
+        choose.setProperty("primary", True)
+        choose.setFixedWidth(210)
+        choose.clicked.connect(self.chooseRequested)
+        formats = QLabel("или перетащите сюда PDF, PNG, JPG либо TIFF")
+        formats.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        formats.setStyleSheet(f"color: {MUTED}; font-size: 15px;")
+        privacy = QLabel("▣  Файлы и распознанные данные не покидают этот компьютер")
+        privacy.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        privacy.setStyleSheet(f"color: {MUTED};")
+        for widget in (icon, heading, choose, formats, privacy):
+            area_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(area, 4)
+
+        recent_heading = QLabel("Недавние файлы")
+        recent_heading.setStyleSheet("font-size: 17px; font-weight: 700;")
+        layout.addWidget(recent_heading)
+        self.recent = QTableWidget(0, 3)
+        self.recent.setHorizontalHeaderLabels(["Файл", "Изменён", "Состояние"])
+        self.recent.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.recent.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        self.recent.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.recent.verticalHeader().hide()
+        self.recent.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.recent.doubleClicked.connect(lambda index: self.recentOpened.emit(self.recent.item(index.row(), 0).data(Qt.ItemDataRole.UserRole)))
+        layout.addWidget(self.recent, 2)
+
+    def set_recent(self, rows: list[dict[str, str]]) -> None:
+        self.recent.setRowCount(len(rows))
+        labels = {"imported": "Импортирован", "review": "Нужна сверка", "ready": "Готов к экспорту"}
+        for row_index, row in enumerate(rows):
+            name = QTableWidgetItem(row["source_name"])
+            name.setData(Qt.ItemDataRole.UserRole, row["id"])
+            self.recent.setItem(row_index, 0, name)
+            self.recent.setItem(row_index, 1, QTableWidgetItem(row["updated_at"].replace("T", " ")[:16]))
+            self.recent.setItem(row_index, 2, QTableWidgetItem(labels.get(row["status"], row["status"])))
+
+
+class TemplateChoiceDialog(QDialog):
+    """Make automatic matching visible and keep the final choice with the user."""
+
+    def __init__(self, matches: list[TemplateMatch], parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Выберите шаблон")
+        self.setMinimumSize(650, 430)
+        layout = QVBoxLayout(self)
+        heading = QLabel("Какой шаблон применить к документу?")
+        heading.setStyleSheet("font-size: 20px; font-weight: 750;")
+        layout.addWidget(heading)
+        note = QLabel("Программа сравнила сетку локально. Проверьте выбор: перед распознаванием будет показано наложение шаблона.")
+        note.setWordWrap(True); note.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(note)
+        self.list = QListWidget()
+        self.list.setWordWrap(True)
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        new_item = QListWidgetItem("Создать новый шаблон для этого документа\nАвтоматически найденная сетка останется доступна для настройки")
+        new_item.setData(Qt.ItemDataRole.UserRole, "")
+        self.list.addItem(new_item)
+        for match in matches:
+            percent = round(match.score * 100)
+            item = QListWidgetItem(
+                f"{match.template.name} · v{match.template.template_version} — совпадение {percent}%\n"
+                + "; ".join(match.reasons)
+            )
+            item.setData(Qt.ItemDataRole.UserRole, match.template.id)
+            item.setData(Qt.ItemDataRole.UserRole + 1, match.score)
+            self.list.addItem(item)
+        self.list.setCurrentRow(1 if matches and matches[0].score >= .55 else 0)
+        self.list.itemDoubleClicked.connect(lambda _item: self.accept())
+        layout.addWidget(self.list, 1)
+        self.explanation = QLabel("")
+        self.explanation.setWordWrap(True); self.explanation.setStyleSheet(f"background: {LIGHT_BLUE}; padding: 10px; border-radius: 6px;")
+        self.list.currentItemChanged.connect(self._update_explanation)
+        layout.addWidget(self.explanation)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Продолжить")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Отмена импорта")
+        buttons.accepted.connect(self.accept); buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+        self._update_explanation(self.list.currentItem())
+
+    @property
+    def selected_template_id(self) -> str:
+        item = self.list.currentItem()
+        return str(item.data(Qt.ItemDataRole.UserRole) or "") if item else ""
+
+    def _update_explanation(self, item=None, _previous=None) -> None:
+        if item is None or not item.data(Qt.ItemDataRole.UserRole):
+            self.explanation.setText("Будет создан новый рабочий шаблон. Его можно сохранить в библиотеку отдельной командой.")
+            return
+        score = float(item.data(Qt.ItemDataRole.UserRole + 1) or 0)
+        if score >= .82:
+            message = "Высокое геометрическое совпадение. Всё равно проверьте линии сетки и ориентацию."
+        elif score >= .60:
+            message = "Шаблон похож, но требуется внимательная проверка наложения."
+        else:
+            message = "Совпадение слабое. Выберите этот шаблон только после визуальной проверки."
+        self.explanation.setText(message)
+
+
+class TemplateLibraryPage(QWidget):
+    createRequested = Signal()
+    openRequested = Signal(str)
+    duplicateRequested = Signal(str)
+    deleteRequested = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._template_signature: tuple[tuple[str, int, str, int], ...] = ()
+        layout = QVBoxLayout(self); layout.setContentsMargins(30, 26, 30, 26); layout.setSpacing(16)
+        header = QHBoxLayout()
+        title_box = QVBoxLayout()
+        title = QLabel("Шаблоны"); title.setStyleSheet("font-size: 25px; font-weight: 750;")
+        subtitle = QLabel("Настройте сетку и допустимые значения один раз, затем применяйте шаблон к новым файлам.")
+        subtitle.setStyleSheet(f"color: {MUTED};")
+        title_box.addWidget(title); title_box.addWidget(subtitle)
+        create = QPushButton("Создать из образца"); create.setProperty("primary", True); create.clicked.connect(self.createRequested)
+        header.addLayout(title_box); header.addStretch(); header.addWidget(create)
+        layout.addLayout(header)
+        self.list = QListWidget()
+        self.list.setSpacing(5)
+        self.list.setStyleSheet(
+            f"QListWidget {{ border: 1px solid {BORDER}; border-radius: 9px; padding: 8px; }}"
+            "QListWidget::item { min-height: 54px; padding: 9px 12px; border-radius: 7px; }"
+            f"QListWidget::item:selected {{ background: {LIGHT_BLUE}; color: {TEXT}; border: 1px solid #A5B4FC; }}"
+        )
+        self.list.itemDoubleClicked.connect(lambda _item: self._emit_selected(self.openRequested))
+        layout.addWidget(self.list, 1)
+        actions = QHBoxLayout(); actions.addStretch()
+        duplicate = QPushButton("Дублировать"); duplicate.clicked.connect(lambda: self._emit_selected(self.duplicateRequested))
+        delete = QPushButton("Удалить"); delete.setProperty("danger", True); delete.clicked.connect(lambda: self._emit_selected(self.deleteRequested))
+        open_button = QPushButton("Открыть редактор"); open_button.setProperty("primary", True); open_button.clicked.connect(lambda: self._emit_selected(self.openRequested))
+        actions.addWidget(duplicate); actions.addWidget(delete); actions.addWidget(open_button)
+        layout.addLayout(actions)
+
+    def _emit_selected(self, signal) -> None:
+        item = self.list.currentItem()
+        if item:
+            signal.emit(str(item.data(Qt.ItemDataRole.UserRole)))
+
+    def set_templates(self, templates: list[TableTemplate]) -> None:
+        ordered = sorted(templates, key=lambda item: (item.name.casefold(), -item.template_version))
+        signature = tuple((item.id, item.template_version, item.name, len(item.cell_rules)) for item in ordered)
+        if signature == self._template_signature:
+            return
+        self._template_signature = signature
+        self.list.clear()
+        for template in ordered:
+            sample = "есть" if template.reference_source_path and Path(template.reference_source_path).exists() else "нет"
+            region_word = "область" if len(template.cell_rules) == 1 else "областей"
+            item = QListWidgetItem(
+                f"{template.name}    ·    v{template.template_version}\n"
+                f"Сетка {template.rows} × {template.columns}    ·    {len(template.cell_rules)} {region_word}    ·    образец: {sample}"
+            )
+            item.setData(Qt.ItemDataRole.UserRole, template.id)
+            self.list.addItem(item)
+        if ordered:
+            self.list.setCurrentRow(0)
+
+
+class TablePage(QWidget):
+    continueRequested = Signal(object)
+    saveVersionRequested = Signal(object)
+    saveTemplateRequested = Signal(object)
+    templateChanged = Signal(object)
+    savedTemplateRequested = Signal(str)
+    rotationRequested = Signal(int)
+
+    def __init__(self, mode: str = "document") -> None:
+        super().__init__()
+        self.mode = mode
+        self.image: np.ndarray | None = None
+        self.template: TableTemplate | None = None
+        self._loading_form = False
+        self._selected_cells: set[tuple[int, int]] = set()
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(20, 18, 20, 20)
+        header = QHBoxLayout()
+        title = QLabel("Редактор шаблона" if mode == "template" else "Совмещение документа")
+        title.setStyleSheet("font-size: 23px; font-weight: 750;")
+        self.version_label = QLabel("")
+        self.version_label.setStyleSheet(f"color: {MUTED}; font-weight: 650;")
+        header.addWidget(title); header.addWidget(self.version_label); header.addStretch()
+        if mode == "template":
+            validate = QPushButton("Проверить шаблон")
+            validate.clicked.connect(self._validate_template)
+            save_version = QPushButton("Сохранить новую версию")
+            save_version.setProperty("primary", True)
+            save_version.clicked.connect(self._continue)
+            header.addWidget(validate); header.addWidget(save_version)
+        outer.addLayout(header)
+
+        split = QSplitter(Qt.Orientation.Horizontal)
+        self.document_split = split
+        split.setChildrenCollapsible(False)
+        left = QWidget()
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(0, 0, 14, 0)
+        tools = QHBoxLayout()
+        zoom_out = QToolButton(text="−")
+        zoom_in = QToolButton(text="+")
+        fit = QToolButton(text="Вписать")
+        zoom_out.clicked.connect(lambda: self.canvas.zoom_by(0.85))
+        zoom_in.clicked.connect(lambda: self.canvas.zoom_by(1.18))
+        fit.clicked.connect(self._fit_canvas)
+        for button in (zoom_out, zoom_in, fit):
+            tools.addWidget(button)
+        rotate_left = QToolButton(text="↶ Повернуть")
+        rotate_right = QToolButton(text="Повернуть ↷")
+        rotate_left.clicked.connect(lambda: self.rotationRequested.emit(90))
+        rotate_right.clicked.connect(lambda: self.rotationRequested.emit(-90))
+        tools.addWidget(rotate_left)
+        tools.addWidget(rotate_right)
+        tools.addStretch()
+        left_layout.addLayout(tools)
+        self.canvas = DocumentCanvas()
+        self.canvas.regionCreated.connect(self._region_created)
+        self.canvas.cellSelectionChanged.connect(self._selection_changed)
+        left_layout.addWidget(self.canvas)
+        split.addWidget(left)
+
+        self.tabs = QTabWidget()
+        self.tabs.setMinimumWidth(400)
+        self.tabs.setMaximumWidth(470)
+        self.tabs.addTab(self._build_grid_tab(), "Сетка")
+        self.tabs.addTab(self._build_fields_tab(), "Поля")
+        self.tabs.addTab(self._build_columns_tab(), "Столбцы")
+        self.tabs.addTab(self._build_cell_rules_tab(), "Правила")
+        self.tabs.currentChanged.connect(self._tab_changed)
+        split.addWidget(self.tabs)
+        split.setSizes([820, 440])
+        outer.addWidget(split, 1)
+
+    def _build_grid_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(14, 18, 8, 8)
+        form = QFormLayout()
+        form.setSpacing(12)
+        self.saved_template_select = QComboBox()
+        self.template_name = QLineEdit("Новый шаблон")
+        self.rows_spin = QSpinBox()
+        self.rows_spin.setRange(1, 200)
+        self.columns_spin = QSpinBox()
+        self.columns_spin.setRange(1, 100)
+        self.header_rows_spin = QSpinBox()
+        self.header_rows_spin.setRange(0, 20)
+        self.row_labels_spin = QSpinBox()
+        self.row_labels_spin.setRange(0, 20)
+        self.crossed = QCheckBox("Находить зачёркнутые строки")
+        self.crossed.setChecked(True)
+        self.high_accuracy = QCheckBox("Максимальная точность (медленнее)")
+        self.high_accuracy.setChecked(True)
+        self.high_accuracy.setToolTip("Многоэтапно сравнивает модели, внутренние варианты чисел, повторные вырезы, разделитель и независимую проверку цифр. Всё работает локально.")
+        form.addRow("Сохранённый шаблон", self.saved_template_select)
+        form.addRow("Название шаблона", self.template_name)
+        form.addRow("Строк", self.rows_spin)
+        form.addRow("Столбцов", self.columns_spin)
+        form.addRow("Строк заголовка", self.header_rows_spin)
+        form.addRow("Столбцов с названиями", self.row_labels_spin)
+        if self.mode == "template":
+            self.saved_template_select.hide()
+            label = form.labelForField(self.saved_template_select)
+            if label:
+                label.hide()
+        layout.addLayout(form)
+        layout.addWidget(self.crossed)
+        layout.addWidget(self.high_accuracy)
+        accuracy_note = QLabel("Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки.")
+        accuracy_note.setWordWrap(True)
+        accuracy_note.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(accuracy_note)
+        help_label = QLabel("Проверьте каждую синюю направляющую. Если заголовки находятся НАД таблицей, укажите 0 строк заголовка. Направляющие можно перетаскивать мышью.")
+        help_label.setWordWrap(True)
+        help_label.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(help_label)
+        self.grid_warning = QLabel("")
+        self.grid_warning.setWordWrap(True)
+        self.grid_warning.setStyleSheet(f"color: {AMBER};")
+        layout.addWidget(self.grid_warning)
+        detect = QPushButton("Найти сетку заново")
+        detect.clicked.connect(self.detect_again)
+        load_saved = QPushButton("Применить выбранный шаблон")
+        load_saved.clicked.connect(self._request_saved_template)
+        redraw = QPushButton("Перерисовать границу таблицы")
+        redraw.clicked.connect(lambda: self.canvas.begin_draw("table"))
+        layout.addWidget(load_saved)
+        layout.addWidget(detect)
+        layout.addWidget(redraw)
+        save_as_template = QPushButton("Сохранить как новую версию шаблона")
+        save_as_template.clicked.connect(lambda: self.saveTemplateRequested.emit(self.template) if self.template else None)
+        save_as_template.setVisible(self.mode != "template")
+        layout.addWidget(save_as_template)
+        layout.addStretch()
+        self.continue_button = QPushButton("Сохранить сетку и продолжить")
+        self.continue_button.setProperty("primary", True)
+        self.continue_button.clicked.connect(self._continue)
+        self.continue_button.setVisible(self.mode != "template")
+        layout.addWidget(self.continue_button)
+        if self.mode == "template":
+            self.high_accuracy.hide(); accuracy_note.hide(); load_saved.hide()
+        self.rows_spin.valueChanged.connect(self._grid_count_changed)
+        self.columns_spin.valueChanged.connect(self._grid_count_changed)
+        self.template_name.editingFinished.connect(self._save_common)
+        self.header_rows_spin.valueChanged.connect(self._save_common)
+        self.row_labels_spin.valueChanged.connect(self._save_common)
+        self.crossed.toggled.connect(self._save_common)
+        return tab
+
+    def set_recognition_running(self, running: bool) -> None:
+        self.continue_button.setEnabled(not running)
+        self.continue_button.setText("Распознавание выполняется…" if running else "Сохранить сетку и продолжить")
+
+    def set_saved_templates(self, templates: list[TableTemplate]) -> None:
+        selected_id = self.saved_template_select.currentData()
+        self.saved_template_select.clear()
+        self.saved_template_select.addItem("Выберите сохранённый шаблон…", "")
+        for template in templates:
+            self.saved_template_select.addItem(template.name, template.id)
+        if selected_id:
+            index = self.saved_template_select.findData(selected_id)
+            self.saved_template_select.setCurrentIndex(max(0, index))
+
+    def _request_saved_template(self) -> None:
+        template_id = self.saved_template_select.currentData()
+        if template_id:
+            self.savedTemplateRequested.emit(str(template_id))
+
+    def _build_fields_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(14, 18, 8, 8)
+        buttons = QHBoxLayout()
+        add = QPushButton("+ Добавить область")
+        add.clicked.connect(lambda: self.canvas.begin_draw("field"))
+        suggest = QPushButton("Предложить автоматически")
+        suggest.clicked.connect(self.suggest_fields)
+        buttons.addWidget(add)
+        buttons.addWidget(suggest)
+        layout.addLayout(buttons)
+        self.field_list = QListWidget()
+        self.field_list.currentRowChanged.connect(self._field_selected)
+        layout.addWidget(self.field_list, 1)
+
+        form = QFormLayout()
+        self.field_name = QLineEdit()
+        self.field_kind = QComboBox()
+        for label, code in (("Текст", "text"), ("Дата", "date"), ("Целое число", "integer"), ("Десятичное число", "numeric"), ("Сложная запись", "complex_numeric")):
+            self.field_kind.addItem(label, code)
+        self.field_recognition = QComboBox()
+        for label, code in (("Печатный текст", "printed"), ("Рукописный текст", "handwritten"), ("Число", "numeric")):
+            self.field_recognition.addItem(label, code)
+        self.field_source = QComboBox()
+        self.field_source.addItem("Распознать", "ocr")
+        self.field_source.addItem("Постоянное значение", "fixed")
+        self.field_fixed = QLineEdit()
+        self.field_export = QComboBox()
+        self.field_export.addItem("Повторить для каждой строки", "repeat")
+        self.field_export.addItem("Распределить по группе столбцов", "column_group")
+        self.field_required = QCheckBox()
+        self.field_column_start = QSpinBox()
+        self.field_column_end = QSpinBox()
+        form.addRow("Название поля", self.field_name)
+        form.addRow("Тип значения", self.field_kind)
+        form.addRow("Режим OCR", self.field_recognition)
+        form.addRow("Источник", self.field_source)
+        form.addRow("Постоянное значение", self.field_fixed)
+        form.addRow("Экспортировать", self.field_export)
+        form.addRow("Обязательное поле", self.field_required)
+        form.addRow("Первый столбец", self.field_column_start)
+        form.addRow("Последний столбец", self.field_column_end)
+        layout.addLayout(form)
+        only_label = QLabel("Распознаются только основная таблица и отмеченные области. Всё за их пределами игнорируется.")
+        only_label.setWordWrap(True)
+        only_label.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(only_label)
+        actions = QHBoxLayout()
+        redraw = QPushButton("Перерисовать область")
+        redraw.clicked.connect(self.redraw_selected_field)
+        delete = QPushButton("Удалить поле")
+        delete.setProperty("danger", True)
+        delete.clicked.connect(self.delete_field)
+        save = QPushButton("Сохранить поле")
+        save.setProperty("primary", True)
+        save.clicked.connect(self.save_field)
+        actions.addWidget(redraw)
+        actions.addWidget(delete)
+        actions.addWidget(save)
+        layout.addLayout(actions)
+        return tab
+
+    def _build_columns_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(14, 18, 8, 8)
+        form = QFormLayout()
+        self.column_select = QComboBox()
+        self.column_select.currentIndexChanged.connect(self._column_selected)
+        self.column_name = QLineEdit()
+        self.column_role = QComboBox()
+        for label, code in (("Данные", "data"), ("Заголовок", "header"), ("Название строки", "row_label"), ("Игнорировать", "ignored")):
+            self.column_role.addItem(label, code)
+        self._column_constraints = ValueConstraints()
+        form.addRow("Выбранный столбец", self.column_select)
+        form.addRow("Название столбца", self.column_name)
+        form.addRow("Назначение", self.column_role)
+        layout.addLayout(form)
+        self.column_rule_summary = QLabel(); self.column_rule_summary.setWordWrap(True)
+        layout.addWidget(self.column_rule_summary)
+        configure = QPushButton("Формат и допустимые значения…")
+        configure.clicked.connect(self._configure_column)
+        layout.addWidget(configure)
+        note = QLabel("Правило столбца применяется к строкам данных. Выделение на вкладке «Правила ячеек» имеет приоритет и может охватывать одну ячейку, строку или блок.")
+        note.setWordWrap(True)
+        note.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(note)
+        layout.addStretch()
+        save = QPushButton("Сохранить правила столбца")
+        save.setProperty("primary", True)
+        save.clicked.connect(self.save_column)
+        layout.addWidget(save)
+        return tab
+
+    def _build_cell_rules_tab(self) -> QWidget:
+        tab = QWidget(); layout = QVBoxLayout(tab)
+        layout.setContentsMargins(14, 16, 8, 8); layout.setSpacing(10)
+        help_text = QLabel("Щёлкните ячейку или протяните мышью по таблице. Shift расширяет диапазон; Ctrl/Cmd добавляет или убирает ячейки. Заголовок выбирает строку или столбец.")
+        help_text.setWordWrap(True); help_text.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(help_text)
+
+        selection_row = QHBoxLayout()
+        self.selection_label = QLabel("Ячейки не выбраны")
+        self.selection_label.setStyleSheet("font-weight: 700;")
+        select_all = QPushButton("Все измерения")
+        select_all.clicked.connect(self._rule_all_data)
+        clear = QPushButton("Снять")
+        clear.clicked.connect(lambda: self.canvas.select_cells(set()))
+        undo = QToolButton(text="↶"); undo.setToolTip("Отменить последнее выделение"); undo.clicked.connect(self.canvas.undo_selection)
+        redo = QToolButton(text="↷"); redo.setToolTip("Повторить выделение"); redo.clicked.connect(self.canvas.redo_selection)
+        selection_row.addWidget(self.selection_label, 1); selection_row.addWidget(select_all); selection_row.addWidget(clear)
+        selection_row.addWidget(undo); selection_row.addWidget(redo)
+        layout.addLayout(selection_row)
+
+        form = QFormLayout(); form.setSpacing(8)
+        self.quick_rule_name = QLineEdit("Измерения")
+        self.quick_kind = QComboBox()
+        for text, code in (("Десятичное число", "numeric"), ("Целое число", "integer"), ("Текст", "text"), ("Дата", "date"), ("Сложная запись", "complex_numeric")):
+            self.quick_kind.addItem(text, code)
+        self.quick_places = QSpinBox(); self.quick_places.setRange(-1, 8); self.quick_places.setSpecialValueText("Любое"); self.quick_places.setValue(1)
+        self.quick_minimum = QLineEdit("0"); self.quick_maximum = QLineEdit("60")
+        range_box = QWidget(); range_layout = QHBoxLayout(range_box); range_layout.setContentsMargins(0, 0, 0, 0)
+        range_layout.addWidget(self.quick_minimum); range_layout.addWidget(QLabel("—")); range_layout.addWidget(self.quick_maximum)
+        self.quick_require_decimal = QCheckBox("Десятичная часть обязательна"); self.quick_require_decimal.setChecked(True)
+        self.quick_recover_separator = QCheckBox("Восстанавливать пропущенный разделитель")
+        self.quick_recover_separator.setToolTip("Проверяет точку, запятую и узкий штрих, который OCR мог ошибочно прочитать как цифру 1.")
+        self.quick_recover_separator.setChecked(True)
+        self.quick_allow_empty = QCheckBox("Ячейка может быть пустой"); self.quick_allow_empty.setChecked(True)
+        self.quick_color = QComboBox()
+        for label, color in (("Индиго", "#4F46E5"), ("Бирюзовый", "#0F766E"), ("Зелёный", "#15803D"), ("Оранжевый", "#C26B16"), ("Малиновый", "#BE185D")):
+            self.quick_color.addItem(label, color)
+        form.addRow("Название", self.quick_rule_name)
+        form.addRow("Тип значения", self.quick_kind)
+        form.addRow("Знаков после точки", self.quick_places)
+        form.addRow("Разрешено от / до", range_box)
+        form.addRow(self.quick_require_decimal)
+        form.addRow(self.quick_recover_separator)
+        form.addRow(self.quick_allow_empty)
+        form.addRow("Цвет области", self.quick_color)
+        layout.addLayout(form)
+        self.quick_explanation = QLabel("")
+        self.quick_explanation.setWordWrap(True)
+        self.quick_explanation.setStyleSheet(f"background: {LIGHT_BLUE}; color: {TEXT}; padding: 9px; border-radius: 6px;")
+        layout.addWidget(self.quick_explanation)
+        for widget in (self.quick_minimum, self.quick_maximum): widget.textChanged.connect(self._quick_preview)
+        self.quick_places.valueChanged.connect(self._quick_preview)
+        self.quick_kind.currentIndexChanged.connect(self._quick_kind_changed)
+        self.quick_require_decimal.toggled.connect(self._quick_preview)
+        self.quick_recover_separator.toggled.connect(self._quick_preview)
+
+        actions = QHBoxLayout()
+        apply_rule = QPushButton("Применить к выделению"); apply_rule.setProperty("primary", True); apply_rule.clicked.connect(self._apply_quick_rule)
+        advanced = QPushButton("Дополнительно…"); advanced.clicked.connect(self._advanced_for_selection)
+        actions.addWidget(apply_rule, 1); actions.addWidget(advanced); layout.addLayout(actions)
+
+        rules_heading = QLabel("Области шаблона"); rules_heading.setStyleSheet("font-weight: 700;")
+        layout.addWidget(rules_heading)
+        self.rule_list = QListWidget(); self.rule_list.setMaximumHeight(150); self.rule_list.currentRowChanged.connect(self._rule_selected)
+        layout.addWidget(self.rule_list)
+        self.rule_summary = QLabel(); self.rule_summary.setWordWrap(True); self.rule_summary.setStyleSheet(f"color: {MUTED};")
+        layout.addWidget(self.rule_summary)
+        actions = QHBoxLayout()
+        edit = QPushButton("Изменить…"); edit.clicked.connect(self._edit_selected_rule)
+        remove = QPushButton("Удалить правило"); remove.clicked.connect(self._remove_selected_rule)
+        actions.addWidget(edit); actions.addWidget(remove); layout.addLayout(actions)
+        self._quick_preview()
+        return tab
+
+    def _selection_changed(self, cells: set[tuple[int, int]]) -> None:
+        self._selected_cells = set(cells)
+        if not cells:
+            self.selection_label.setText("Ячейки не выбраны")
+            return
+        rows = [cell[0] for cell in cells]; columns = [cell[1] for cell in cells]
+        start = f"{excel_column_name(min(columns))}{min(rows) + 1}"
+        end = f"{excel_column_name(max(columns))}{max(rows) + 1}"
+        rectangular = len(cells) == (max(rows) - min(rows) + 1) * (max(columns) - min(columns) + 1)
+        address = start if start == end else f"{start}:{end}"
+        self.selection_label.setText(address if rectangular else f"{len(cells)} ячеек")
+
+    def _quick_kind_changed(self) -> None:
+        kind = self.quick_kind.currentData()
+        numeric = kind == "numeric"
+        for widget in (self.quick_places, self.quick_require_decimal, self.quick_recover_separator):
+            widget.setEnabled(numeric)
+        if kind == "integer":
+            self.quick_places.setValue(0)
+            self.quick_require_decimal.setChecked(False)
+            self.quick_recover_separator.setChecked(False)
+        elif kind not in {"numeric", "integer"}:
+            self.quick_places.setValue(-1)
+            self.quick_require_decimal.setChecked(False)
+            self.quick_recover_separator.setChecked(False)
+            self.quick_minimum.clear(); self.quick_maximum.clear()
+        self._quick_preview()
+
+    def _read_quick_rule(self) -> ValueConstraints:
+        return ValueConstraints(
+            value_format=str(self.quick_kind.currentData()),
+            minimum=optional_number(self.quick_minimum.text()),
+            maximum=optional_number(self.quick_maximum.text()),
+            decimal_places=None if self.quick_places.value() < 0 else self.quick_places.value(),
+            allow_empty=self.quick_allow_empty.isChecked(),
+            suggest_missing_decimal=self.quick_recover_separator.isChecked(),
+            require_decimal=self.quick_require_decimal.isChecked(),
+        )
+
+    def _quick_preview(self) -> None:
+        if not hasattr(self, "quick_kind"):
+            return
+        try:
+            rule = self._read_quick_rule(); rule.validate()
+            examples = []
+            for raw in ("135", "3417", "99.8"):
+                reading = constrain_reading(OcrValue(raw, .5, candidates=[]), rule)
+                if reading.text != raw and not rule.hard_errors(reading.text):
+                    examples.append(f"{raw} → {reading.text}")
+                elif rule.hard_errors(raw):
+                    examples.append(f"{raw} запрещено")
+            message = "Точка и запятая будут сохранены как точка."
+            if examples:
+                message += " По этому правилу: " + "; ".join(examples) + "."
+            self.quick_explanation.setText(message)
+            self.quick_explanation.setStyleSheet(f"background: {LIGHT_BLUE}; color: {TEXT}; padding: 9px; border-radius: 6px;")
+        except (ValueError, TypeError) as exc:
+            self.quick_explanation.setText(f"Проверьте правило: {exc}")
+            self.quick_explanation.setStyleSheet("background: #FEF2F2; color: #B91C1C; padding: 9px; border-radius: 6px;")
+
+    @staticmethod
+    def _selection_rectangles(cells: set[tuple[int, int]]) -> list[tuple[int, int, int, int]]:
+        """Compress an arbitrary Excel-like selection into rectangular rules."""
+        runs_by_row: dict[int, list[tuple[int, int]]] = {}
+        for row in sorted({item[0] for item in cells}):
+            columns = sorted(column for candidate_row, column in cells if candidate_row == row)
+            runs: list[tuple[int, int]] = []
+            for column in columns:
+                if not runs or column > runs[-1][1] + 1:
+                    runs.append((column, column))
+                else:
+                    runs[-1] = (runs[-1][0], column)
+            runs_by_row[row] = runs
+        active: dict[tuple[int, int], tuple[int, int]] = {}
+        rectangles: list[tuple[int, int, int, int]] = []
+        for row in sorted(runs_by_row):
+            current = set(runs_by_row[row])
+            for run, (start, end) in list(active.items()):
+                if run not in current or row != end + 1:
+                    rectangles.append((start, end, run[0], run[1])); del active[run]
+            for run in current:
+                start, end = active.get(run, (row, row))
+                active[run] = (start, row if row == end + 1 else end)
+        for run, (start, end) in active.items():
+            rectangles.append((start, end, run[0], run[1]))
+        return rectangles
+
+    def _append_rule_regions(self, name: str, rule: ValueConstraints, color: str) -> None:
+        if not self.template or not self._selected_cells:
+            QMessageBox.information(self, "Выделение", "Сначала выберите ячейку или диапазон на таблице.")
+            return
+        for row_start, row_end, column_start, column_end in self._selection_rectangles(self._selected_cells):
+            self.template.cell_rules = [
+                existing for existing in self.template.cell_rules
+                if (existing.row_start, existing.row_end, existing.column_start, existing.column_end)
+                != (row_start, row_end, column_start, column_end)
+            ]
+            self.template.cell_rules.append(CellRuleRegion(
+                str(uuid4()), name, row_start, row_end, column_start, column_end,
+                constraints=ValueConstraints(**asdict(rule)), color=color,
+            ))
+        self.template.schema_version = 3
+        self._refresh_cell_rules()
+        self.templateChanged.emit(self.template)
+
+    def _apply_quick_rule(self) -> None:
+        try:
+            rule = self._read_quick_rule(); rule.validate()
+        except (ValueError, TypeError) as exc:
+            QMessageBox.warning(self, "Некорректное правило", str(exc)); return
+        self._append_rule_regions(
+            self.quick_rule_name.text().strip() or "Значения", rule,
+            str(self.quick_color.currentData()),
+        )
+
+    def _advanced_for_selection(self) -> None:
+        if not self.template or not self._selected_cells:
+            QMessageBox.information(self, "Выделение", "Сначала выберите ячейку или диапазон на таблице."); return
+        rows = [cell[0] for cell in self._selected_cells]; columns = [cell[1] for cell in self._selected_cells]
+        try:
+            initial = self._read_quick_rule(); initial.validate()
+        except (ValueError, TypeError) as exc:
+            QMessageBox.warning(self, "Некорректное правило", str(exc)); return
+        region = CellRuleRegion(
+            str(uuid4()), self.quick_rule_name.text().strip() or "Значения",
+            min(rows), max(rows), min(columns), max(columns), initial,
+            str(self.quick_color.currentData()),
+        )
+        dialog = ValueRuleDialog(initial, self, title="Расширенное правило", region=region, rows=self.template.rows, columns=self.template.columns)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.quick_rule_name.setText(dialog.region_name.text().strip() or "Значения")
+            self._append_rule_regions(self.quick_rule_name.text(), dialog.rule, str(self.quick_color.currentData()))
+
+    def _refresh_cell_rules(self) -> None:
+        self.rule_list.blockSignals(True); self.rule_list.clear()
+        if self.template:
+            for index, region in enumerate(self.template.cell_rules):
+                outside = region.row_end >= self.template.rows or region.column_end >= self.template.columns
+                self.rule_list.addItem(f"{index + 1}. {region.name}\n{region.address()}" + (" — вне сетки!" if outside else ""))
+        self.rule_list.blockSignals(False)
+        self.rule_list.setCurrentRow(self.rule_list.count() - 1)
+        self._rule_selected(self.rule_list.currentRow())
+
+    def _rule_selected(self, index: int) -> None:
+        self.canvas.active_rule = index
+        if self.template and 0 <= index < len(self.template.cell_rules):
+            region = self.template.cell_rules[index]
+            self.rule_summary.setText(region.constraints.summary())
+            self.canvas.select_region(region.row_start, region.row_end, region.column_start, region.column_end)
+            self.quick_rule_name.setText(region.name)
+            self.quick_kind.setCurrentIndex(max(0, self.quick_kind.findData(region.constraints.value_format)))
+            self.quick_places.setValue(-1 if region.constraints.decimal_places is None else region.constraints.decimal_places)
+            self.quick_minimum.setText("" if region.constraints.minimum is None else str(region.constraints.minimum))
+            self.quick_maximum.setText("" if region.constraints.maximum is None else str(region.constraints.maximum))
+            self.quick_require_decimal.setChecked(region.constraints.require_decimal)
+            self.quick_recover_separator.setChecked(region.constraints.suggest_missing_decimal)
+            self.quick_allow_empty.setChecked(region.constraints.allow_empty)
+            color_index = self.quick_color.findData(region.color)
+            if color_index >= 0:
+                self.quick_color.setCurrentIndex(color_index)
+        else:
+            self.rule_summary.clear()
+        self.canvas.redraw()
+
+    def _edit_rule(self, region: CellRuleRegion, *, existing: bool = False) -> None:
+        if not self.template:
+            return
+        dialog = ValueRuleDialog(region.constraints, self, title="Правило для выбранных ячеек", region=region, rows=self.template.rows, columns=self.template.columns)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        updated = CellRuleRegion(region.id, dialog.region_name.text().strip() or "Значения", *dialog.selection, constraints=dialog.rule, color=region.color)
+        if existing:
+            self.template.cell_rules = [r for r in self.template.cell_rules if r.id != region.id]
+        self.template.cell_rules.append(updated)
+        self.template.schema_version = 3
+        self._refresh_cell_rules(); self.templateChanged.emit(self.template)
+
+    def _rule_all_data(self) -> None:
+        if self.template:
+            self.canvas.select_all_data()
+
+    def _rule_axis(self, axis: str) -> None:
+        if not self.template:
+            return
+        t = self.template
+        value, accepted = QInputDialog.getInt(self, "Выбор", "Номер строки" if axis == "row" else "Номер столбца", 1, 1, t.rows if axis == "row" else t.columns)
+        if accepted:
+            rs, re, cs, ce = (value - 1, value - 1, 0, t.columns - 1) if axis == "row" else (t.header_rows, t.rows - 1, value - 1, value - 1)
+            self._edit_rule(CellRuleRegion(str(uuid4()), "Строка" if axis == "row" else "Столбец", rs, re, cs, ce))
+
+    def _edit_selected_rule(self) -> None:
+        index = self.rule_list.currentRow()
+        if self.template and 0 <= index < len(self.template.cell_rules):
+            self._edit_rule(self.template.cell_rules[index], existing=True)
+
+    def _remove_selected_rule(self) -> None:
+        index = self.rule_list.currentRow()
+        if self.template and 0 <= index < len(self.template.cell_rules):
+            self.template.cell_rules.pop(index)
+            self._refresh_cell_rules(); self.templateChanged.emit(self.template)
+
+    def _configure_column(self) -> None:
+        dialog = ValueRuleDialog(self._column_constraints, self, title="Правило всего столбца")
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self._column_constraints = dialog.rule
+            self.save_column()
+
+    def set_document(self, image: np.ndarray, template: TableTemplate) -> None:
+        self.image = image
+        self.template = template
+        self.version_label.setText(f"v{template.template_version}")
+        saved_index = self.saved_template_select.findData(template.id)
+        if saved_index >= 0:
+            self.saved_template_select.setCurrentIndex(saved_index)
+        template.ensure_column_rules()
+        self._loading_form = True
+        self.template_name.setText(template.name)
+        self.rows_spin.setValue(template.rows)
+        self.columns_spin.setValue(template.columns)
+        self.header_rows_spin.setValue(template.header_rows)
+        self.row_labels_spin.setValue(template.row_label_columns)
+        self.crossed.setChecked(template.detect_crossed_rows)
+        self._loading_form = False
+        self._refresh_fields()
+        self._refresh_columns()
+        self._refresh_cell_rules()
+        self.canvas.show_grid = True
+        self.canvas.show_fields = False
+        self.canvas.show_rules = False
+        self.canvas.set_document(image, template)
+        self._tab_changed(self.tabs.currentIndex())
+
+    def _fit_canvas(self) -> None:
+        self.canvas.resetTransform()
+        self.canvas.fit_document()
+
+    def _tab_changed(self, index: int) -> None:
+        self.canvas.show_grid = index not in {1, 3}
+        self.canvas.show_fields = index == 1
+        self.canvas.show_rules = index == 3
+        self.canvas.set_selection_enabled(index == 3)
+
+    def _save_common(self) -> None:
+        if self._loading_form or not self.template:
+            return
+        self.template.name = self.template_name.text().strip() or "Новый шаблон"
+        self.template.header_rows = min(self.header_rows_spin.value(), max(0, self.template.rows - 1))
+        self.template.row_label_columns = min(self.row_labels_spin.value(), max(0, self.template.columns - 1))
+        self.template.detect_crossed_rows = self.crossed.isChecked()
+        self.template.ensure_column_rules()
+        for index in range(min(self.template.row_label_columns, len(self.template.column_rules))):
+            self.template.column_rules[index].role = "row_label"
+        self.templateChanged.emit(self.template)
+
+    def _grid_count_changed(self) -> None:
+        if self._loading_form or not self.template:
+            return
+        self.template.row_guides, self.template.column_guides = evenly_spaced_guides(
+            self.template.table_rect, self.rows_spin.value(), self.columns_spin.value()
+        )
+        self.template.ensure_column_rules()
+        self._refresh_columns()
+        self._refresh_cell_rules()
+        self.canvas.redraw()
+        self.templateChanged.emit(self.template)
+
+    def detect_again(self) -> None:
+        if self.image is None:
+            return
+        try:
+            detection = detect_grid(self.image)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Сетка не найдена", str(exc))
+            return
+        self.template.table_rect = detection.table_rect
+        self.template.row_guides = detection.row_guides
+        self.template.column_guides = detection.column_guides
+        self.template.ensure_column_rules()
+        self.set_document(self.image, self.template)
+        self.grid_warning.setText(" ".join(detection.warnings))
+
+    def _region_created(self, kind: str, rect: QRectF) -> None:
+        if self.image is None or not self.template:
+            return
+        normalized = NormalizedRect.from_pixels(
+            (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
+        )
+        if kind == "cell_rule":
+            t = self.template
+            x1, x2 = max(normalized.x, t.column_guides[0]), min(normalized.x + normalized.width, t.column_guides[-1])
+            y1, y2 = max(normalized.y, t.row_guides[0]), min(normalized.y + normalized.height, t.row_guides[-1])
+            if x1 >= x2 or y1 >= y2:
+                QMessageBox.information(self, "Выделение", "Выделите область внутри таблицы."); return
+            rs, re = bisect_right(t.row_guides, y1) - 1, bisect_right(t.row_guides, y2 - 1e-9) - 1
+            cs, ce = bisect_right(t.column_guides, x1) - 1, bisect_right(t.column_guides, x2 - 1e-9) - 1
+            self._edit_rule(CellRuleRegion(str(uuid4()), "Значения", rs, re, cs, ce))
+            return
+        if kind == "table":
+            self.template.table_rect = normalized
+            self.template.row_guides, self.template.column_guides = evenly_spaced_guides(
+                normalized, self.rows_spin.value(), self.columns_spin.value()
+            )
+            self.canvas.redraw()
+            self.templateChanged.emit(self.template)
+            return
+        if kind == "replace_field":
+            index = self.field_list.currentRow()
+            if 0 <= index < len(self.template.fields):
+                self.template.fields[index].rect = normalized
+                self.canvas.redraw()
+                self.templateChanged.emit(self.template)
+            return
+        region = FieldRegion(str(uuid4()), f"Поле {len(self.template.fields) + 1}", normalized)
+        self.template.fields.append(region)
+        self._refresh_fields()
+        self.field_list.setCurrentRow(len(self.template.fields) - 1)
+        self.canvas.redraw()
+
+    def _refresh_fields(self) -> None:
+        self.field_list.clear()
+        if not self.template:
+            return
+        for region in self.template.fields:
+            value = f" — {region.fixed_value}" if region.source == "fixed" and region.fixed_value else ""
+            self.field_list.addItem(f"{region.name}{value}")
+        maximum = max(0, self.template.columns - 1)
+        self.field_column_start.setRange(0, maximum)
+        self.field_column_end.setRange(0, maximum)
+
+    def _field_selected(self, index: int) -> None:
+        if not self.template or index < 0 or index >= len(self.template.fields):
+            return
+        region = self.template.fields[index]
+        self._loading_form = True
+        self.field_name.setText(region.name)
+        self.field_kind.setCurrentIndex(max(0, self.field_kind.findData(region.kind)))
+        self.field_recognition.setCurrentIndex(max(0, self.field_recognition.findData(region.recognition)))
+        self.field_source.setCurrentIndex(max(0, self.field_source.findData(region.source)))
+        self.field_fixed.setText(region.fixed_value)
+        self.field_export.setCurrentIndex(max(0, self.field_export.findData(region.export_mode)))
+        self.field_required.setChecked(region.required)
+        self.field_column_start.setValue(region.column_start or 0)
+        self.field_column_end.setValue(region.column_end if region.column_end is not None else max(0, self.template.columns - 1))
+        self._loading_form = False
+        self.canvas.active_field = index
+        self.canvas.redraw()
+
+    def save_field(self) -> None:
+        index = self.field_list.currentRow()
+        if not self.template or index < 0:
+            return
+        region = self.template.fields[index]
+        region.name = self.field_name.text().strip() or region.name
+        region.kind = str(self.field_kind.currentData())
+        region.recognition = str(self.field_recognition.currentData())
+        region.source = str(self.field_source.currentData())
+        region.fixed_value = self.field_fixed.text().strip()
+        region.export_mode = str(self.field_export.currentData())
+        region.required = self.field_required.isChecked()
+        if region.export_mode == "column_group":
+            region.column_start = self.field_column_start.value()
+            region.column_end = self.field_column_end.value()
+        else:
+            region.column_start = region.column_end = None
+        self._refresh_fields()
+        self.field_list.setCurrentRow(index)
+        self.templateChanged.emit(self.template)
+
+    def redraw_selected_field(self) -> None:
+        if self.template and 0 <= self.field_list.currentRow() < len(self.template.fields):
+            self.canvas.begin_draw("replace_field")
+
+    def delete_field(self) -> None:
+        index = self.field_list.currentRow()
+        if not self.template or index < 0:
+            return
+        del self.template.fields[index]
+        self.canvas.active_field = -1
+        self._refresh_fields()
+        self.canvas.redraw()
+        self.templateChanged.emit(self.template)
+
+    def suggest_fields(self) -> None:
+        if self.image is None or not self.template:
+            return
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            suggestions = suggest_standard_fields(self.image, self.template)
+        finally:
+            QApplication.restoreOverrideCursor()
+        existing = {(region.name, region.fixed_value) for region in self.template.fields}
+        added = 0
+        for region in suggestions:
+            if (region.name, region.fixed_value) not in existing:
+                self.template.fields.append(region)
+                added += 1
+        self._refresh_fields()
+        self.canvas.redraw()
+        QMessageBox.information(self, "Предложенные поля", f"Добавлено областей: {added}.")
+
+    def _refresh_columns(self) -> None:
+        self.column_select.blockSignals(True)
+        self.column_select.clear()
+        if self.template:
+            self.template.ensure_column_rules()
+            for index, rule in enumerate(self.template.column_rules):
+                self.column_select.addItem(f"{index + 1}: {rule.name}")
+        self.column_select.blockSignals(False)
+        if self.column_select.count():
+            self.column_select.setCurrentIndex(0)
+            self._column_selected(0)
+
+    def _column_selected(self, index: int) -> None:
+        if not self.template or index < 0 or index >= len(self.template.column_rules):
+            return
+        rule = self.template.column_rules[index]
+        self.column_name.setText(rule.name)
+        self.column_role.setCurrentIndex(max(0, self.column_role.findData(rule.role)))
+        self._column_constraints = rule.constraints()
+        self.column_rule_summary.setText(self._column_constraints.summary())
+
+    def save_column(self) -> None:
+        index = self.column_select.currentIndex()
+        if not self.template or index < 0:
+            return
+        rule = self.template.column_rules[index]
+        try:
+            self._column_constraints.validate()
+        except ValueError:
+            QMessageBox.warning(self, "Правило", "Проверьте формат и границы.")
+            return
+        updated = asdict(rule) | asdict(self._column_constraints)
+        updated.update(name=self.column_name.text().strip() or rule.name, role=str(self.column_role.currentData()))
+        self.template.column_rules[index] = ColumnRule(**updated)
+        self.template.schema_version = 2
+        self._refresh_columns()
+        self.column_select.setCurrentIndex(index)
+        self.templateChanged.emit(self.template)
+
+    def _continue(self) -> None:
+        self._save_common()
+        if self.template:
+            try:
+                self.template.validate_value_rules()
+            except ValueError as exc:
+                QMessageBox.warning(self, "Проверьте правила", str(exc)); return
+            if self.mode == "template":
+                self.saveVersionRequested.emit(self.template)
+            else:
+                self.continueRequested.emit(self.template)
+
+    def _validate_template(self) -> None:
+        if not self.template:
+            return
+        self._save_common()
+        try:
+            self.template.validate_value_rules()
+        except ValueError as exc:
+            QMessageBox.warning(self, "Шаблон требует исправления", str(exc)); return
+        uncovered = 0
+        for row in range(self.template.header_rows, self.template.rows):
+            for column in range(self.template.row_label_columns, self.template.columns):
+                rule, _ = self.template.value_constraints(row, column)
+                if rule.value_format == "complex_numeric" and not any(region.contains(row, column) for region in self.template.cell_rules):
+                    uncovered += 1
+        message = "Ошибок не найдено."
+        if uncovered:
+            message += f" {uncovered} ячеек используют широкое базовое правило; для точного OCR задайте им тип и диапазон."
+        QMessageBox.information(self, "Проверка шаблона", message)
+
+
+class RecognitionWorker(QThread):
+    progress = Signal(int, int, str)
+    completed = Signal(object)
+    failed = Signal(str)
+    cancelled = Signal()
+
+    def __init__(self, images: list[np.ndarray], source_path: str, template: TableTemplate, crop_root: Path, high_accuracy: bool = True, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self.images = images
+        self.source_path = source_path
+        self.template = template
+        self.crop_root = crop_root
+        self.high_accuracy = high_accuracy
+
+    def run(self) -> None:
+        try:
+            def report(value: int, maximum: int, label: str) -> None:
+                if self.isInterruptionRequested():
+                    raise InterruptedError
+                self.progress.emit(value, maximum, label)
+
+            result = process_document(
+                self.images, self.source_path, self.template,
+                report, self.crop_root, self.high_accuracy,
+            )
+            self.completed.emit(result)
+        except InterruptedError:
+            self.cancelled.emit()
+        except Exception as exc:  # UI boundary: surface actionable error
+            self.failed.emit(str(exc))
+
+
+class CropPreview(QLabel):
+    """Keep the *whole* source crop visible as the inspector changes size."""
+    def __init__(self, text: str = "") -> None:
+        super().__init__(text)
+        self._source_pixmap: QPixmap | None = None
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Expanding)
+
+    def set_source_pixmap(self, pixmap: QPixmap) -> None:
+        self._source_pixmap = pixmap
+        self._fit_source()
+
+    def setText(self, text: str) -> None:
+        self._source_pixmap = None
+        super().setText(text)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._fit_source()
+
+    def _fit_source(self) -> None:
+        if self._source_pixmap is not None:
+            super().setPixmap(self._source_pixmap.scaled(self.contentsRect().size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+
+
+class ReviewPage(QWidget):
+    exportRequested = Signal()
+    resultChanged = Signal(object)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.images: list[np.ndarray] = []
+        self.result: JobResult | None = None
+        self.current_page = 0
+        self.current_kind = "cell"
+        self.current_index = -1
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(8, 10, 16, 14)
+
+        toolbar = QHBoxLayout()
+        toolbar.addWidget(QLabel("Страница"))
+        self.page_select = QComboBox()
+        self.page_select.setMinimumWidth(92)
+        self.page_select.currentIndexChanged.connect(self._page_changed)
+        toolbar.addWidget(self.page_select)
+        self.unresolved_label = QLabel("Нет значений для сверки")
+        self.unresolved_label.setStyleSheet(f"color: {AMBER}; font-weight: 700;")
+        self.uncertain_only = QCheckBox("Только спорные")
+        self.uncertain_only.toggled.connect(self._apply_filter)
+        self.confirm_all_button = QPushButton("Подтвердить все спорные")
+        self.confirm_all_button.setToolTip("Принять показанные значения во всём документе")
+        self.confirm_all_button.clicked.connect(self.confirm_all_uncertain)
+        export = QPushButton("Экспорт в Excel")
+        export.setProperty("primary", True)
+        export.clicked.connect(self.exportRequested)
+        toolbar.addStretch()
+        toolbar.addWidget(self.unresolved_label)
+        toolbar.addWidget(self.uncertain_only)
+        toolbar.addWidget(self.confirm_all_button)
+        toolbar.addWidget(export)
+        outer.addLayout(toolbar)
+
+        split = QSplitter(Qt.Orientation.Horizontal)
+        preview_box = QWidget()
+        preview_layout = QVBoxLayout(preview_box)
+        preview_layout.setContentsMargins(0, 0, 6, 0)
+        preview_layout.addWidget(QLabel("Оригинал документа"))
+        self.canvas = DocumentCanvas()
+        self.canvas.show_grid = False
+        self.canvas.show_fields = True
+        preview_layout.addWidget(self.canvas)
+        split.addWidget(preview_box)
+
+        table_box = QWidget()
+        table_layout = QVBoxLayout(table_box)
+        table_layout.setContentsMargins(6, 0, 0, 0)
+        self.fields_label = QLabel("Распознанные поля")
+        table_layout.addWidget(self.fields_label)
+        self.fields_table = QTableWidget(0, 3)
+        self.fields_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.fields_table.setHorizontalHeaderLabels(["Поле", "Значение", "Уверенность"])
+        self.fields_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
+        self.fields_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.fields_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.fields_table.verticalHeader().hide()
+        self.fields_table.setMaximumHeight(145)
+        self.fields_table.cellClicked.connect(self._field_clicked)
+        table_layout.addWidget(self.fields_table)
+        table_layout.addWidget(QLabel("Распознанная таблица"))
+        self.table = QTableWidget()
+        self.table.setMinimumHeight(260)
+        self.table.setStyleSheet("QTableWidget { font-size: 14px; }")
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.cellClicked.connect(self._cell_clicked)
+        table_layout.addWidget(self.table, 1)
+        split.addWidget(table_box)
+        split.setSizes([560, 760])
+        split.setStretchFactor(0, 2)
+        split.setStretchFactor(1, 3)
+
+        inspector = QFrame()
+        inspector.setObjectName("reviewInspector")
+        inspector.setMinimumHeight(225)
+        inspector.setStyleSheet(f"QFrame#reviewInspector {{ border: 1px solid {BORDER}; border-radius: 7px; }} QFrame#reviewInspector QLabel {{ border: 0; }}")
+        inspector_layout = QHBoxLayout(inspector)
+        self.crop_label = CropPreview("Выберите значение")
+        self.crop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.crop_label.setMinimumSize(250, 105)
+        self.crop_label.setStyleSheet("background: #FFFFFF; border: 1px solid #E2E5EA; border-radius: 5px;")
+        inspector_layout.addWidget(self.crop_label, 2)
+        detail_widget = QWidget()
+        value_box = QVBoxLayout(detail_widget)
+        value_box.setContentsMargins(0, 0, 6, 0)
+        self.address_label = QLabel("Выбранное значение")
+        self.address_label.setStyleSheet("font-weight: 700;")
+        self.value_label = QLabel("—")
+        self.value_label.setStyleSheet("font-size: 25px; font-weight: 700;")
+        self.confidence_label = QLabel("Уверенность —")
+        self.confidence_label.setWordWrap(True)
+        value_box.addWidget(self.address_label)
+        value_box.addWidget(self.value_label)
+        value_box.addWidget(self.confidence_label)
+        value_box.addStretch()
+        self.detail_scroll = QScrollArea()
+        self.detail_scroll.setWidgetResizable(True)
+        self.detail_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.detail_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.detail_scroll.setMinimumSize(300, 170)
+        self.detail_scroll.setWidget(detail_widget)
+        inspector_layout.addWidget(self.detail_scroll, 2)
+        edit_box = QVBoxLayout()
+        edit_box.addWidget(QLabel("Правильное значение"))
+        self.correct_value = QLineEdit()
+        self.correct_value.returnPressed.connect(self.confirm_current)
+        edit_box.addWidget(self.correct_value)
+        self.exclude_row = QCheckBox("Исключить эту строку")
+        self.exclude_row.toggled.connect(self._exclude_toggled)
+        edit_box.addWidget(self.exclude_row)
+        actions = QHBoxLayout()
+        confirm = QPushButton("Подтвердить")
+        confirm.setProperty("primary", True)
+        confirm.clicked.connect(self.confirm_current)
+        next_button = QPushButton("Следующее спорное")
+        next_button.clicked.connect(self.select_next_uncertain)
+        actions.addWidget(confirm)
+        actions.addWidget(next_button)
+        edit_box.addLayout(actions)
+        inspector_layout.addLayout(edit_box, 3)
+        self.review_split = QSplitter(Qt.Orientation.Vertical)
+        self.review_split.setChildrenCollapsible(False)
+        self.review_split.addWidget(split)
+        self.review_split.addWidget(inspector)
+        self.review_split.setStretchFactor(0, 3)
+        self.review_split.setStretchFactor(1, 2)
+        self.review_split.setSizes([560, 280])
+        outer.addWidget(self.review_split, 1)
+
+    def set_result(self, images: list[np.ndarray], result: JobResult) -> None:
+        self.images = images
+        self.result = result
+        self.current_page = 0
+        self.page_select.blockSignals(True)
+        self.page_select.clear()
+        for index in range(min(len(images), len(result.pages))):
+            self.page_select.addItem(f"{index + 1} из {len(result.pages)}")
+        self.page_select.setCurrentIndex(0)
+        self.page_select.blockSignals(False)
+        if images:
+            self.canvas.set_document(images[0], result.template)
+        self._populate()
+        self.select_next_uncertain()
+
+    def _page_changed(self, index: int) -> None:
+        if not self.result or not 0 <= index < min(len(self.images), len(self.result.pages)):
+            return
+        self.current_page = index
+        self.current_index = -1
+        self.canvas.set_document(self.images[index], self.result.template)
+        self._populate()
+        self.select_next_uncertain()
+
+    def _populate(self) -> None:
+        if not self.result:
+            return
+        page = self.result.pages[self.current_page]
+        has_fields = bool(page.fields)
+        self.fields_label.setVisible(has_fields)
+        self.fields_table.setVisible(has_fields)
+        self.fields_table.setRowCount(len(page.fields))
+        for index, item in enumerate(page.fields):
+            values = [item.name, item.final_text, f"{item.confidence:.0%}"]
+            for column, value in enumerate(values):
+                widget_item = QTableWidgetItem(value)
+                if item.needs_review:
+                    widget_item.setBackground(QColor("#FEF3C7"))
+                self.fields_table.setItem(index, column, widget_item)
+
+        self.table.setRowCount(self.result.template.rows)
+        self.table.setColumnCount(self.result.template.columns)
+        self.table.setHorizontalHeaderLabels([rule.name for rule in self.result.template.column_rules])
+        self.table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self.table.verticalHeader().setMinimumSectionSize(34)
+        for cell in page.cells:
+            item = QTableWidgetItem("—" if cell.status == "excluded" else cell.final_text)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if cell.status == "excluded":
+                item.setBackground(QColor("#ECEFF3"))
+                item.setForeground(QColor(MUTED))
+            elif cell.needs_review:
+                item.setBackground(QColor("#FEF3C7"))
+                item.setForeground(QColor("#92400E"))
+            elif cell.status in {"confirmed", "corrected"}:
+                item.setBackground(QColor("#ECFDF3"))
+            self.table.setItem(cell.row, cell.column, item)
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        header.setMinimumSectionSize(76)
+        header.setDefaultSectionSize(96)
+        self._update_status()
+        self._apply_filter()
+
+    def _update_status(self) -> None:
+        if not self.result:
+            return
+        count = self.result.unresolved_count
+        self.unresolved_label.setText(f"Нужно сверить: {count}" if count else "Готово к экспорту")
+        self.unresolved_label.setStyleSheet(f"color: {AMBER if count else GREEN}; font-weight: 700;")
+        self.confirm_all_button.setEnabled(count > 0)
+
+    def _field_clicked(self, row: int, _column: int) -> None:
+        self.current_kind = "field"
+        self.current_index = row
+        self._show_current()
+
+    def _cell_clicked(self, row: int, column: int) -> None:
+        if not self.result:
+            return
+        page = self.result.pages[self.current_page]
+        index = next((i for i, item in enumerate(page.cells) if item.row == row and item.column == column), -1)
+        self.current_kind = "cell"
+        self.current_index = index
+        self._show_current()
+
+    def _show_current(self) -> None:
+        if not self.result or self.current_index < 0:
+            return
+        page = self.result.pages[self.current_page]
+        if self.current_kind == "field":
+            item = page.fields[self.current_index]
+            self.canvas.set_active_cell(None)
+            self.address_label.setText(f"Поле · {item.name}")
+            self.exclude_row.blockSignals(True)
+            self.exclude_row.setChecked(False)
+            self.exclude_row.setEnabled(False)
+            self.exclude_row.blockSignals(False)
+        else:
+            item = page.cells[self.current_index]
+            self.canvas.set_active_cell(item.row, item.column)
+            self.address_label.setText(f"Ячейка {excel_column_name(item.column)}{item.row + 1}")
+            self.exclude_row.blockSignals(True)
+            self.exclude_row.setEnabled(item.row >= self.result.template.header_rows)
+            self.exclude_row.setChecked(item.row in page.excluded_rows)
+            self.exclude_row.blockSignals(False)
+        if getattr(item, "status", "automatic") == "excluded":
+            self.value_label.setText("Пусто — исключено")
+        else:
+            self.value_label.setText(item.final_text or "Пусто")
+        self.correct_value.setText(item.final_text)
+        reasons = {
+            "numeric_verification_required": "Цифры и десятичный разделитель прошли многоэтапную локальную проверку",
+            "model_disagreement": "Локальные модели предлагают разные прочтения",
+            "possible_missing_decimal": "Возможно, пропущен десятичный разделитель",
+            "possible_border_digit": "Граница таблицы могла быть прочитана как 1",
+            "crossed_out_row": "На изображении обнаружен непрерывный штрих через строку",
+            "auto_excluded_crossed_row": "Непрерывный штрих найден по всей строке; её значения автоматически оставлены пустыми",
+            "non_numeric_mark_row": "В большинстве ячеек строки OCR видит буквы или символы вместо чисел; строка оставлена пустой",
+            "alternative_selected": "Выбрано альтернативное прочтение; исходный OCR показан выше",
+            "rule_selected_alternative": "Выбрано другое прочтение OCR, соответствующее вашему правилу",
+            "expected_range_selected_alternative": "Выбран реально прочитанный OCR-вариант из заданного обычного диапазона — проверьте оригинал",
+            "separator_inferred_from_rule": "Разделитель предложен по формату, а не прочитан моделью — проверьте оригинал",
+            "separator_reclassified_from_one": "Узкий штрих, прочитанный как 1, предложен как десятичный разделитель по правилу шаблона — проверьте оригинал",
+            "rule_conflict": "Ни одно прочтение не соответствует правилу",
+            "ambiguous_rule_proposals": "По формату возможны разные значения — автоматического выбора нет",
+            "decimal_places_mismatch": "Не совпадает число знаков после разделителя",
+            "decimal_part_required": "По шаблону десятичная часть обязательна",
+            "expected_integer": "Здесь разрешено только целое число",
+            "expected_decimal_number": "Здесь разрешено только простое число",
+            "value_not_allowed": "Значения нет в разрешённом списке",
+            "outside_expected_range": "Необычное значение: вне ожидаемого диапазона, но не запрещено",
+            "range_not_checkable": "Диапазон нельзя проверить для сложной записи",
+            "value_rule_review_required": "Значение проверено по правилу шаблона",
+            "constrained_decoder_used": "Проверены дополнительные варианты из внутренних вероятностей OCR",
+            "crop_retry_contributed": "Дополнительный вырез ячейки повлиял на результат",
+            "decimal_separator_detected": "Разделитель найден отдельным геометрическим детектором",
+            "separator_not_visually_confirmed": "OCR предложил дробь, но отдельный детектор не подтвердил разделитель",
+            "visible_digit_count_used": "Короткий вариант отклонён: на изображении виден дополнительный отдельный знак",
+            "decimal_boundary_inferred_from_glyphs": "Позиция дробной части найдена между видимыми знаками с учётом формата шаблона",
+            "repeated_digit_shape_agrees": "Повторяющиеся цифры подтверждены сходством их рукописной формы",
+            "unstable_consensus": "Недостаточно устойчивое согласие независимых этапов",
+            "digit_verifier_agrees": "Независимый распознаватель отдельных цифр согласен",
+            "digit_verifier_disagreement": "Дополнительный распознаватель цифр предложил другой вариант; основной консенсус сохранён",
+            "multistage_cascade": "Выполнена многоэтапная локальная проверка",
+            "table_outlier": "Значение резко отличается от других сопоставимых ячеек этой строки",
+            "table_outlier_with_plausible_alternative": "Среди других прочтений OCR есть вариант, согласующийся со строкой — выберите его только после сверки с фото",
+        }
+        details = [reasons.get(flag, flag.replace("_", " ")) for flag in item.flags]
+        if getattr(item, "applied_rule", ""):
+            details.insert(0, "Правило: " + item.applied_rule)
+        if getattr(item, "suggested_text", ""):
+            details.append("OCR до исключения: " + item.suggested_text)
+        elif item.raw_text and item.raw_text != item.final_text:
+            details.append("Первичное OCR: " + item.raw_text)
+        if item.alternatives:
+            details.append(f"Другие прочтения: {item.alternatives}")
+        self.confidence_label.setText("\n".join(details) or "Сравните с оригиналом перед подтверждением")
+        self.confidence_label.setToolTip(f"Оценка модели {item.confidence:.0%}; это не измеренная точность переноса")
+        if item.crop_path and Path(item.crop_path).exists():
+            pixmap = QPixmap(item.crop_path)
+            self.crop_label.set_source_pixmap(pixmap)
+        else:
+            self.crop_label.setText("Фрагмент недоступен")
+
+    def confirm_current(self) -> None:
+        if not self.result or self.current_index < 0:
+            return
+        page = self.result.pages[self.current_page]
+        collection = page.fields if self.current_kind == "field" else page.cells
+        item = collection[self.current_index]
+        corrected = self.correct_value.text().strip()
+        if self.current_kind == "cell" and item.status != "excluded":
+            rule, name = self.result.template.value_constraints(item.row, item.column)
+            if rule.value_format in {"numeric", "integer", "complex_numeric"}:
+                corrected = canonical_numeric(corrected)
+            if rule.hard_errors(corrected):
+                QMessageBox.warning(self, "Значение не соответствует правилу", f"{name}: {rule.summary()}\n\nИсправьте значение или измените правило и повторите распознавание.")
+                return
+        elif self.current_kind == "field":
+            region = next((region for region in self.result.template.fields if region.id == item.region_id), None)
+            if region and region.kind in {"numeric", "integer", "complex_numeric"}:
+                corrected = canonical_numeric(corrected)
+        item.final_text = corrected
+        if getattr(item, "status", "automatic") != "excluded":
+            item.status = "confirmed" if corrected == item.raw_text else "corrected"
+        self._populate()
+        self.resultChanged.emit(self.result)
+        self.select_next_uncertain()
+
+    def confirm_all_uncertain(self) -> None:
+        """Accept every currently valid disputed value in the whole document."""
+        if not self.result or not self.result.unresolved_count:
+            return
+        confirmable: list[object] = []
+        blocked = 0
+        for page in self.result.pages:
+            for field in page.fields:
+                if not field.needs_review:
+                    continue
+                if "required_field_empty" in field.flags and not field.final_text.strip():
+                    blocked += 1
+                else:
+                    confirmable.append(field)
+            for cell in page.cells:
+                if not cell.needs_review:
+                    continue
+                constraints, _ = self.result.template.value_constraints(cell.row, cell.column)
+                if cell.applied_rule and constraints.hard_errors(cell.final_text):
+                    blocked += 1
+                else:
+                    confirmable.append(cell)
+        if not confirmable:
+            QMessageBox.information(
+                self, "Нужны исправления",
+                "Оставшиеся значения нарушают правила шаблона. Исправьте их по одному.",
+            )
+            return
+        suffix = f"\n\nЕщё {blocked} знач. с ошибками правил останутся для ручной проверки." if blocked else ""
+        answer = QMessageBox.question(
+            self,
+            "Подтвердить все спорные",
+            f"Принять {len(confirmable)} знач. точно в том виде, как они показаны?{suffix}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        for item in confirmable:
+            item.status = "confirmed"
+        self._populate()
+        self.resultChanged.emit(self.result)
+        self.select_next_uncertain()
+
+    def _exclude_toggled(self, checked: bool) -> None:
+        if not self.result or self.current_kind != "cell" or self.current_index < 0:
+            return
+        page = self.result.pages[self.current_page]
+        row = page.cells[self.current_index].row
+        if checked and row not in page.excluded_rows:
+            page.excluded_rows.append(row)
+        elif not checked and row in page.excluded_rows:
+            page.excluded_rows.remove(row)
+        for cell in page.cells:
+            if cell.row == row and cell.column >= self.result.template.row_label_columns:
+                if checked:
+                    if cell.final_text:
+                        cell.suggested_text = cell.final_text
+                    cell.final_text = ""
+                    cell.status = "excluded"
+                elif cell.status == "excluded":
+                    cell.final_text = cell.suggested_text or cell.raw_text
+                    cell.status = "automatic"
+        self._populate()
+        self.resultChanged.emit(self.result)
+
+    def select_next_uncertain(self) -> None:
+        if not self.result:
+            return
+        page_order = list(range(self.current_page, len(self.result.pages))) + list(range(0, self.current_page))
+        target_page = next((index for index in page_order if self.result.pages[index].unresolved_count), self.current_page)
+        if target_page != self.current_page and target_page < len(self.images):
+            self.current_page = target_page
+            self.current_index = -1
+            self.page_select.blockSignals(True)
+            self.page_select.setCurrentIndex(target_page)
+            self.page_select.blockSignals(False)
+            self.canvas.set_document(self.images[target_page], self.result.template)
+            self._populate()
+        page = self.result.pages[self.current_page]
+        for index, item in enumerate(page.fields):
+            if item.needs_review:
+                self.current_kind, self.current_index = "field", index
+                self.fields_table.selectRow(index)
+                self._show_current()
+                return
+        for index, item in enumerate(page.cells):
+            if item.needs_review:
+                self.current_kind, self.current_index = "cell", index
+                self.table.setCurrentCell(item.row, item.column)
+                self._show_current()
+                return
+        self.current_index = -1
+        self.canvas.set_active_cell(None)
+        self.crop_label.setText("Сверка завершена")
+        self.value_label.setText("✓")
+        self.correct_value.clear()
+
+    def _apply_filter(self) -> None:
+        if not self.result:
+            return
+        page = self.result.pages[self.current_page]
+        if not self.uncertain_only.isChecked():
+            for row in range(self.table.rowCount()):
+                self.table.setRowHidden(row, False)
+            return
+        uncertain_rows = {cell.row for cell in page.cells if cell.needs_review}
+        for row in range(self.table.rowCount()):
+            self.table.setRowHidden(row, row not in uncertain_rows)
+
+
+class MainWindow(QMainWindow):
+    def __init__(self) -> None:
+        super().__init__()
+        self.setWindowTitle(f"TableScan Local {__version__}")
+        self.resize(1440, 900)
+        configured_root = os.getenv("TABLESCAN_DATA_DIR")
+        app_root = Path(configured_root) if configured_root else Path(
+            QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
+        )
+        self.store = LocalStore(app_root)
+        self.job_id = ""
+        self.source_path = ""
+        self.stored_source_path = ""
+        self.images: list[np.ndarray] = []
+        self.template: TableTemplate | None = None
+        self.result: JobResult | None = None
+        self.worker: RecognitionWorker | None = None
+        self._workers: list[RecognitionWorker] = []
+        self.progress_dialog: QProgressDialog | None = None
+        self.pending_sources: list[str] = []
+        self.template_editor_working: TableTemplate | None = None
+        self.template_editor_reference = ""
+        self._build_ui()
+        self.refresh_recent()
+
+    def _build_ui(self) -> None:
+        root = QWidget()
+        root_layout = QVBoxLayout(root)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+        top = QFrame()
+        top.setFixedHeight(56)
+        top.setStyleSheet(f"border-bottom: 1px solid {BORDER};")
+        top_layout = QHBoxLayout(top)
+        brand = QLabel(f"TableScan Local {__version__}")
+        brand.setStyleSheet("font-size: 17px; font-weight: 750; border: 0;")
+        local = QLabel("●  Полностью локально")
+        local.setStyleSheet(f"color: {GREEN}; border: 0;")
+        self.file_title = QLabel("")
+        self.file_title.setStyleSheet(f"color: {MUTED}; border: 0;")
+        top_layout.addWidget(brand)
+        top_layout.addWidget(local)
+        top_layout.addStretch()
+        top_layout.addWidget(self.file_title)
+        root_layout.addWidget(top)
+
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+        sidebar = QFrame()
+        sidebar.setFixedWidth(190)
+        sidebar.setStyleSheet(f"background: {SURFACE}; border-right: 1px solid {BORDER};")
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(12, 34, 12, 18)
+        sidebar_layout.setSpacing(10)
+        self.section_buttons: list[QPushButton] = []
+        for index, (icon, label) in enumerate((("▱", "Документы"), ("▦", "Шаблоны"), ("⚙", "Настройки"))):
+            button = QPushButton(f"{icon}   {label}")
+            button.setCheckable(True)
+            button.setMinimumHeight(55)
+            button.setStyleSheet(
+                "QPushButton { text-align: left; border: 0; background: transparent; font-weight: 650; }"
+                f"QPushButton:checked {{ color: {BLUE}; background: #EAF1FF; border-left: 3px solid {BLUE}; }}"
+            )
+            button.clicked.connect(lambda _checked=False, page=index: self._navigate_section(page))
+            sidebar_layout.addWidget(button)
+            self.section_buttons.append(button)
+        sidebar_layout.addStretch()
+        settings = QLabel("●  Локально и офлайн\n\nⓘ  Исходные файлы не изменяются")
+        settings.setStyleSheet(f"color: {MUTED}; border: 0; padding: 8px;")
+        settings.setWordWrap(True)
+        sidebar_layout.addWidget(settings)
+        body.addWidget(sidebar)
+
+        self.main_stack = QStackedWidget()
+
+        document_workspace = QWidget()
+        document_layout = QVBoxLayout(document_workspace); document_layout.setContentsMargins(0, 0, 0, 0); document_layout.setSpacing(0)
+        step_bar = QFrame(); step_bar.setFixedHeight(54); step_bar.setStyleSheet(f"border-bottom: 1px solid {BORDER};")
+        step_layout = QHBoxLayout(step_bar); step_layout.setContentsMargins(18, 7, 18, 7); step_layout.setSpacing(8)
+        self.nav_buttons: list[QPushButton] = []
+        for index, label in enumerate(("1  Файлы", "2  Совмещение", "3  Сверка", "4  Экспорт")):
+            button = QPushButton(label); button.setCheckable(True)
+            button.setStyleSheet(
+                "QPushButton { border: 0; background: transparent; color: #68707C; }"
+                f"QPushButton:checked {{ color: {BLUE}; background: #EFF6FF; }}"
+            )
+            button.clicked.connect(lambda _checked=False, page=index: self._navigate(page))
+            step_layout.addWidget(button); self.nav_buttons.append(button)
+        step_layout.addStretch(); document_layout.addWidget(step_bar)
+
+        self.stack = QStackedWidget()
+        self.files_page = FilesPage()
+        self.files_page.chooseRequested.connect(self.choose_files)
+        self.files_page.filesDropped.connect(self.open_files)
+        self.files_page.recentOpened.connect(self.open_recent)
+        self.table_page = TablePage("document")
+        self.table_page.continueRequested.connect(self.start_recognition)
+        self.table_page.templateChanged.connect(self._template_changed)
+        self.table_page.savedTemplateRequested.connect(self._load_saved_template)
+        self.table_page.saveTemplateRequested.connect(self._save_document_template_version)
+        self.table_page.rotationRequested.connect(self._rotate_pages)
+        self.review_page = ReviewPage()
+        self.review_page.exportRequested.connect(self.export_current)
+        self.review_page.resultChanged.connect(self._result_changed)
+        export_placeholder = QWidget()
+        export_layout = QVBoxLayout(export_placeholder)
+        export_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        export_layout.addWidget(QLabel("Завершите сверку, затем экспортируйте проверенную таблицу."))
+        for page in (self.files_page, self.table_page, self.review_page, export_placeholder):
+            self.stack.addWidget(page)
+        document_layout.addWidget(self.stack, 1)
+
+        templates_workspace = QWidget()
+        templates_layout = QVBoxLayout(templates_workspace); templates_layout.setContentsMargins(0, 0, 0, 0); templates_layout.setSpacing(0)
+        self.template_back_bar = QFrame(); self.template_back_bar.setFixedHeight(48); self.template_back_bar.setStyleSheet(f"border-bottom: 1px solid {BORDER};")
+        back_layout = QHBoxLayout(self.template_back_bar); back_layout.setContentsMargins(18, 6, 18, 6)
+        back = QPushButton("←  К библиотеке шаблонов"); back.clicked.connect(self._show_template_library)
+        back_layout.addWidget(back); back_layout.addStretch()
+        self.templates_stack = QStackedWidget()
+        self.template_library = TemplateLibraryPage()
+        self.template_library.createRequested.connect(self.create_template_from_sample)
+        self.template_library.openRequested.connect(self.open_template_editor)
+        self.template_library.duplicateRequested.connect(self.duplicate_template)
+        self.template_library.deleteRequested.connect(self.delete_template)
+        self.template_editor = TablePage("template")
+        self.template_editor.templateChanged.connect(self._template_editor_changed)
+        self.template_editor.saveVersionRequested.connect(self.save_template_version)
+        self.templates_stack.addWidget(self.template_library); self.templates_stack.addWidget(self.template_editor)
+        templates_layout.addWidget(self.template_back_bar); templates_layout.addWidget(self.templates_stack, 1)
+
+        settings_page = QWidget(); settings_layout = QVBoxLayout(settings_page); settings_layout.setContentsMargins(36, 30, 36, 30)
+        settings_title = QLabel("Настройки"); settings_title.setStyleSheet("font-size: 25px; font-weight: 750;")
+        settings_layout.addWidget(settings_title)
+        settings_text = QLabel("Распознавание выполняется локально. Для числовых ячеек используется многоэтапный режим, а экспорт блокируется до сверки спорных значений.")
+        settings_text.setWordWrap(True); settings_text.setStyleSheet(f"color: {MUTED}; font-size: 14px;")
+        settings_layout.addWidget(settings_text); settings_layout.addStretch()
+
+        for page in (document_workspace, templates_workspace, settings_page): self.main_stack.addWidget(page)
+        body.addWidget(self.main_stack, 1)
+        root_layout.addLayout(body, 1)
+        self.setCentralWidget(root)
+        self._refresh_templates()
+        self._show_template_library()
+        self._navigate_section(0)
+        self._navigate(0)
+
+        open_action = QAction("Открыть", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.triggered.connect(self.choose_files)
+        self.addAction(open_action)
+        export_action = QAction("Экспорт", self)
+        export_action.setShortcut("Ctrl+E")
+        export_action.triggered.connect(self.export_current)
+        self.addAction(export_action)
+
+    def _navigate_section(self, index: int) -> None:
+        self.main_stack.setCurrentIndex(index)
+        for button_index, button in enumerate(self.section_buttons):
+            button.setChecked(button_index == index)
+        if index == 1:
+            QTimer.singleShot(0, self._refresh_templates)
+
+    def _show_template_library(self) -> None:
+        self.templates_stack.setCurrentIndex(0)
+        self._refresh_templates()
+        # The back button lives inside this bar. Hiding its parent from the
+        # button's own native click callback can leave macOS accessibility with
+        # a stale child pointer. Defer the visual change until the event ends.
+        QTimer.singleShot(0, self.template_back_bar.hide)
+
+    def _navigate(self, index: int) -> None:
+        if index == 1 and not self.template:
+            return
+        if index >= 2 and not self.result:
+            return
+        self.stack.setCurrentIndex(index)
+        self._navigate_section(0)
+        for button_index, button in enumerate(self.nav_buttons):
+            button.setChecked(button_index == index)
+
+    def refresh_recent(self) -> None:
+        self.files_page.set_recent(self.store.recent_jobs())
+
+    def _refresh_templates(self) -> None:
+        templates = self.store.load_templates()
+        if hasattr(self, "template_library"):
+            self.template_library.set_templates(templates)
+        if hasattr(self, "table_page"):
+            self.table_page.set_saved_templates(templates)
+
+    def _template_editor_changed(self, template: TableTemplate) -> None:
+        self.template_editor_working = template
+
+    def create_template_from_sample(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, "Выберите образец таблицы", "", "Documents (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)")
+        if not path:
+            return
+        try:
+            images = load_document(path)
+            if not images:
+                raise ValueError("Файл не содержит страниц")
+            detection = self._detect_or_manual(images[0])
+        except Exception as exc:
+            QMessageBox.critical(self, "Не удалось открыть образец", str(exc)); return
+        identifier = str(uuid4())
+        template = TableTemplate(
+            identifier, f"{Path(path).stem} — шаблон", detection.table_rect,
+            detection.row_guides, detection.column_guides,
+            template_version=0, family_id=identifier, reference_source_path=path,
+            reference_page_aspect=images[0].shape[1] / max(1, images[0].shape[0]),
+        )
+        template.ensure_column_rules()
+        self.template_editor_working = template
+        self.template_editor_reference = path
+        self.template_editor.set_document(images[0], template)
+        self.template_editor.grid_warning.setText(" ".join(detection.warnings))
+        self.templates_stack.setCurrentIndex(1); self.template_back_bar.show(); self._navigate_section(1)
+
+    def open_template_editor(self, template_id: str) -> None:
+        template = next((item for item in self.store.load_templates() if item.id == template_id), None)
+        if template is None:
+            QMessageBox.warning(self, "Шаблон недоступен", "Не удалось загрузить выбранный шаблон."); return
+        source = template.reference_source_path
+        if not source or not Path(source).exists():
+            source, _ = QFileDialog.getOpenFileName(self, "Укажите образец для шаблона", "", "Documents (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)")
+            if not source:
+                return
+        try:
+            images = rotate_document(load_document(source), template.rotation_degrees)
+            if not images:
+                raise ValueError("Файл не содержит страниц")
+        except Exception as exc:
+            QMessageBox.warning(self, "Образец недоступен", str(exc)); return
+        working = TableTemplate.from_dict(template.to_dict())
+        self.template_editor_working = working; self.template_editor_reference = source
+        self.template_editor.set_document(images[0], working)
+        self.templates_stack.setCurrentIndex(1); self.template_back_bar.show(); self._navigate_section(1)
+
+    def save_template_version(self, template: TableTemplate) -> None:
+        try:
+            template.validate_value_rules()
+            if not self.template_editor_reference:
+                raise ValueError("Не указан эталонный документ")
+            saved = self.store.save_template_version(template, self.template_editor_reference)
+        except Exception as exc:
+            QMessageBox.warning(self, "Шаблон не сохранён", str(exc)); return
+        self.template_editor_working = saved
+        self.template_editor_reference = saved.reference_source_path
+        self._refresh_templates()
+        try:
+            image = rotate_document(load_document(saved.reference_source_path), saved.rotation_degrees)[0]
+            self.template_editor.set_document(image, saved)
+        except Exception:
+            pass
+        QMessageBox.information(self, "Шаблон сохранён", f"Сохранена версия v{saved.template_version}. Предыдущие версии не изменены.")
+
+    def _save_document_template_version(self, template: TableTemplate) -> None:
+        if not self.images:
+            return
+        template.reference_page_aspect = self.images[0].shape[1] / max(1, self.images[0].shape[0])
+        try:
+            saved = self.store.save_template_version(template, self.stored_source_path or self.source_path)
+        except Exception as exc:
+            QMessageBox.warning(self, "Шаблон не сохранён", str(exc)); return
+        self.template = saved
+        self.table_page.set_document(self.images[0], saved)
+        self._refresh_templates()
+        QMessageBox.information(self, "Шаблон сохранён", f"Создана версия v{saved.template_version}: {saved.name}")
+
+    def duplicate_template(self, template_id: str) -> None:
+        template = next((item for item in self.store.load_templates() if item.id == template_id), None)
+        if template:
+            duplicate = self.store.duplicate_template(template)
+            self._refresh_templates()
+            self.open_template_editor(duplicate.id)
+
+    def delete_template(self, template_id: str) -> None:
+        template = next((item for item in self.store.load_templates() if item.id == template_id), None)
+        if template is None:
+            return
+        answer = QMessageBox.question(
+            self, "Удалить шаблон?",
+            f"Будет удалена только версия v{template.template_version} шаблона «{template.name}». Обработанные документы сохранятся.",
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.store.delete_template(template_id); self._refresh_templates()
+
+    def choose_files(self) -> None:
+        paths, _ = QFileDialog.getOpenFileNames(self, "Открыть изображения таблиц", "", "Документы (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)")
+        if paths:
+            self.open_files(paths)
+
+    def open_files(self, paths: list[str]) -> None:
+        if not paths:
+            return
+        self.pending_sources = list(paths[1:])
+        if len(paths) > 1:
+            QMessageBox.information(
+                self,
+                "Очередь создана",
+                f"The first file opens now. {len(paths) - 1} remaining file(s) will reuse this template after each export.",
+            )
+        self.open_source(paths[0])
+
+    def open_source(self, path: str, reused_template: TableTemplate | None = None) -> None:
+        selected_match: TemplateMatch | None = None
+        try:
+            self.job_id, copied = self.store.import_source(path)
+            self.stored_source_path = str(copied)
+            self.source_path = path
+            self.images = load_document(copied)
+            if not self.images:
+                raise ValueError("The document contains no pages.")
+            detection: GridDetection | None = None if reused_template else self._detect_or_manual(self.images[0])
+            chosen_template = reused_template
+            if reused_template is None:
+                matches = rank_templates(self.images[0].shape, detection, self.store.load_templates())
+                if matches:
+                    chooser = TemplateChoiceDialog(matches, self)
+                    if chooser.exec() != QDialog.DialogCode.Accepted:
+                        self.store.delete_job(self.job_id)
+                        self.job_id = ""; self.source_path = ""; self.stored_source_path = ""; self.images = []
+                        self.refresh_recent()
+                        return
+                    if chooser.selected_template_id:
+                        selected_match = next((item for item in matches if item.template.id == chooser.selected_template_id), None)
+                        chosen_template = selected_match.template if selected_match else None
+        except Exception as exc:
+            QMessageBox.critical(self, "Не удалось открыть документ", str(exc))
+            return
+        if chosen_template:
+            self.images = rotate_document(self.images, chosen_template.rotation_degrees)
+            self.template = TableTemplate.from_dict(chosen_template.to_dict())
+        else:
+            identifier = str(uuid4())
+            self.template = TableTemplate(
+                id=identifier, name=f"{Path(path).stem} — шаблон", table_rect=detection.table_rect,
+                row_guides=detection.row_guides, column_guides=detection.column_guides,
+                template_version=0, family_id=identifier, reference_source_path=str(copied),
+                reference_page_aspect=self.images[0].shape[1] / max(1, self.images[0].shape[0]),
+            )
+        self.template.ensure_column_rules()
+        self.result = None
+        self.file_title.setText(Path(path).name)
+        self.table_page.set_document(self.images[0], self.template)
+        if selected_match:
+            self.table_page.grid_warning.setText(
+                f"Предложен шаблон с совпадением {round(selected_match.score * 100)}%. Проверьте наложение сетки, ориентацию и число строк заголовка."
+            )
+        else:
+            self.table_page.grid_warning.setText(" ".join(detection.warnings) if detection else "Проверьте наложение сохранённого шаблона и число строк заголовка.")
+        self._navigate(1)
+        self.refresh_recent()
+
+    @staticmethod
+    def _detect_or_manual(image: np.ndarray) -> GridDetection:
+        try:
+            return detect_grid(image)
+        except ValueError:
+            rect = NormalizedRect(.1, .1, .8, .8)
+            rows, columns = evenly_spaced_guides(rect, 10, 6)
+            return GridDetection(rect, rows, columns, ["Grid not detected. Rotate if needed, then redraw the table boundary and set its rows and columns."])
+
+    def _rotate_pages(self, degrees: int) -> None:
+        if not self.images or not self.template:
+            return
+        if self.template.fields or self.result:
+            answer = QMessageBox.question(self, "Повернуть документ", "Поворот сбросит текущую сетку и выделенные поля. Сохранённый исходный файл не изменится. Продолжить?")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        rotation = (self.template.rotation_degrees + degrees) % 360
+        self.images = rotate_document(self.images, degrees)
+        detection = self._detect_or_manual(self.images[0])
+        self.template = TableTemplate(str(uuid4()), self.template.name, detection.table_rect, detection.row_guides, detection.column_guides, rotation_degrees=rotation)
+        self.result = None
+        self.table_page.set_document(self.images[0], self.template)
+        self.table_page.grid_warning.setText(" ".join(detection.warnings))
+
+    def open_recent(self, job_id: str) -> None:
+        loaded = self.store.load_job(job_id)
+        if not loaded:
+            QMessageBox.warning(self, "Задание недоступно", "Не удалось открыть сохранённое задание.")
+            return
+        metadata, result = loaded
+        try:
+            self.images = load_document(metadata["stored_source_path"])
+        except Exception as exc:
+            QMessageBox.warning(self, "Исходник недоступен", str(exc))
+            return
+        self.job_id = job_id
+        self.source_path = metadata["source_path"]
+        self.stored_source_path = metadata["stored_source_path"]
+        self.file_title.setText(metadata["source_name"])
+        if result:
+            self.result = result
+            self.template = TableTemplate.from_dict(result.template.to_dict())
+            self.images = rotate_document(self.images, self.template.rotation_degrees)
+            self.table_page.set_document(self.images[0], self.template)
+            self.review_page.set_result(self.images, result)
+            self._navigate(2)
+        else:
+            QMessageBox.information(self, "Импортированный файл", "Для этого файла ещё нет шаблона. Импортируйте его снова, чтобы настроить таблицу.")
+
+    def _template_changed(self, template: TableTemplate) -> None:
+        self.template = template
+        if self.result and self.result.template.to_dict() != template.to_dict():
+            # Keep the saved job intact; a changed template must not reinterpret
+            # old confirmed results as if recognition had been rerun.
+            self.result = None
+
+    def _load_saved_template(self, template_id: str) -> None:
+        if not self.images:
+            return
+        template = next((item for item in self.store.load_templates() if item.id == template_id), None)
+        if template is None:
+            QMessageBox.warning(self, "Шаблон недоступен", "Не удалось загрузить сохранённый шаблон.")
+            return
+        current_rotation = self.template.rotation_degrees if self.template else 0
+        self.images = rotate_document(self.images, template.rotation_degrees - current_rotation)
+        self.template = TableTemplate.from_dict(template.to_dict())
+        self.result = None
+        self.table_page.set_document(self.images[0], self.template)
+        self.table_page.grid_warning.setText("Проверьте сохранённый шаблон, особенно строки заголовка и поворот страницы, перед распознаванием.")
+
+    def start_recognition(self, template: TableTemplate) -> None:
+        if not self.images or not self.job_id:
+            return
+        running = next((worker for worker in self._workers if worker.isRunning()), None)
+        if running is not None:
+            # A fast double click can queue the same action twice before the
+            # modal progress window is painted. Never replace the only strong
+            # reference to a live QThread.
+            if self.progress_dialog:
+                self.progress_dialog.show()
+                self.progress_dialog.raise_()
+                self.progress_dialog.activateWindow()
+            return
+        try:
+            template.validate_value_rules()
+        except ValueError as exc:
+            QMessageBox.warning(self, "Проверьте правила", str(exc)); return
+        self.template = template
+        crop_root = self.store.jobs_dir / self.job_id / "crops"
+        self.progress_dialog = QProgressDialog("Подготовка локального OCR…", "Отмена", 0, 100, self)
+        self.progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
+        self.progress_dialog.setMinimumDuration(0)
+        self.worker = RecognitionWorker(
+            self.images, self.source_path, TableTemplate.from_dict(template.to_dict()), crop_root,
+            self.table_page.high_accuracy.isChecked(),
+            self,
+        )
+        self._workers.append(self.worker)
+        self.table_page.set_recognition_running(True)
+        self.worker.progress.connect(self._recognition_progress)
+        self.worker.completed.connect(self._recognition_done)
+        self.worker.failed.connect(self._recognition_failed)
+        self.worker.cancelled.connect(self._recognition_cancelled)
+        current_worker = self.worker
+        self.worker.finished.connect(lambda: self._recognition_thread_finished(current_worker))
+        self.progress_dialog.canceled.connect(self.worker.requestInterruption)
+        self.worker.start()
+
+    def _recognition_thread_finished(self, worker: RecognitionWorker) -> None:
+        if worker in self._workers:
+            self._workers.remove(worker)
+        if self.worker is worker:
+            self.worker = None
+            self.table_page.set_recognition_running(False)
+            if self.progress_dialog:
+                self.progress_dialog.close()
+                self.progress_dialog = None
+        worker.deleteLater()
+
+    def _recognition_progress(self, value: int, maximum: int, label: str) -> None:
+        if not self.progress_dialog:
+            return
+        self.progress_dialog.setMaximum(maximum)
+        self.progress_dialog.setValue(value)
+        self.progress_dialog.setLabelText(label)
+
+    def _recognition_done(self, result: JobResult) -> None:
+        if self.progress_dialog:
+            self.progress_dialog.close()
+        self.result = result
+        self.template = TableTemplate.from_dict(result.template.to_dict())
+        self.table_page.set_document(self.images[0], self.template)
+        self.store.save_result(self.job_id, result)
+        self.review_page.set_result(self.images, result)
+        self._navigate(2)
+        self.refresh_recent()
+
+    def _recognition_failed(self, message: str) -> None:
+        if self.progress_dialog:
+            self.progress_dialog.close()
+        QMessageBox.critical(self, "Ошибка распознавания", message)
+
+    def _recognition_cancelled(self) -> None:
+        if self.progress_dialog:
+            self.progress_dialog.close()
+
+    def closeEvent(self, event) -> None:
+        running = [worker for worker in self._workers if worker.isRunning()]
+        if running:
+            for worker in running:
+                worker.requestInterruption()
+            event.ignore()
+            QMessageBox.information(
+                self,
+                "Завершение анализа",
+                "Останавливаю локальный анализ. Закройте приложение ещё раз после завершения остановки.",
+            )
+            return
+        super().closeEvent(event)
+
+    def _result_changed(self, result: JobResult) -> None:
+        self.result = result
+        if self.job_id:
+            self.store.save_result(self.job_id, result)
+        self.refresh_recent()
+
+    def export_current(self) -> None:
+        if not self.result:
+            return
+        if self.result.unresolved_count:
+            QMessageBox.warning(self, "Нужна сверка", f"Перед экспортом проверьте все спорные значения: {self.result.unresolved_count}.")
+            return
+        default = str(Path.home() / f"{Path(self.source_path).stem}-recognized.xlsx")
+        target, _ = QFileDialog.getSaveFileName(self, "Экспорт проверенной таблицы", default, "Книга Excel (*.xlsx)")
+        if not target:
+            return
+        try:
+            saved = export_job(self.result, target)
+        except Exception as exc:
+            QMessageBox.critical(self, "Ошибка экспорта", str(exc))
+            return
+        QMessageBox.information(self, "Экспорт завершён", f"Проверенная таблица сохранена:\n{saved}")
+        if self.pending_sources and self.template:
+            next_source = self.pending_sources.pop(0)
+            self.open_source(next_source, self.template)
+            return
+        self._navigate(3)
+
+
+def create_application() -> tuple[QApplication, MainWindow]:
+    app = QApplication.instance() or QApplication([])
+    app.setApplicationName("TableScan Local")
+    app.setOrganizationName("TableScan Local")
+    app.setStyle("Fusion")
+    app.setStyleSheet(APP_STYLE)
+    window = MainWindow()
+    return app, window
