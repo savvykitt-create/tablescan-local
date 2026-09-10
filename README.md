@@ -9,6 +9,20 @@ in Settings → Language; the change applies immediately and is remembered.
 The application supports Windows, macOS, and Ubuntu packaging from a shared
 Python and Qt codebase.
 
+## Download and update
+
+Download the current version from [GitHub Releases](https://github.com/CoolMage/tablescan-local/releases/latest).
+Choose the package for your operating system and processor; macOS ARM64 is for Apple Silicon and x64 is for Intel Macs.
+
+**Already installed? Close TableScan Local, install the latest version over the existing application, and reopen it. Your saved documents, templates, and preferences are kept in the separate application-data folder. Do not delete that folder when updating.**
+
+- **macOS:** open the new DMG and copy **TableScan Local.app** to the same Applications folder as before; choose **Replace**. Launch the copy in Applications, not the old copy or the copy inside the DMG.
+- **Windows:** close the app and run the new setup `.exe`, using the same account and installation folder. Uninstalling first is unnecessary.
+- **Ubuntu:** install the newer `.deb` over the installed package. For a portable archive, extract it into a new folder and update your launcher to point to that folder.
+- **Installed from source:** close the app, open a terminal in your existing repository, and run `git pull --ff-only`, followed by `.venv/bin/python -m pip install -e .` on macOS/Linux or `.venv\Scripts\python.exe -m pip install -e .` on Windows. If Git reports local changes, preserve them before updating. A previously built app/installer must be rebuilt separately; updating source files does not update that executable.
+
+Updates are downloaded manually; the application has no built-in automatic updater. Keep a backup of important application data before updating. Check the version shown in the application header after restarting.
+
 ## Main features
 
 - Import PDF, PNG, JPEG, TIFF, and multi-page documents.
@@ -65,16 +79,15 @@ python -m pip install -e .
 tablescan-local
 ```
 
-Windows PowerShell:
+Windows PowerShell (activation is not required):
 
 ```powershell
 git clone https://github.com/CoolMage/tablescan-local.git
 cd tablescan-local
 py -3.12 -m venv .venv
-.venv\Scripts\Activate.bat
-python -m pip install --upgrade pip
-python -m pip install -e .
-tablescan-local
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -e .
+.venv\Scripts\tablescan-local.exe
 ```
 
 The application stores imported copies, templates, crops, and job state in the
@@ -174,3 +187,12 @@ still require explicit confirmation.
 For an isolated first-run check, set `TABLESCAN_DATA_DIR` to an empty temporary
 directory before launching the application. Reinstalling the source code alone
 does not erase the existing per-user document database or preferences.
+
+## Template editor and automatic numeric recovery (0.7.6)
+
+- Workflow steps enable only when their prerequisites are met; Export opens the export flow.
+- Rotate works in the template editor. Fields and table boundaries can be resized directly on the image, and grid spacing follows boundary changes.
+- Rules contains column defaults; the separate Columns tab is removed. Fields and Rules scroll without compressing controls.
+- Corner notifications confirm completed actions, and repeated explanatory labels have been removed.
+- Missing decimal separators are recovered automatically when the numeric format specifies their placement. Inferred or ambiguous readings still require review.
+- New template, field, column, rule, and copy names use English in every interface language. Existing saved names are preserved.

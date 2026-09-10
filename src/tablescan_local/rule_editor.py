@@ -47,7 +47,6 @@ class ValueRuleDialog(QDialog):
         self.expected_minimum = QLineEdit(); self.expected_maximum = QLineEdit()
         self.allowed = QLineEdit(); self.allowed.setPlaceholderText(tr('Например: 0; 1; 2; 3 — пусто: без списка'))
         self.allow_empty = QCheckBox(tr('Ячейка может быть пустой'))
-        self.suggest = QCheckBox(tr('Предлагать пропущенный разделитель (требует сверки)'))
         self.require_decimal = QCheckBox(tr('Десятичная часть обязательна'))
         self.prefer_expected = QCheckBox(tr('Предпочитать OCR-вариант из обычного диапазона (требует сверки)'))
         form.addRow(tr('Готовый формат'), self.preset)
@@ -58,7 +57,7 @@ class ValueRuleDialog(QDialog):
             low.setPlaceholderText(tr('Без нижней границы')); high.setPlaceholderText(tr('Без верхней границы'))
             row.addWidget(low); row.addWidget(high); form.addRow(label, box)
         form.addRow(tr('Только значения из списка'), self.allowed)
-        form.addRow(self.allow_empty); form.addRow(self.require_decimal); form.addRow(self.suggest); form.addRow(self.prefer_expected)
+        form.addRow(self.allow_empty); form.addRow(self.require_decimal); form.addRow(self.prefer_expected)
         outer.addLayout(form)
         note = QLabel(tr('Точка и запятая равнозначны. Жёсткие границы исключают невозможные варианты. Обычный диапазон меняет порядок только при включённом предпочтении и только среди реально прочитанных кандидатов; результат всё равно требует сверки.'))
         note.setWordWrap(True); outer.addWidget(note)
@@ -77,7 +76,7 @@ class ValueRuleDialog(QDialog):
             widget.textChanged.connect(self._preview)
         self.places.valueChanged.connect(self._preview)
         self.allow_empty.toggled.connect(self._preview); self.require_decimal.toggled.connect(self._preview)
-        self.suggest.toggled.connect(self._preview); self.prefer_expected.toggled.connect(self._preview)
+        self.prefer_expected.toggled.connect(self._preview)
         self._preview()
 
     def _load(self, rule):
@@ -86,7 +85,7 @@ class ValueRuleDialog(QDialog):
         for name in ("minimum", "maximum", "expected_minimum", "expected_maximum"):
             value = getattr(rule, name); getattr(self, name).setText("" if value is None else str(value))
         self.allowed.setText(join_text('; ', rule.allowed_values))
-        self.allow_empty.setChecked(rule.allow_empty); self.suggest.setChecked(rule.suggest_missing_decimal)
+        self.allow_empty.setChecked(rule.allow_empty)
         self.require_decimal.setChecked(rule.require_decimal)
         self.prefer_expected.setChecked(rule.prefer_expected_range)
 
@@ -99,12 +98,12 @@ class ValueRuleDialog(QDialog):
 
     def _kind_changed(self):
         if self.kind.currentData() not in {"numeric", "integer"}:
-            self.places.setValue(-1); self.suggest.setChecked(False); self.require_decimal.setChecked(False)
+            self.places.setValue(-1); self.require_decimal.setChecked(False)
         if self.kind.currentData() in {"text", "date"}:
             for w in (self.minimum, self.maximum, self.expected_minimum, self.expected_maximum): w.clear()
             self.prefer_expected.setChecked(False)
         if self.kind.currentData() == "integer":
-            self.places.setValue(0); self.suggest.setChecked(False); self.require_decimal.setChecked(False)
+            self.places.setValue(0); self.require_decimal.setChecked(False)
         self._preview()
 
     def read_rule(self) -> ValueConstraints:
@@ -112,7 +111,7 @@ class ValueRuleDialog(QDialog):
             value_format=self.kind.currentData(),
             decimal_places=None if self.places.value() == -1 else self.places.value(),
             allowed_values=[v.strip() for v in self.allowed.text().split(";") if v.strip()],
-            allow_empty=self.allow_empty.isChecked(), suggest_missing_decimal=self.suggest.isChecked(),
+            allow_empty=self.allow_empty.isChecked(),
             prefer_expected_range=self.prefer_expected.isChecked(),
             require_decimal=self.require_decimal.isChecked(),
             **{name: optional_number(getattr(self, name).text()) for name in ("minimum", "maximum", "expected_minimum", "expected_maximum")},

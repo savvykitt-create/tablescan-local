@@ -2068,5 +2068,80 @@
     "en": "{p0} · v{p1}\nGrid: {p2} × {p3} · Regions: {p4} · Sample: {p5}",
     "cs": "{p0} · v{p1}\nMřížka: {p2} × {p3} · Oblasti: {p4} · Vzor: {p5}",
     "ru": "{p0} · v{p1}\nСетка: {p2} × {p3} · Области: {p4} · Образец: {p5}"
+  },
+  "Column defaults": {
+    "en": "Column defaults",
+    "cs": "Výchozí nastavení sloupce",
+    "ru": "Настройки столбца"
+  },
+  "Open a document first": {
+    "en": "Open a document first",
+    "cs": "Nejprve otevřete dokument",
+    "ru": "Сначала откройте документ"
+  },
+  "Complete recognition first": {
+    "en": "Complete recognition first",
+    "cs": "Nejprve dokončete rozpoznávání",
+    "ru": "Сначала выполните распознавание"
+  },
+  "Review all flagged values before export": {
+    "en": "Review all flagged values before export",
+    "cs": "Před exportem zkontrolujte označené hodnoty",
+    "ru": "Перед экспортом проверьте спорные значения"
+  },
+  "Rule applied": {
+    "en": "Rule applied",
+    "cs": "Pravidlo použito",
+    "ru": "Правило применено"
+  },
+  "Field saved": {
+    "en": "Field saved",
+    "cs": "Pole uloženo",
+    "ru": "Поле сохранено"
+  },
+  "Field deleted": {
+    "en": "Field deleted",
+    "cs": "Pole odstraněno",
+    "ru": "Поле удалено"
+  },
+  "Column settings saved": {
+    "en": "Column settings saved",
+    "cs": "Nastavení sloupce uloženo",
+    "ru": "Настройки столбца сохранены"
+  },
+  "Rotate template": {
+    "en": "Rotate template",
+    "cs": "Otočit šablonu",
+    "ru": "Повернуть шаблон"
+  },
+  "Rotation will detect a new grid and clear fields and rules. Continue?": {
+    "en": "Rotation will detect a new grid and clear fields and rules. Continue?",
+    "cs": "Otočení znovu rozpozná mřížku a vymaže pole a pravidla. Pokračovat?",
+    "ru": "Поворот заново определит сетку и удалит поля и правила. Продолжить?"
+  },
+  "Template rotated": {
+    "en": "Template rotated",
+    "cs": "Šablona otočena",
+    "ru": "Шаблон повёрнут"
+  },
+  "Document rotated": {
+    "en": "Document rotated",
+    "cs": "Dokument otočen",
+    "ru": "Документ повёрнут"
+  },
+  "Grid detected": {
+    "en": "Grid detected",
+    "cs": "Mřížka rozpoznána",
+    "ru": "Сетка определена"
+  },
+  "Rule deleted": {
+    "en": "Rule deleted",
+    "cs": "Pravidlo odstraněno",
+    "ru": "Правило удалено"
+  },
+  "Template match: {p0}%": {
+    "en": "Template match: {p0}%",
+    "cs": "Shoda šablony: {p0}%",
+    "ru": "Совпадение шаблона: {p0}%"
   }
 }

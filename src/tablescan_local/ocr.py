@@ -236,7 +236,7 @@ class LocalOcrEngine:
 
         source_crops = [crop, *retry_crops]
         prepared_sources = [isolate_blue_ink(remove_edge_rules(source)) for source in source_crops]
-        expected_fraction = constraints.decimal_places if constraints.suggest_missing_decimal else None
+        expected_fraction = constraints.decimal_places if constraints.recover_decimal_separator else None
         geometry_sources = [
             (source, geometry) for source in prepared_sources
             if (geometry := infer_numeric_geometry(source, expected_fraction)) is not None

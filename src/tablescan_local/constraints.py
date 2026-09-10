@@ -20,9 +20,18 @@ class ValueConstraints:
     expected_minimum: float | None = None
     expected_maximum: float | None = None
     allow_empty: bool = True
-    suggest_missing_decimal: bool = False
+    suggest_missing_decimal: bool = False  # Legacy serialized field; recovery is automatic.
     prefer_expected_range: bool = False
     require_decimal: bool = False
+
+    @property
+    def recover_decimal_separator(self) -> bool:
+        """Recover only when the numeric format determines separator placement.
+
+        Legacy template opt-in flags no longer control recognition quality.
+        Inferred readings still go through bounds checks and human review.
+        """
+        return self.value_format == "numeric" and self.decimal_places is not None and self.decimal_places > 0
 
     def validate(self) -> None:
         if self.value_format not in {"complex_numeric", "numeric", "integer", "text", "date"}:
@@ -100,7 +109,7 @@ class ValueConstraints:
         return value
 
     def decimal_proposal(self, text: str) -> str | None:
-        if not self.suggest_missing_decimal or not self.decimal_places or not re.fullmatch(r"[+\-−]?\d+", text):
+        if not self.recover_decimal_separator or not re.fullmatch(r"[+\-−]?\d+", text):
             return None
         sign = text[0] if text[0] in "+-−" else ""
         digits = text[len(sign):]
@@ -119,7 +128,7 @@ class ValueConstraints:
         explicit decimal-place rule.  It never drops another digit and the
         caller must mark the result for human review.
         """
-        if not self.suggest_missing_decimal or not self.decimal_places:
+        if not self.recover_decimal_separator:
             return None
         text = text.strip().replace(",", ".").replace("−", "-")
         if not re.fullmatch(r"[+\-]?\d+", text):
@@ -143,8 +152,6 @@ class ValueConstraints:
             parts.append(tr('из списка: ') + join_text('; ', self.allowed_values))
         if self.expected_minimum is not None or self.expected_maximum is not None:
             parts.append(tr('обычно {p0}…{p1}', p0=self.expected_minimum, p1=self.expected_maximum))
-        if self.suggest_missing_decimal:
-            parts.append(tr('предлагать пропущенный разделитель (со сверкой)'))
         if self.require_decimal:
             parts.append(tr('десятичная часть обязательна'))
         if self.prefer_expected_range:

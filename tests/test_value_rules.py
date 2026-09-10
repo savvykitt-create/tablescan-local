@@ -34,10 +34,10 @@ def test_hard_maximum_selects_49_8_instead_of_impossible_99_8():
     assert "rule_selected_alternative" in result.flags
 
 
-def test_opt_in_decimal_proposal_is_flagged_and_not_auto_confirmed():
+@pytest.mark.parametrize("legacy_flag", [False, True])
+def test_automatic_decimal_proposal_is_flagged_and_not_auto_confirmed(legacy_flag):
     original = OcrValue("429", .99)
-    assert constrain_reading(original, decimal_rule()).text == "429"
-    result = constrain_reading(original, decimal_rule(suggest_missing_decimal=True))
+    result = constrain_reading(original, decimal_rule(suggest_missing_decimal=legacy_flag))
     assert result.text == "42.9" and result.raw_text == "429"
     assert "separator_inferred_from_rule" in result.flags
     assert "value_rule_review_required" in result.flags
@@ -166,3 +166,17 @@ def test_old_templates_load_without_value_regions():
 def test_empty_required_cell_is_not_invented():
     result = constrain_reading(OcrValue("", 1), decimal_rule(allow_empty=False, suggest_missing_decimal=True))
     assert result.text == "" and "required_cell_empty" in result.flags
+
+
+@pytest.mark.parametrize("kind,places", [("integer", 0), ("numeric", None), ("numeric", 0), ("text", None)])
+def test_automatic_recovery_does_not_guess_without_decimal_format(kind, places):
+    rule = ValueConstraints(kind, decimal_places=places)
+    assert not rule.recover_decimal_separator
+    assert rule.decimal_proposal("429") is None
+    assert rule.separator_reclassification("3417") is None
+
+
+def test_legacy_template_uses_automatic_recovery_after_reload():
+    original = decimal_rule(suggest_missing_decimal=False)
+    restored = ValueConstraints(**asdict(original))
+    assert constrain_reading(OcrValue("429", .99), restored).text == "42.9"

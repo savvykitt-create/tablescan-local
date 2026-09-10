@@ -45,7 +45,10 @@ jobs:
         run: bash packaging/linux/make_packages.sh
       - name: Create macOS DMG
         if: runner.os == 'macOS'
-        run: bash packaging/macos/make_dmg.sh
+        run: |
+          VERSION=$(python -c "from tablescan_local import __version__; print(__version__)")
+          ARCH=$(uname -m)
+          bash packaging/macos/make_dmg.sh "dist/TableScan Local.app" "TableScan-Local-${VERSION}-macOS-${ARCH}.dmg"
       - name: Create Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
@@ -58,3 +61,9 @@ jobs:
             dist/TableScanLocal
             dist/TableScan Local.app
             release/*
+      - name: Upload release packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: Release-${{ matrix.os }}
+          path: release/*
+          if-no-files-found: error

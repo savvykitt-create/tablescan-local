@@ -13,7 +13,7 @@ from uuid import uuid4
 import cv2
 import numpy as np
 from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
-from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPainterPath, QPainterPathStroker, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QGraphicsItem, QGraphicsLineItem, QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView, QHBoxLayout, QHeaderView, QInputDialog, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QVBoxLayout
 
 from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QProgressDialog, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
@@ -49,6 +49,26 @@ def pixmap_from_bgr(image: np.ndarray) -> QPixmap:
     return QPixmap.fromImage(qimage)
 
 
+def notify(parent, message):
+    window = parent.window()
+    if not hasattr(window, "_toast"):
+        window._toast = QLabel(window)
+        window._toast.setWordWrap(True)
+        window._toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        set_theme_style(window._toast, "background: #0F766E; color: white; padding: 14px; border-radius: 8px;")
+        window._toast_timer = QTimer(window)
+        window._toast_timer.setSingleShot(True)
+        window._toast_timer.timeout.connect(window._toast.hide)
+    toast = window._toast
+    toast.setText(message)
+    toast.setFixedWidth(min(420, max(220, window.width() - 40)))
+    toast.adjustSize()
+    toast.move(window.width() - toast.width() - 24, window.height() - toast.height() - 24)
+    toast.show()
+    toast.raise_()
+    window._toast_timer.start(3500)
+
+
 class OverlayRectItem(QGraphicsRectItem):
     def __init__(self, rect: QRectF, color: str, callback=None, label: str = "") -> None:
         super().__init__(rect)
@@ -59,7 +79,67 @@ class OverlayRectItem(QGraphicsRectItem):
         fill.setAlpha(20)
         self.setBrush(fill)
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-        self.setZValue(10)
+        self.setZValue(9 if not label else 10)
+        self.setAcceptHoverEvents(True)
+        self._resize_edges = ""
+
+    def shape(self):
+        if self.label:
+            return super().shape()
+        path = QPainterPath(); path.addRect(self.rect())
+        scale = self.scene().views()[0].transform().m11() if self.scene() and self.scene().views() else 1
+        stroke = QPainterPathStroker(); stroke.setWidth(12 / max(scale, .01))
+        return stroke.createStroke(path)
+
+    def _edges(self, point):
+        scale = self.scene().views()[0].transform().m11() if self.scene().views() else 1
+        margin = 8 / max(scale, .01)
+        rect = self.rect()
+        return (("l" if abs(point.x() - rect.left()) < margin else "r" if abs(point.x() - rect.right()) < margin else "") +
+                ("t" if abs(point.y() - rect.top()) < margin else "b" if abs(point.y() - rect.bottom()) < margin else ""))
+
+    def hoverMoveEvent(self, event):
+        edges = self._edges(event.pos())
+        cursor = Qt.CursorShape.SizeAllCursor
+        if len(edges) == 2:
+            cursor = Qt.CursorShape.SizeFDiagCursor if edges in {"lt", "rb"} else Qt.CursorShape.SizeBDiagCursor
+        elif edges:
+            cursor = Qt.CursorShape.SizeHorCursor if edges in {"l", "r"} else Qt.CursorShape.SizeVerCursor
+        self.setCursor(cursor)
+        super().hoverMoveEvent(event)
+
+    def mousePressEvent(self, event):
+        self._resize_edges = self._edges(event.pos())
+        self._original_rect = QRectF(self.rect())
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        bounds = self.mapRectFromScene(self.scene().sceneRect())
+        if self._resize_edges:
+            rect = QRectF(self._original_rect)
+            point = event.pos()
+            if "l" in self._resize_edges: rect.setLeft(max(bounds.left(), min(point.x(), rect.right() - 4)))
+            if "r" in self._resize_edges: rect.setRight(min(bounds.right(), max(point.x(), rect.left() + 4)))
+            if "t" in self._resize_edges: rect.setTop(max(bounds.top(), min(point.y(), rect.bottom() - 4)))
+            if "b" in self._resize_edges: rect.setBottom(min(bounds.bottom(), max(point.y(), rect.top() + 4)))
+            self.setRect(rect)
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+            rect = self.mapRectToScene(self.rect())
+            image = self.scene().sceneRect()
+            self.moveBy(max(image.left() - rect.left(), min(0, image.right() - rect.right())),
+                        max(image.top() - rect.top(), min(0, image.bottom() - rect.bottom())))
+
+    def paint(self, painter, option, widget=None):
+        super().paint(painter, option, widget)
+        if self.isSelected():
+            scale = painter.worldTransform().m11()
+            size = 7 / max(scale, .01)
+            painter.setBrush(QColor("white"))
+            rect = self.rect()
+            for point in (rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()):
+                painter.drawRect(QRectF(point.x()-size/2, point.y()-size/2, size, size))
 
     def mouseReleaseEvent(self, event) -> None:
         super().mouseReleaseEvent(event)
@@ -79,9 +159,16 @@ class GuideLineItem(QGraphicsLineItem):
             super().__init__(extent[0], 0, extent[1], 0)
             self.setPos(0, position)
         self.setPen(QPen(QColor("#3B82F6"), 1, Qt.PenStyle.DashLine))
-        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
         self.setCursor(Qt.CursorShape.SizeHorCursor if orientation == "vertical" else Qt.CursorShape.SizeVerCursor)
         self.setZValue(8)
+
+    def shape(self):
+        path = QPainterPath()
+        path.moveTo(self.line().p1()); path.lineTo(self.line().p2())
+        scale = self.scene().views()[0].transform().m11() if self.scene() and self.scene().views() else 1
+        stroke = QPainterPathStroker(); stroke.setWidth(12 / max(scale, .01))
+        return stroke.createStroke(path)
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and isinstance(value, QPointF):
@@ -98,6 +185,8 @@ class GuideLineItem(QGraphicsLineItem):
 class DocumentCanvas(QGraphicsView):
     regionCreated = Signal(str, QRectF)
     cellSelectionChanged = Signal(object)
+    geometryChanged = Signal()
+    fieldSelected = Signal(int)
 
     def __init__(self) -> None:
         super().__init__()
@@ -415,9 +504,15 @@ class DocumentCanvas(QGraphicsView):
     def _table_moved(self, rect: QRectF) -> None:
         if self.image is None or not self.template:
             return
+        old = self.template.table_rect
         self.template.table_rect = NormalizedRect.from_pixels(
             (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
         )
+        new = self.template.table_rect
+        self.template.column_guides = [new.x + (v - old.x) / old.width * new.width for v in self.template.column_guides]
+        self.template.row_guides = [new.y + (v - old.y) / old.height * new.height for v in self.template.row_guides]
+        self.geometryChanged.emit()
+        QTimer.singleShot(0, self.redraw)
 
     def _field_moved(self, index: int, rect: QRectF) -> None:
         if self.image is None or not self.template or index >= len(self.template.fields):
@@ -425,15 +520,25 @@ class DocumentCanvas(QGraphicsView):
         self.template.fields[index].rect = NormalizedRect.from_pixels(
             (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
         )
+        self.active_field = index
+        self.geometryChanged.emit()
+        QTimer.singleShot(0, lambda: self.fieldSelected.emit(index))
 
     def _guide_moved(self, kind: str, index: int, value: float) -> None:
         if not self.template:
             return
         guides = self.template.column_guides if kind == "column" else self.template.row_guides
-        lower = guides[index - 1] + 0.002 if index > 0 else value
-        upper = guides[index + 1] - 0.002 if index < len(guides) - 1 else value
-        guides[index] = max(lower, min(upper, value)) if 0 < index < len(guides) - 1 else value
+        lower = guides[index - 1] + 0.002 if index > 0 else 0
+        upper = guides[index + 1] - 0.002 if index < len(guides) - 1 else 1
+        guides[index] = max(0, min(1, max(lower, min(upper, value))))
         guides.sort()
+        rect = self.template.table_rect
+        if kind == "column":
+            self.template.table_rect = NormalizedRect(guides[0], rect.y, guides[-1] - guides[0], rect.height)
+        else:
+            self.template.table_rect = NormalizedRect(rect.x, guides[0], rect.width, guides[-1] - guides[0])
+        self.geometryChanged.emit()
+        QTimer.singleShot(0, self.redraw)
 
     def mousePressEvent(self, event) -> None:
         if self.draw_kind and event.button() == Qt.MouseButton.LeftButton:
@@ -556,7 +661,7 @@ class FilesPage(QWidget):
         privacy = QLabel(tr('▣  Файлы и распознанные данные не покидают этот компьютер'))
         privacy.setAlignment(Qt.AlignmentFlag.AlignCenter)
         set_theme_style(privacy, fmt('color: {p0};', p0=MUTED))
-        for widget in (icon, heading, choose, formats, privacy):
+        for widget in (icon, heading, choose, formats):
             area_layout.addWidget(widget, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(area, 4)
 
@@ -757,16 +862,17 @@ class TablePage(QWidget):
         left_layout.addLayout(tools)
         self.canvas = DocumentCanvas()
         self.canvas.regionCreated.connect(self._region_created)
+        self.canvas.geometryChanged.connect(lambda: self.templateChanged.emit(self.template))
+        self.canvas.fieldSelected.connect(lambda index: self.field_list.setCurrentRow(index))
         self.canvas.cellSelectionChanged.connect(self._selection_changed)
         left_layout.addWidget(self.canvas)
         split.addWidget(left)
 
         self.tabs = QTabWidget()
         self.tabs.setMinimumWidth(400)
-        self.tabs.setMaximumWidth(470)
+        self.tabs.setMaximumWidth(640)
         self.tabs.addTab(self._build_grid_tab(), tr('Сетка'))
         self.tabs.addTab(self._build_fields_tab(), tr('Поля'))
-        self.tabs.addTab(self._build_columns_tab(), tr('Столбцы'))
         self.tabs.addTab(self._build_cell_rules_tab(), tr('Правила'))
         self.tabs.currentChanged.connect(self._tab_changed)
         split.addWidget(self.tabs)
@@ -780,7 +886,7 @@ class TablePage(QWidget):
         form = QFormLayout()
         form.setSpacing(12)
         self.saved_template_select = QComboBox()
-        self.template_name = QLineEdit(tr('Новый шаблон'))
+        self.template_name = QLineEdit("New template")
         self.rows_spin = QSpinBox()
         self.rows_spin.setRange(1, 200)
         self.columns_spin = QSpinBox()
@@ -811,11 +917,11 @@ class TablePage(QWidget):
         accuracy_note = QLabel(tr('Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки.'))
         accuracy_note.setWordWrap(True)
         set_theme_style(accuracy_note, fmt('color: {p0};', p0=MUTED))
-        layout.addWidget(accuracy_note)
+        accuracy_note.hide()
         help_label = QLabel(tr('Проверьте каждую синюю направляющую. Если заголовки находятся НАД таблицей, укажите 0 строк заголовка. Направляющие можно перетаскивать мышью.'))
         help_label.setWordWrap(True)
         set_theme_style(help_label, fmt('color: {p0};', p0=MUTED))
-        layout.addWidget(help_label)
+        help_label.hide()
         self.grid_warning = QLabel("")
         self.grid_warning.setWordWrap(True)
         set_theme_style(self.grid_warning, fmt('color: {p0};', p0=AMBER))
@@ -915,7 +1021,7 @@ class TablePage(QWidget):
         only_label = QLabel(tr('Распознаются только основная таблица и отмеченные области. Всё за их пределами игнорируется.'))
         only_label.setWordWrap(True)
         set_theme_style(only_label, fmt('color: {p0};', p0=MUTED))
-        layout.addWidget(only_label)
+        only_label.hide()
         actions = QHBoxLayout()
         redraw = QPushButton(tr('Перерисовать область'))
         redraw.clicked.connect(self.redraw_selected_field)
@@ -929,7 +1035,12 @@ class TablePage(QWidget):
         actions.addWidget(delete)
         actions.addWidget(save)
         layout.addLayout(actions)
-        return tab
+        self.field_list.setMinimumHeight(120)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(tab)
+        return scroll
 
     def _build_columns_tab(self) -> QWidget:
         tab = QWidget()
@@ -955,8 +1066,7 @@ class TablePage(QWidget):
         note = QLabel(tr('Правило столбца применяется к строкам данных. Выделение на вкладке «Правила ячеек» имеет приоритет и может охватывать одну ячейку, строку или блок.'))
         note.setWordWrap(True)
         set_theme_style(note, fmt('color: {p0};', p0=MUTED))
-        layout.addWidget(note)
-        layout.addStretch()
+        note.hide()
         save = QPushButton(tr('Сохранить правила столбца'))
         save.setProperty("primary", True)
         save.clicked.connect(self.save_column)
@@ -968,7 +1078,8 @@ class TablePage(QWidget):
         layout.setContentsMargins(14, 16, 8, 8); layout.setSpacing(6)
         help_text = QLabel(tr('Щёлкните ячейку или протяните мышью по таблице. Shift расширяет диапазон; Ctrl/Cmd добавляет или убирает ячейки. Заголовок выбирает строку или столбец.'))
         help_text.setWordWrap(True); set_theme_style(help_text, fmt('color: {p0};', p0=MUTED))
-        layout.addWidget(help_text)
+        self.canvas.setToolTip(help_text.text())
+        help_text.hide()
 
         selection_row = QHBoxLayout()
         self.selection_label = QLabel(tr('Ячейки не выбраны'))
@@ -985,8 +1096,9 @@ class TablePage(QWidget):
         selection_row.addWidget(undo); selection_row.addWidget(redo)
         layout.addLayout(selection_row)
 
-        form = QFormLayout(); form.setSpacing(8)
-        self.quick_rule_name = QLineEdit(tr('Измерения'))
+        form = QFormLayout(); form.setSpacing(12)
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
+        self.quick_rule_name = QLineEdit("Measurements")
         self.quick_kind = QComboBox()
         for text, code in ((tr('Десятичное число'), "numeric"), (tr('Целое число'), "integer"), (tr('Текст'), "text"), (tr('Дата'), "date"), (tr('Сложная запись'), "complex_numeric")):
             self.quick_kind.addItem(text, code)
@@ -995,9 +1107,6 @@ class TablePage(QWidget):
         range_box = QWidget(); range_layout = QHBoxLayout(range_box); range_layout.setContentsMargins(0, 0, 0, 0)
         range_layout.addWidget(self.quick_minimum); range_layout.addWidget(QLabel("—")); range_layout.addWidget(self.quick_maximum)
         self.quick_require_decimal = QCheckBox(tr('Десятичная часть обязательна')); self.quick_require_decimal.setChecked(True)
-        self.quick_recover_separator = QCheckBox(tr('Восстанавливать пропущенный разделитель'))
-        self.quick_recover_separator.setToolTip(tr('Проверяет точку, запятую и узкий штрих, который OCR мог ошибочно прочитать как цифру 1.'))
-        self.quick_recover_separator.setChecked(True)
         self.quick_allow_empty = QCheckBox(tr('Ячейка может быть пустой')); self.quick_allow_empty.setChecked(True)
         self.quick_color = QComboBox()
         for label, color in ((tr('Индиго'), "#4F46E5"), (tr('Бирюзовый'), "#0F766E"), (tr('Зелёный'), "#15803D"), (tr('Оранжевый'), "#C26B16"), (tr('Малиновый'), "#BE185D")):
@@ -1007,7 +1116,6 @@ class TablePage(QWidget):
         form.addRow(tr('Знаков после точки'), self.quick_places)
         form.addRow(tr('Разрешено от / до'), range_box)
         form.addRow(self.quick_require_decimal)
-        form.addRow(self.quick_recover_separator)
         form.addRow(self.quick_allow_empty)
         form.addRow(tr('Цвет области'), self.quick_color)
         layout.addLayout(form)
@@ -1019,11 +1127,13 @@ class TablePage(QWidget):
         self.quick_places.valueChanged.connect(self._quick_preview)
         self.quick_kind.currentIndexChanged.connect(self._quick_kind_changed)
         self.quick_require_decimal.toggled.connect(self._quick_preview)
-        self.quick_recover_separator.toggled.connect(self._quick_preview)
 
         actions = QHBoxLayout()
         apply_rule = QPushButton(tr('Применить к выделению')); apply_rule.setProperty("primary", True); apply_rule.clicked.connect(self._apply_quick_rule)
         advanced = QPushButton(tr('Дополнительно…')); advanced.clicked.connect(self._advanced_for_selection)
+        self.apply_rule_button = apply_rule
+        self.advanced_rule_button = advanced
+        apply_rule.setEnabled(False); advanced.setEnabled(False)
         actions.addWidget(apply_rule, 1); actions.addWidget(advanced); layout.addLayout(actions)
 
         rules_heading = QLabel(tr('Области шаблона')); set_theme_style(rules_heading, "font-weight: 700;")
@@ -1036,11 +1146,27 @@ class TablePage(QWidget):
         edit = QPushButton(tr('Изменить…')); edit.clicked.connect(self._edit_selected_rule)
         remove = QPushButton(tr('Удалить правило')); remove.clicked.connect(self._remove_selected_rule)
         actions.addWidget(edit); actions.addWidget(remove); layout.addLayout(actions)
+        column_heading = QGroupBox(tr('Column defaults'))
+        column_heading.setCheckable(True)
+        column_heading.setChecked(False)
+        column_layout = QVBoxLayout(column_heading)
+        column_content = self._build_columns_tab()
+        column_layout.addWidget(column_content)
+        column_content.hide()
+        column_heading.toggled.connect(column_content.setVisible)
+        layout.addWidget(column_heading)
+        layout.addStretch()
         self._quick_preview()
-        return tab
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidget(tab)
+        return scroll
 
     def _selection_changed(self, cells: set[tuple[int, int]]) -> None:
         self._selected_cells = set(cells)
+        self.apply_rule_button.setEnabled(bool(cells))
+        self.advanced_rule_button.setEnabled(bool(cells))
         if not cells:
             self.selection_label.setText(tr('Ячейки не выбраны'))
             return
@@ -1054,16 +1180,14 @@ class TablePage(QWidget):
     def _quick_kind_changed(self) -> None:
         kind = self.quick_kind.currentData()
         numeric = kind == "numeric"
-        for widget in (self.quick_places, self.quick_require_decimal, self.quick_recover_separator):
+        for widget in (self.quick_places, self.quick_require_decimal):
             widget.setEnabled(numeric)
         if kind == "integer":
             self.quick_places.setValue(0)
             self.quick_require_decimal.setChecked(False)
-            self.quick_recover_separator.setChecked(False)
         elif kind not in {"numeric", "integer"}:
             self.quick_places.setValue(-1)
             self.quick_require_decimal.setChecked(False)
-            self.quick_recover_separator.setChecked(False)
             self.quick_minimum.clear(); self.quick_maximum.clear()
         self._quick_preview()
 
@@ -1074,7 +1198,6 @@ class TablePage(QWidget):
             maximum=optional_number(self.quick_maximum.text()),
             decimal_places=None if self.quick_places.value() < 0 else self.quick_places.value(),
             allow_empty=self.quick_allow_empty.isChecked(),
-            suggest_missing_decimal=self.quick_recover_separator.isChecked(),
             require_decimal=self.quick_require_decimal.isChecked(),
         )
 
@@ -1093,9 +1216,11 @@ class TablePage(QWidget):
             message = tr('Точка и запятая будут сохранены как точка.')
             if examples:
                 message += tr(' По этому правилу: ') + join_text('; ', examples) + "."
-            self.quick_explanation.setText(message)
+            self.quick_explanation.setText(join_text("; ", examples))
+            self.quick_explanation.setVisible(bool(examples) and rule.value_format in {"numeric", "integer"})
             set_theme_style(self.quick_explanation, fmt('background: {p0}; color: {p1}; padding: 9px; border-radius: 6px;', p0=LIGHT_BLUE, p1=TEXT))
         except (ValueError, TypeError) as exc:
+            self.quick_explanation.show()
             self.quick_explanation.setText(tr('Проверьте правило: {p0}', p0=exc))
             set_theme_style(self.quick_explanation, "background: #FEF2F2; color: #B91C1C; padding: 9px; border-radius: 6px;")
 
@@ -1140,6 +1265,7 @@ class TablePage(QWidget):
                 str(uuid4()), str(name), row_start, row_end, column_start, column_end,
                 constraints=ValueConstraints(**asdict(rule)), color=color,
             ))
+        notify(self, tr("Rule applied"))
         self.template.schema_version = 3
         self._refresh_cell_rules()
         self.templateChanged.emit(self.template)
@@ -1150,7 +1276,7 @@ class TablePage(QWidget):
         except (ValueError, TypeError) as exc:
             QMessageBox.warning(self, tr('Некорректное правило'), str(exc)); return
         self._append_rule_regions(
-            self.quick_rule_name.text().strip() or tr('Значения'), rule,
+            self.quick_rule_name.text().strip() or "Values", rule,
             str(self.quick_color.currentData()),
         )
 
@@ -1163,13 +1289,13 @@ class TablePage(QWidget):
         except (ValueError, TypeError) as exc:
             QMessageBox.warning(self, tr('Некорректное правило'), str(exc)); return
         region = CellRuleRegion(
-            str(uuid4()), str(self.quick_rule_name.text().strip() or tr('Значения')),
+            str(uuid4()), str(self.quick_rule_name.text().strip() or "Values"),
             min(rows), max(rows), min(columns), max(columns), initial,
             str(self.quick_color.currentData()),
         )
         dialog = ValueRuleDialog(initial, self, title=tr('Расширенное правило'), region=region, rows=self.template.rows, columns=self.template.columns)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.quick_rule_name.setText(dialog.region_name.text().strip() or tr('Значения'))
+            self.quick_rule_name.setText(dialog.region_name.text().strip() or "Values")
             self._append_rule_regions(self.quick_rule_name.text(), dialog.rule, str(self.quick_color.currentData()))
 
     def _refresh_cell_rules(self) -> None:
@@ -1194,7 +1320,6 @@ class TablePage(QWidget):
             self.quick_minimum.setText("" if region.constraints.minimum is None else str(region.constraints.minimum))
             self.quick_maximum.setText("" if region.constraints.maximum is None else str(region.constraints.maximum))
             self.quick_require_decimal.setChecked(region.constraints.require_decimal)
-            self.quick_recover_separator.setChecked(region.constraints.suggest_missing_decimal)
             self.quick_allow_empty.setChecked(region.constraints.allow_empty)
             color_index = self.quick_color.findData(region.color)
             if color_index >= 0:
@@ -1209,7 +1334,7 @@ class TablePage(QWidget):
         dialog = ValueRuleDialog(region.constraints, self, title=tr('Правило для выбранных ячеек'), region=region, rows=self.template.rows, columns=self.template.columns)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-        updated = CellRuleRegion(region.id, str(dialog.region_name.text().strip() or tr('Значения')), *dialog.selection, constraints=dialog.rule, color=region.color)
+        updated = CellRuleRegion(region.id, str(dialog.region_name.text().strip() or "Values"), *dialog.selection, constraints=dialog.rule, color=region.color)
         if existing:
             self.template.cell_rules = [r for r in self.template.cell_rules if r.id != region.id]
         self.template.cell_rules.append(updated)
@@ -1227,7 +1352,7 @@ class TablePage(QWidget):
         value, accepted = QInputDialog.getInt(self, tr('Выбор'), tr('Номер строки') if axis == "row" else tr('Номер столбца'), 1, 1, t.rows if axis == "row" else t.columns)
         if accepted:
             rs, re, cs, ce = (value - 1, value - 1, 0, t.columns - 1) if axis == "row" else (t.header_rows, t.rows - 1, value - 1, value - 1)
-            self._edit_rule(CellRuleRegion(str(uuid4()), str(tr('Строка') if axis == "row" else tr('Столбец')), rs, re, cs, ce))
+            self._edit_rule(CellRuleRegion(str(uuid4()), ("Row" if axis == "row" else "Column"), rs, re, cs, ce))
 
     def _edit_selected_rule(self) -> None:
         index = self.rule_list.currentRow()
@@ -1239,6 +1364,7 @@ class TablePage(QWidget):
         if self.template and 0 <= index < len(self.template.cell_rules):
             self.template.cell_rules.pop(index)
             self._refresh_cell_rules(); self.templateChanged.emit(self.template)
+            notify(self, tr("Rule deleted"))
 
     def _configure_column(self) -> None:
         dialog = ValueRuleDialog(self._column_constraints, self, title=tr('Правило всего столбца'))
@@ -1269,6 +1395,7 @@ class TablePage(QWidget):
         self.canvas.show_fields = False
         self.canvas.show_rules = False
         self.canvas.set_document(image, template)
+        self._selection_changed(set())
         self._tab_changed(self.tabs.currentIndex())
 
     def _fit_canvas(self) -> None:
@@ -1276,15 +1403,15 @@ class TablePage(QWidget):
         self.canvas.fit_document()
 
     def _tab_changed(self, index: int) -> None:
-        self.canvas.show_grid = index not in {1, 3}
+        self.canvas.show_grid = index == 0
         self.canvas.show_fields = index == 1
-        self.canvas.show_rules = index == 3
-        self.canvas.set_selection_enabled(index == 3)
+        self.canvas.show_rules = index == 2
+        self.canvas.set_selection_enabled(index == 2)
 
     def _save_common(self) -> None:
         if self._loading_form or not self.template:
             return
-        self.template.name = str(self.template_name.text().strip() or tr('Новый шаблон'))
+        self.template.name = str(self.template_name.text().strip() or "New template")
         self.template.header_rows = min(self.header_rows_spin.value(), max(0, self.template.rows - 1))
         self.template.row_label_columns = min(self.row_labels_spin.value(), max(0, self.template.columns - 1))
         self.template.detect_crossed_rows = self.crossed.isChecked()
@@ -1319,6 +1446,8 @@ class TablePage(QWidget):
         self.template.ensure_column_rules()
         self.set_document(self.image, self.template)
         self.grid_warning.setText(join_text(' ', detection.warnings))
+        self.templateChanged.emit(self.template)
+        notify(self, tr("Grid detected"))
 
     def _region_created(self, kind: str, rect: QRectF) -> None:
         if self.image is None or not self.template:
@@ -1334,7 +1463,7 @@ class TablePage(QWidget):
                 QMessageBox.information(self, tr('Выделение'), tr('Выделите область внутри таблицы.')); return
             rs, re = bisect_right(t.row_guides, y1) - 1, bisect_right(t.row_guides, y2 - 1e-9) - 1
             cs, ce = bisect_right(t.column_guides, x1) - 1, bisect_right(t.column_guides, x2 - 1e-9) - 1
-            self._edit_rule(CellRuleRegion(str(uuid4()), str(tr('Значения')), rs, re, cs, ce))
+            self._edit_rule(CellRuleRegion(str(uuid4()), str("Values"), rs, re, cs, ce))
             return
         if kind == "table":
             self.template.table_rect = normalized
@@ -1351,11 +1480,12 @@ class TablePage(QWidget):
                 self.canvas.redraw()
                 self.templateChanged.emit(self.template)
             return
-        region = FieldRegion(str(uuid4()), str(tr('Поле {p0}', p0=len(self.template.fields) + 1)), normalized)
+        region = FieldRegion(str(uuid4()), f"Field {len(self.template.fields) + 1}", normalized)
         self.template.fields.append(region)
         self._refresh_fields()
         self.field_list.setCurrentRow(len(self.template.fields) - 1)
         self.canvas.redraw()
+        self.templateChanged.emit(self.template)
 
     def _refresh_fields(self) -> None:
         self.field_list.clear()
@@ -1406,6 +1536,7 @@ class TablePage(QWidget):
         self._refresh_fields()
         self.field_list.setCurrentRow(index)
         self.templateChanged.emit(self.template)
+        notify(self, tr("Field saved"))
 
     def redraw_selected_field(self) -> None:
         if self.template and 0 <= self.field_list.currentRow() < len(self.template.fields):
@@ -1415,6 +1546,7 @@ class TablePage(QWidget):
         index = self.field_list.currentRow()
         if not self.template or index < 0:
             return
+        notify(self, tr("Field deleted"))
         del self.template.fields[index]
         self.canvas.active_field = -1
         self._refresh_fields()
@@ -1437,7 +1569,7 @@ class TablePage(QWidget):
                 added += 1
         self._refresh_fields()
         self.canvas.redraw()
-        QMessageBox.information(self, tr('Предложенные поля'), tr('Добавлено областей: {p0}.', p0=added))
+        notify(self, tr('Добавлено областей: {p0}.', p0=added))
 
     def _refresh_columns(self) -> None:
         self.column_select.blockSignals(True)
@@ -1477,6 +1609,7 @@ class TablePage(QWidget):
         self._refresh_columns()
         self.column_select.setCurrentIndex(index)
         self.templateChanged.emit(self.template)
+        notify(self, tr("Column settings saved"))
 
     def _continue(self) -> None:
         self._save_common()
@@ -1507,7 +1640,7 @@ class TablePage(QWidget):
         message = tr('Ошибок не найдено.')
         if uncovered:
             message += tr(' {p0} ячеек используют широкое базовое правило; для точного OCR задайте им тип и диапазон.', p0=uncovered)
-        QMessageBox.information(self, tr('Проверка шаблона'), message)
+        notify(self, message)
 
 
 class RecognitionWorker(QThread):
@@ -2332,7 +2465,7 @@ class MainWindow(QMainWindow):
         self.file_title = QLabel("")
         set_theme_style(self.file_title, fmt('color: {p0}; border: 0;', p0=MUTED))
         top_layout.addWidget(brand)
-        top_layout.addWidget(local)
+        local.hide()
         top_layout.addStretch()
         top_layout.addWidget(self.file_title)
         self.theme_select = QComboBox()
@@ -2366,7 +2499,7 @@ class MainWindow(QMainWindow):
         settings = QLabel(tr('●  Локально и офлайн\n\nⓘ  Исходные файлы не изменяются'))
         set_theme_style(settings, fmt('color: {p0}; border: 0; padding: 8px;', p0=MUTED))
         settings.setWordWrap(True)
-        sidebar_layout.addWidget(settings)
+        settings.hide()
         body.addWidget(sidebar)
 
         self.main_stack = CurrentPageStack()
@@ -2378,7 +2511,7 @@ class MainWindow(QMainWindow):
         self.nav_buttons: list[QPushButton] = []
         for index, label in enumerate((tr('1  Файлы'), tr('2  Совмещение'), tr('3  Сверка'), tr('4  Экспорт'))):
             button = QPushButton(label); button.setCheckable(True)
-            set_theme_style(button, fmt('QPushButton {{ border: 0; background: transparent; color: #68707C; }}QPushButton:checked {{ color: {p0}; background: #EFF6FF; }}', p0=BLUE))
+            set_theme_style(button, fmt('QPushButton {{ border: 0; background: transparent; color: #68707C; }}QPushButton:checked {{ color: {p0}; background: #EFF6FF; }} QPushButton:disabled {{ color: #A5B0B3; background: transparent; }}', p0=BLUE))
             button.clicked.connect(lambda _checked=False, page=index: self._navigate(page))
             step_layout.addWidget(button); self.nav_buttons.append(button)
         step_layout.addStretch(); document_layout.addWidget(step_bar)
@@ -2420,6 +2553,7 @@ class MainWindow(QMainWindow):
         self.template_editor = TablePage("template")
         self.template_editor.templateChanged.connect(self._template_editor_changed)
         self.template_editor.saveVersionRequested.connect(self.save_template_version)
+        self.template_editor.rotationRequested.connect(self._rotate_template)
         self.templates_stack.addWidget(self.template_library); self.templates_stack.addWidget(self.template_editor)
         templates_layout.addWidget(self.template_back_bar); templates_layout.addWidget(self.templates_stack, 1)
 
@@ -2428,7 +2562,7 @@ class MainWindow(QMainWindow):
         settings_layout.addWidget(settings_title)
         settings_text = QLabel(tr('Распознавание выполняется локально. Для числовых ячеек используется многоэтапный режим, а экспорт блокируется до сверки спорных значений.'))
         settings_text.setWordWrap(True); set_theme_style(settings_text, fmt('color: {p0}; font-size: 14px;', p0=MUTED))
-        settings_layout.addWidget(settings_text)
+        settings_text.hide()
         language_form = QFormLayout()
         self.language_select = QComboBox()
         self.language_select.setAccessibleName(tr("Interface language"))
@@ -2494,10 +2628,25 @@ class MainWindow(QMainWindow):
         # a stale child pointer. Defer the visual change until the event ends.
         QTimer.singleShot(0, self.template_back_bar.hide)
 
+    def _update_steps(self):
+        available = [True, self.template is not None, self.result is not None,
+                     self.result is not None and self.result.unresolved_count == 0]
+        for index, button in enumerate(self.nav_buttons):
+            button.setEnabled(available[index])
+            button.setChecked(index == self.stack.currentIndex())
+            button.setToolTip("" if available[index] else str(tr('Open a document first') if index == 1 else tr('Complete recognition first') if index == 2 else tr('Review all flagged values before export')))
+
     def _navigate(self, index: int) -> None:
+        self._update_steps()
+        if not self.nav_buttons[index].isEnabled():
+            return
         if index == 1 and not self.template:
             return
         if index >= 2 and not self.result:
+            return
+        if index == 3:
+            self.export_current()
+            self._update_steps()
             return
         self.stack.setCurrentIndex(index)
         self._navigate_section(0)
@@ -2530,7 +2679,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, tr('Не удалось открыть образец'), str(exc)); return
         identifier = str(uuid4())
         template = TableTemplate(
-            identifier, str(tr('{p0} — шаблон', p0=Path(path).stem)), detection.table_rect,
+            identifier, f"{Path(path).stem} — template", detection.table_rect,
             detection.row_guides, detection.column_guides,
             template_version=0, family_id=identifier, reference_source_path=path,
             reference_page_aspect=images[0].shape[1] / max(1, images[0].shape[0]),
@@ -2578,7 +2727,7 @@ class MainWindow(QMainWindow):
             self.template_editor.set_document(image, saved)
         except Exception:
             pass
-        QMessageBox.information(self, tr('Шаблон сохранён'), tr('Сохранена версия v{p0}. Предыдущие версии не изменены.', p0=saved.template_version))
+        notify(self, tr('Сохранена версия v{p0}. Предыдущие версии не изменены.', p0=saved.template_version))
 
     def _save_document_template_version(self, template: TableTemplate) -> None:
         if not self.images:
@@ -2591,7 +2740,7 @@ class MainWindow(QMainWindow):
         self.template = saved
         self.table_page.set_document(self.images[0], saved)
         self._refresh_templates()
-        QMessageBox.information(self, tr('Шаблон сохранён'), tr('Создана версия v{p0}: {p1}', p0=saved.template_version, p1=saved.name))
+        notify(self, tr('Создана версия v{p0}: {p1}', p0=saved.template_version, p1=saved.name))
 
     def duplicate_template(self, template_id: str) -> None:
         template = next((item for item in self.store.load_templates() if item.id == template_id), None)
@@ -2660,7 +2809,7 @@ class MainWindow(QMainWindow):
         else:
             identifier = str(uuid4())
             self.template = TableTemplate(
-                id=identifier, name=str(tr('{p0} — шаблон', p0=Path(path).stem)), table_rect=detection.table_rect,
+                id=identifier, name=f"{Path(path).stem} — template", table_rect=detection.table_rect,
                 row_guides=detection.row_guides, column_guides=detection.column_guides,
                 template_version=0, family_id=identifier, reference_source_path=str(copied),
                 reference_page_aspect=self.images[0].shape[1] / max(1, self.images[0].shape[0]),
@@ -2671,7 +2820,7 @@ class MainWindow(QMainWindow):
         self.table_page.set_document(self.images[0], self.template)
         if selected_match:
             self.table_page.grid_warning.setText(
-                tr('Предложен шаблон с совпадением {p0}%. Проверьте наложение сетки, ориентацию и число строк заголовка.', p0=round(selected_match.score * 100))
+                tr('Template match: {p0}%', p0=round(selected_match.score * 100))
             )
         else:
             self.table_page.grid_warning.setText(join_text(' ', detection.warnings) if detection else tr('Проверьте наложение сохранённого шаблона и число строк заголовка.'))
@@ -2687,6 +2836,29 @@ class MainWindow(QMainWindow):
             rows, columns = evenly_spaced_guides(rect, 10, 6)
             return GridDetection(rect, rows, columns, [tr('Grid not detected. Rotate if needed, then redraw the table boundary and set its rows and columns.')])
 
+    def _rotate_template(self, degrees: int) -> None:
+        template = self.template_editor_working
+        image = self.template_editor.image
+        if template is None or image is None:
+            return
+        if template.fields or template.cell_rules:
+            answer = QMessageBox.question(self, tr('Rotate template'), tr('Rotation will detect a new grid and clear fields and rules. Continue?'))
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        rotated = rotate_document([image], degrees)[0]
+        detection = self._detect_or_manual(rotated)
+        template.rotation_degrees = (template.rotation_degrees + degrees) % 360
+        template.table_rect = detection.table_rect
+        template.row_guides = detection.row_guides
+        template.column_guides = detection.column_guides
+        template.fields = []
+        template.cell_rules = []
+        template.column_rules = []
+        template.ensure_column_rules()
+        template.reference_page_aspect = rotated.shape[1] / rotated.shape[0]
+        self.template_editor.set_document(rotated, template)
+        notify(self, tr('Template rotated'))
+
     def _rotate_pages(self, degrees: int) -> None:
         if not self.images or not self.template:
             return
@@ -2701,6 +2873,8 @@ class MainWindow(QMainWindow):
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
         self.table_page.grid_warning.setText(join_text(' ', detection.warnings))
+        self._update_steps()
+        notify(self, tr("Document rotated"))
 
     def open_recent(self, job_id: str) -> None:
         loaded = self.store.load_job(job_id)
@@ -2733,6 +2907,7 @@ class MainWindow(QMainWindow):
             # Keep the saved job intact; a changed template must not reinterpret
             # old confirmed results as if recognition had been rerun.
             self.result = None
+        self._update_steps()
 
     def _load_saved_template(self, template_id: str) -> None:
         if not self.images:
@@ -2746,7 +2921,7 @@ class MainWindow(QMainWindow):
         self.template = TableTemplate.from_dict(template.to_dict())
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
-        self.table_page.grid_warning.setText(tr('Проверьте сохранённый шаблон, особенно строки заголовка и поворот страницы, перед распознаванием.'))
+        self.table_page.grid_warning.clear()
 
     def start_recognition(self, template: TableTemplate) -> None:
         if not self.images or not self.job_id:
@@ -2843,6 +3018,7 @@ class MainWindow(QMainWindow):
         if self.job_id:
             self.store.save_result(self.job_id, result)
         self.refresh_recent()
+        self._update_steps()
 
     def export_current(self) -> None:
         if not self.result:
@@ -2863,12 +3039,12 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.critical(self, tr('Ошибка экспорта'), str(exc))
             return
-        QMessageBox.information(self, tr('Экспорт завершён'), tr('Проверенная таблица сохранена:\n{p0}', p0=saved))
+        notify(self, tr('Проверенная таблица сохранена:\n{p0}', p0=saved))
         if self.pending_sources and self.template:
             next_source = self.pending_sources.pop(0)
             self.open_source(next_source, self.template)
             return
-        self._navigate(3)
+        self._update_steps()
 
 
 def create_application() -> tuple[QApplication, MainWindow]:

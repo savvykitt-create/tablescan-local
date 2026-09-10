@@ -107,7 +107,7 @@ class LocalStore:
         duplicate.id = str(uuid4())
         duplicate.family_id = duplicate.id
         duplicate.template_version = 1
-        duplicate.name = str(tr('{p0} — копия', p0=template.name))
+        duplicate.name = f"{template.name} — copy"
         self.save_template(duplicate, template.reference_source_path or None)
         return duplicate
 

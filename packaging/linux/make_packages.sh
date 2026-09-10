@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="0.7.3"
+VERSION="0.7.6"
 STAGE="$PROJECT_DIR/build/linux-package"
 APPDIR="$PROJECT_DIR/build/TableScanLocal.AppDir"
 RELEASE="$PROJECT_DIR/release"

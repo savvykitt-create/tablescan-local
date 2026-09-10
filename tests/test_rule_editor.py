@@ -42,7 +42,7 @@ def test_selection_snaps_inside_cells_and_ignores_shared_end_boundary(qtbot, mon
     page._region_created("cell_rule", QRectF(320, 320, 380, 380))
     region = selected[0]
     assert (region.row_start, region.row_end, region.column_start, region.column_end) == (1, 2, 1, 2)
-    page.tabs.setCurrentIndex(3)
+    page.tabs.setCurrentIndex(2)
     assert page.canvas.show_rules and not page.canvas.show_grid
 
 
@@ -64,7 +64,7 @@ def test_apply_and_reload_region_rules(qtbot, monkeypatch):
 def test_excel_like_selection_and_noncontiguous_rule_application(qtbot):
     page = TablePage(); qtbot.addWidget(page)
     t = template(); page.set_document(np.full((1000, 1000, 3), 255, np.uint8), t)
-    page.tabs.setCurrentIndex(3)
+    page.tabs.setCurrentIndex(2)
     page.canvas.select_cells({(0, 1), (0, 2), (2, 1), (2, 2)})
     assert page.selection_label.text() == "Cells: 4"
     page._apply_quick_rule()
@@ -76,7 +76,7 @@ def test_excel_like_selection_and_noncontiguous_rule_application(qtbot):
 def test_selection_undo_redo_and_reapplying_same_range_replaces_rule(qtbot):
     page = TablePage(); qtbot.addWidget(page)
     t = template(); page.set_document(np.full((1000, 1000, 3), 255, np.uint8), t)
-    page.tabs.setCurrentIndex(3)
+    page.tabs.setCurrentIndex(2)
     page.canvas.select_cells({(0, 1)})
     page.canvas.select_cells({(0, 1), (0, 2)})
     page.canvas.undo_selection()

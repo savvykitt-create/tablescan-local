@@ -1,5 +1,5 @@
 #define MyAppName "TableScan Local"
-#define MyAppVersion "0.7.3"
+#define MyAppVersion "0.7.6"
 #define MyAppPublisher "TableScan Local contributors"
 #define MyAppExeName "TableScanLocal.exe"
 
@@ -11,7 +11,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\TableScan Local
 DefaultGroupName={#MyAppName}
 OutputDir=..\..\release
-OutputBaseFilename=TableScan-Local-Setup-x64
+OutputBaseFilename=TableScan-Local-{#MyAppVersion}-Setup-x64
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
