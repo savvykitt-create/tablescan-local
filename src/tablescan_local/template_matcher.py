@@ -1,6 +1,7 @@
 """Explainable, local-only matching of saved templates to a detected grid."""
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 from dataclasses import dataclass
 from math import exp
 
@@ -71,14 +72,14 @@ def rank_templates(
             + .10 * aspect_score + .17 * ((row_shape + column_shape) / 2)
         )
         reasons = [
-            f"сетка {template.rows}×{template.columns}",
-            "число строк совпадает" if row_score == 1 else "число строк отличается",
-            "число столбцов совпадает" if column_score == 1 else "число столбцов отличается",
+            tr('сетка {p0}×{p1}', p0=template.rows, p1=template.columns),
+            tr('число строк совпадает') if row_score == 1 else tr('число строк отличается'),
+            tr('число столбцов совпадает') if column_score == 1 else tr('число столбцов отличается'),
         ]
         if aspect_score > .9:
-            reasons.append("пропорции страницы совпадают")
+            reasons.append(tr('пропорции страницы совпадают'))
         if rect_score > .85:
-            reasons.append("положение таблицы похоже")
+            reasons.append(tr('положение таблицы похоже'))
         matches.append(TemplateMatch(template, round(max(0.0, min(1.0, score)), 4), tuple(reasons)))
     return sorted(matches, key=lambda item: item.score, reverse=True)
 

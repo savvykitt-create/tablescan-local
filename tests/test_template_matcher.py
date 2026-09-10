@@ -27,4 +27,4 @@ def test_matching_prefers_same_grid_and_explains_choice():
     matches = rank_templates((1000, 1500, 3), detection, [wrong, expected])
     assert matches[0].template.id == "expected"
     assert matches[0].score > .95
-    assert "число строк совпадает" in matches[0].reasons
+    assert "row count matches" in matches[0].reasons

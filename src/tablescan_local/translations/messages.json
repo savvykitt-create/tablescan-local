@@ -1,0 +1,2072 @@
+{
+  "Добавьте изображения таблиц": {
+    "en": "Add table images",
+    "cs": "Přidejte obrázky tabulek",
+    "ru": "Добавьте изображения таблиц"
+  },
+  "Выбрать файлы": {
+    "en": "Choose files",
+    "cs": "Vybrat soubory",
+    "ru": "Выбрать файлы"
+  },
+  "или перетащите сюда PDF, PNG, JPG либо TIFF": {
+    "en": "or drop PDF, PNG, JPG or TIFF files here",
+    "cs": "nebo sem přetáhněte soubory PDF, PNG, JPG či TIFF",
+    "ru": "или перетащите сюда PDF, PNG, JPG либо TIFF"
+  },
+  "▣  Файлы и распознанные данные не покидают этот компьютер": {
+    "en": "▣  Your files and recognized data stay on this computer",
+    "cs": "▣  Vaše soubory a rozpoznaná data zůstávají v tomto počítači",
+    "ru": "▣  Файлы и распознанные данные не покидают этот компьютер"
+  },
+  "Недавние файлы": {
+    "en": "Recent files",
+    "cs": "Nedávné soubory",
+    "ru": "Недавние файлы"
+  },
+  "Файл": {
+    "en": "File",
+    "cs": "Soubor",
+    "ru": "Файл"
+  },
+  "Изменён": {
+    "en": "Modified",
+    "cs": "Změněno",
+    "ru": "Изменён"
+  },
+  "Состояние": {
+    "en": "Status",
+    "cs": "Stav",
+    "ru": "Состояние"
+  },
+  "Импортирован": {
+    "en": "Imported",
+    "cs": "Importováno",
+    "ru": "Импортирован"
+  },
+  "Нужна сверка": {
+    "en": "Review required",
+    "cs": "Vyžaduje kontrolu",
+    "ru": "Нужна сверка"
+  },
+  "Готов к экспорту": {
+    "en": "Ready to export",
+    "cs": "Připraveno k exportu",
+    "ru": "Готов к экспорту"
+  },
+  "Выберите шаблон": {
+    "en": "Choose a template",
+    "cs": "Vyberte šablonu",
+    "ru": "Выберите шаблон"
+  },
+  "Какой шаблон применить к документу?": {
+    "en": "Which template should be applied to this document?",
+    "cs": "Kterou šablonu chcete použít pro tento dokument?",
+    "ru": "Какой шаблон применить к документу?"
+  },
+  "Программа сравнила сетку локально. Проверьте выбор: перед распознаванием будет показано наложение шаблона.": {
+    "en": "The grid was compared locally. Check the selection: the template overlay will be shown before recognition.",
+    "cs": "Mřížka byla porovnána lokálně. Zkontrolujte výběr: před rozpoznáváním se zobrazí překrytí šablony.",
+    "ru": "Программа сравнила сетку локально. Проверьте выбор: перед распознаванием будет показано наложение шаблона."
+  },
+  "Создать новый шаблон для этого документа\nАвтоматически найденная сетка останется доступна для настройки": {
+    "en": "Create a new template for this document\nThe automatically detected grid will remain available for adjustment",
+    "cs": "Vytvořit novou šablonu pro tento dokument\nAutomaticky nalezenou mřížku bude možné dále upravit",
+    "ru": "Создать новый шаблон для этого документа\nАвтоматически найденная сетка останется доступна для настройки"
+  },
+  "{p0} · v{p1} — совпадение {p2}%\n": {
+    "en": "{p0} · v{p1} — {p2}% match\n",
+    "cs": "{p0} · v{p1} — shoda {p2}%\n",
+    "ru": "{p0} · v{p1} — совпадение {p2}%\n"
+  },
+  "Продолжить": {
+    "en": "Continue",
+    "cs": "Pokračovat",
+    "ru": "Продолжить"
+  },
+  "Отмена импорта": {
+    "en": "Cancel import",
+    "cs": "Zrušit import",
+    "ru": "Отмена импорта"
+  },
+  "Будет создан новый рабочий шаблон. Его можно сохранить в библиотеку отдельной командой.": {
+    "en": "A new working template will be created. You can save it to the library separately.",
+    "cs": "Bude vytvořena nová pracovní šablona. Do knihovny ji můžete uložit samostatně.",
+    "ru": "Будет создан новый рабочий шаблон. Его можно сохранить в библиотеку отдельной командой."
+  },
+  "Высокое геометрическое совпадение. Всё равно проверьте линии сетки и ориентацию.": {
+    "en": "Strong geometric match. Still check the grid lines and orientation.",
+    "cs": "Vysoká geometrická shoda. Přesto zkontrolujte čáry mřížky a orientaci.",
+    "ru": "Высокое геометрическое совпадение. Всё равно проверьте линии сетки и ориентацию."
+  },
+  "Шаблон похож, но требуется внимательная проверка наложения.": {
+    "en": "The template is similar, but the overlay needs a careful check.",
+    "cs": "Šablona je podobná, ale její překrytí je třeba pečlivě zkontrolovat.",
+    "ru": "Шаблон похож, но требуется внимательная проверка наложения."
+  },
+  "Совпадение слабое. Выберите этот шаблон только после визуальной проверки.": {
+    "en": "Weak match. Use this template only after checking it visually.",
+    "cs": "Nízká shoda. Tuto šablonu použijte až po vizuální kontrole.",
+    "ru": "Совпадение слабое. Выберите этот шаблон только после визуальной проверки."
+  },
+  "Шаблоны": {
+    "en": "Templates",
+    "cs": "Šablony",
+    "ru": "Шаблоны"
+  },
+  "Настройте сетку и допустимые значения один раз, затем применяйте шаблон к новым файлам.": {
+    "en": "Set up the grid and allowed values once, then apply the template to new files.",
+    "cs": "Nastavte mřížku a povolené hodnoty jednou a pak šablonu používejte pro nové soubory.",
+    "ru": "Настройте сетку и допустимые значения один раз, затем применяйте шаблон к новым файлам."
+  },
+  "Создать из образца": {
+    "en": "Create from sample",
+    "cs": "Vytvořit ze vzoru",
+    "ru": "Создать из образца"
+  },
+  "Дублировать": {
+    "en": "Duplicate",
+    "cs": "Duplikovat",
+    "ru": "Дублировать"
+  },
+  "Удалить": {
+    "en": "Delete",
+    "cs": "Odstranit",
+    "ru": "Удалить"
+  },
+  "Открыть редактор": {
+    "en": "Open editor",
+    "cs": "Otevřít editor",
+    "ru": "Открыть редактор"
+  },
+  "есть": {
+    "en": "available",
+    "cs": "k dispozici",
+    "ru": "есть"
+  },
+  "нет": {
+    "en": "missing",
+    "cs": "chybí",
+    "ru": "нет"
+  },
+  "область": {
+    "en": "region",
+    "cs": "oblast",
+    "ru": "область"
+  },
+  "областей": {
+    "en": "regions",
+    "cs": "oblastí",
+    "ru": "областей"
+  },
+  "{p0}    ·    v{p1}\nСетка {p2} × {p3}    ·    {p4} {p5}    ·    образец: {p6}": {
+    "en": "{p0}    ·    v{p1}\nGrid {p2} × {p3}    ·    {p4} {p5}    ·    sample: {p6}",
+    "cs": "{p0}    ·    v{p1}\nMřížka {p2} × {p3}    ·    {p4} {p5}    ·    vzor: {p6}",
+    "ru": "{p0}    ·    v{p1}\nСетка {p2} × {p3}    ·    {p4} {p5}    ·    образец: {p6}"
+  },
+  "Редактор шаблона": {
+    "en": "Template editor",
+    "cs": "Editor šablony",
+    "ru": "Редактор шаблона"
+  },
+  "Совмещение документа": {
+    "en": "Document alignment",
+    "cs": "Zarovnání dokumentu",
+    "ru": "Совмещение документа"
+  },
+  "Проверить шаблон": {
+    "en": "Validate template",
+    "cs": "Ověřit šablonu",
+    "ru": "Проверить шаблон"
+  },
+  "Сохранить новую версию": {
+    "en": "Save new version",
+    "cs": "Uložit novou verzi",
+    "ru": "Сохранить новую версию"
+  },
+  "Вписать": {
+    "en": "Fit",
+    "cs": "Přizpůsobit",
+    "ru": "Вписать"
+  },
+  "↶ Повернуть": {
+    "en": "↶ Rotate",
+    "cs": "↶ Otočit",
+    "ru": "↶ Повернуть"
+  },
+  "Повернуть ↷": {
+    "en": "Rotate ↷",
+    "cs": "Otočit ↷",
+    "ru": "Повернуть ↷"
+  },
+  "Сетка": {
+    "en": "Grid",
+    "cs": "Mřížka",
+    "ru": "Сетка"
+  },
+  "Поля": {
+    "en": "Fields",
+    "cs": "Pole",
+    "ru": "Поля"
+  },
+  "Столбцы": {
+    "en": "Columns",
+    "cs": "Sloupce",
+    "ru": "Столбцы"
+  },
+  "Правила": {
+    "en": "Rules",
+    "cs": "Pravidla",
+    "ru": "Правила"
+  },
+  "Новый шаблон": {
+    "en": "New template",
+    "cs": "Nová šablona",
+    "ru": "Новый шаблон"
+  },
+  "Находить зачёркнутые строки": {
+    "en": "Detect crossed-out rows",
+    "cs": "Rozpoznávat přeškrtnuté řádky",
+    "ru": "Находить зачёркнутые строки"
+  },
+  "Максимальная точность (медленнее)": {
+    "en": "Maximum accuracy (slower)",
+    "cs": "Maximální přesnost (pomalejší)",
+    "ru": "Максимальная точность (медленнее)"
+  },
+  "Многоэтапно сравнивает модели, внутренние варианты чисел, повторные вырезы, разделитель и независимую проверку цифр. Всё работает локально.": {
+    "en": "Compares models, internal numeric candidates, alternative crops, the decimal separator and independent digit checks in several stages. Everything runs locally.",
+    "cs": "V několika fázích porovnává modely, číselné varianty, alternativní výřezy, desetinný oddělovač a nezávislé ověření číslic. Vše probíhá lokálně.",
+    "ru": "Многоэтапно сравнивает модели, внутренние варианты чисел, повторные вырезы, разделитель и независимую проверку цифр. Всё работает локально."
+  },
+  "Сохранённый шаблон": {
+    "en": "Saved template",
+    "cs": "Uložená šablona",
+    "ru": "Сохранённый шаблон"
+  },
+  "Название шаблона": {
+    "en": "Template name",
+    "cs": "Název šablony",
+    "ru": "Название шаблона"
+  },
+  "Строк": {
+    "en": "Rows",
+    "cs": "Řádky",
+    "ru": "Строк"
+  },
+  "Столбцов": {
+    "en": "Columns",
+    "cs": "Sloupce",
+    "ru": "Столбцов"
+  },
+  "Строк заголовка": {
+    "en": "Header rows",
+    "cs": "Řádky záhlaví",
+    "ru": "Строк заголовка"
+  },
+  "Столбцов с названиями": {
+    "en": "Row-label columns",
+    "cs": "Sloupce s názvy řádků",
+    "ru": "Столбцов с названиями"
+  },
+  "Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки.": {
+    "en": "Recommended for cells using the Number format. On a modern computer, 100 cells usually take a few minutes; the extra time is used to compare alternatives and run checks.",
+    "cs": "Doporučeno pro buňky ve formátu Číslo. Zpracování 100 buněk na moderním počítači obvykle trvá několik minut; další čas slouží k porovnání variant a ověřování.",
+    "ru": "Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки."
+  },
+  "Проверьте каждую синюю направляющую. Если заголовки находятся НАД таблицей, укажите 0 строк заголовка. Направляющие можно перетаскивать мышью.": {
+    "en": "Check every blue guide. If the headers are ABOVE the table, set header rows to 0. Drag the guides to adjust them.",
+    "cs": "Zkontrolujte každou modrou vodicí čáru. Pokud je záhlaví NAD tabulkou, nastavte počet řádků záhlaví na 0. Čáry můžete upravit přetažením myší.",
+    "ru": "Проверьте каждую синюю направляющую. Если заголовки находятся НАД таблицей, укажите 0 строк заголовка. Направляющие можно перетаскивать мышью."
+  },
+  "Найти сетку заново": {
+    "en": "Detect grid again",
+    "cs": "Znovu najít mřížku",
+    "ru": "Найти сетку заново"
+  },
+  "Применить выбранный шаблон": {
+    "en": "Apply selected template",
+    "cs": "Použít vybranou šablonu",
+    "ru": "Применить выбранный шаблон"
+  },
+  "Перерисовать границу таблицы": {
+    "en": "Redraw table boundary",
+    "cs": "Znovu vyznačit okraj tabulky",
+    "ru": "Перерисовать границу таблицы"
+  },
+  "Сохранить как новую версию шаблона": {
+    "en": "Save as new template version",
+    "cs": "Uložit jako novou verzi šablony",
+    "ru": "Сохранить как новую версию шаблона"
+  },
+  "Сохранить сетку и продолжить": {
+    "en": "Save grid and continue",
+    "cs": "Uložit mřížku a pokračovat",
+    "ru": "Сохранить сетку и продолжить"
+  },
+  "Распознавание выполняется…": {
+    "en": "Recognition in progress…",
+    "cs": "Probíhá rozpoznávání…",
+    "ru": "Распознавание выполняется…"
+  },
+  "Выберите сохранённый шаблон…": {
+    "en": "Choose a saved template…",
+    "cs": "Vyberte uloženou šablonu…",
+    "ru": "Выберите сохранённый шаблон…"
+  },
+  "+ Добавить область": {
+    "en": "+ Add region",
+    "cs": "+ Přidat oblast",
+    "ru": "+ Добавить область"
+  },
+  "Предложить автоматически": {
+    "en": "Suggest automatically",
+    "cs": "Navrhnout automaticky",
+    "ru": "Предложить автоматически"
+  },
+  "Текст": {
+    "en": "Text",
+    "cs": "Text",
+    "ru": "Текст"
+  },
+  "Дата": {
+    "en": "Date",
+    "cs": "Datum",
+    "ru": "Дата"
+  },
+  "Целое число": {
+    "en": "Integer",
+    "cs": "Celé číslo",
+    "ru": "Целое число"
+  },
+  "Десятичное число": {
+    "en": "Decimal number",
+    "cs": "Desetinné číslo",
+    "ru": "Десятичное число"
+  },
+  "Сложная запись": {
+    "en": "Complex notation",
+    "cs": "Složený zápis",
+    "ru": "Сложная запись"
+  },
+  "Печатный текст": {
+    "en": "Printed text",
+    "cs": "Tištěný text",
+    "ru": "Печатный текст"
+  },
+  "Рукописный текст": {
+    "en": "Handwritten text",
+    "cs": "Ručně psaný text",
+    "ru": "Рукописный текст"
+  },
+  "Число": {
+    "en": "Number",
+    "cs": "Číslo",
+    "ru": "Число"
+  },
+  "Распознать": {
+    "en": "Recognize",
+    "cs": "Rozpoznat",
+    "ru": "Распознать"
+  },
+  "Постоянное значение": {
+    "en": "Fixed value",
+    "cs": "Pevná hodnota",
+    "ru": "Постоянное значение"
+  },
+  "Повторить для каждой строки": {
+    "en": "Repeat for each row",
+    "cs": "Opakovat pro každý řádek",
+    "ru": "Повторить для каждой строки"
+  },
+  "Распределить по группе столбцов": {
+    "en": "Assign to a column group",
+    "cs": "Přiřadit ke skupině sloupců",
+    "ru": "Распределить по группе столбцов"
+  },
+  "Название поля": {
+    "en": "Field name",
+    "cs": "Název pole",
+    "ru": "Название поля"
+  },
+  "Тип значения": {
+    "en": "Value type",
+    "cs": "Typ hodnoty",
+    "ru": "Тип значения"
+  },
+  "Режим OCR": {
+    "en": "OCR mode",
+    "cs": "Režim OCR",
+    "ru": "Режим OCR"
+  },
+  "Источник": {
+    "en": "Source",
+    "cs": "Zdroj",
+    "ru": "Источник"
+  },
+  "Экспортировать": {
+    "en": "Export as",
+    "cs": "Exportovat jako",
+    "ru": "Экспортировать"
+  },
+  "Обязательное поле": {
+    "en": "Required field",
+    "cs": "Povinné pole",
+    "ru": "Обязательное поле"
+  },
+  "Первый столбец": {
+    "en": "First column",
+    "cs": "První sloupec",
+    "ru": "Первый столбец"
+  },
+  "Последний столбец": {
+    "en": "Last column",
+    "cs": "Poslední sloupec",
+    "ru": "Последний столбец"
+  },
+  "Распознаются только основная таблица и отмеченные области. Всё за их пределами игнорируется.": {
+    "en": "Only the main table and marked regions are recognized. Everything outside them is ignored.",
+    "cs": "Rozpoznává se pouze hlavní tabulka a vyznačené oblasti. Vše mimo ně se ignoruje.",
+    "ru": "Распознаются только основная таблица и отмеченные области. Всё за их пределами игнорируется."
+  },
+  "Перерисовать область": {
+    "en": "Redraw region",
+    "cs": "Znovu vyznačit oblast",
+    "ru": "Перерисовать область"
+  },
+  "Удалить поле": {
+    "en": "Delete field",
+    "cs": "Odstranit pole",
+    "ru": "Удалить поле"
+  },
+  "Сохранить поле": {
+    "en": "Save field",
+    "cs": "Uložit pole",
+    "ru": "Сохранить поле"
+  },
+  "Данные": {
+    "en": "Data",
+    "cs": "Data",
+    "ru": "Данные"
+  },
+  "Заголовок": {
+    "en": "Header",
+    "cs": "Záhlaví",
+    "ru": "Заголовок"
+  },
+  "Название строки": {
+    "en": "Row label",
+    "cs": "Název řádku",
+    "ru": "Название строки"
+  },
+  "Игнорировать": {
+    "en": "Ignore",
+    "cs": "Ignorovat",
+    "ru": "Игнорировать"
+  },
+  "Выбранный столбец": {
+    "en": "Selected column",
+    "cs": "Vybraný sloupec",
+    "ru": "Выбранный столбец"
+  },
+  "Название столбца": {
+    "en": "Column name",
+    "cs": "Název sloupce",
+    "ru": "Название столбца"
+  },
+  "Назначение": {
+    "en": "Role",
+    "cs": "Úloha",
+    "ru": "Назначение"
+  },
+  "Формат и допустимые значения…": {
+    "en": "Format and allowed values…",
+    "cs": "Formát a povolené hodnoty…",
+    "ru": "Формат и допустимые значения…"
+  },
+  "Правило столбца применяется к строкам данных. Выделение на вкладке «Правила ячеек» имеет приоритет и может охватывать одну ячейку, строку или блок.": {
+    "en": "The column rule applies to data rows. Selections on the Rules tab take priority and can cover a cell, row or block.",
+    "cs": "Pravidlo sloupce se vztahuje na datové řádky. Výběr na kartě Pravidla má přednost a může zahrnovat buňku, řádek nebo blok.",
+    "ru": "Правило столбца применяется к строкам данных. Выделение на вкладке «Правила ячеек» имеет приоритет и может охватывать одну ячейку, строку или блок."
+  },
+  "Сохранить правила столбца": {
+    "en": "Save column rules",
+    "cs": "Uložit pravidla sloupce",
+    "ru": "Сохранить правила столбца"
+  },
+  "Щёлкните ячейку или протяните мышью по таблице. Shift расширяет диапазон; Ctrl/Cmd добавляет или убирает ячейки. Заголовок выбирает строку или столбец.": {
+    "en": "Click a cell or drag across the table. Shift extends the range; Ctrl/Cmd adds or removes cells. Click a header to select a row or column.",
+    "cs": "Klikněte na buňku nebo táhněte myší přes tabulku. Shift rozšíří výběr; Ctrl/Cmd přidá nebo odebere buňky. Kliknutím na záhlaví vyberete řádek nebo sloupec.",
+    "ru": "Щёлкните ячейку или протяните мышью по таблице. Shift расширяет диапазон; Ctrl/Cmd добавляет или убирает ячейки. Заголовок выбирает строку или столбец."
+  },
+  "Ячейки не выбраны": {
+    "en": "No cells selected",
+    "cs": "Nejsou vybrány žádné buňky",
+    "ru": "Ячейки не выбраны"
+  },
+  "Все измерения": {
+    "en": "All measurements",
+    "cs": "Všechna měření",
+    "ru": "Все измерения"
+  },
+  "Снять": {
+    "en": "Clear",
+    "cs": "Zrušit výběr",
+    "ru": "Снять"
+  },
+  "Отменить последнее выделение": {
+    "en": "Undo last selection",
+    "cs": "Vrátit poslední výběr",
+    "ru": "Отменить последнее выделение"
+  },
+  "Повторить выделение": {
+    "en": "Redo selection",
+    "cs": "Obnovit výběr",
+    "ru": "Повторить выделение"
+  },
+  "Измерения": {
+    "en": "Measurements",
+    "cs": "Měření",
+    "ru": "Измерения"
+  },
+  "Любое": {
+    "en": "Any",
+    "cs": "Libovolný počet",
+    "ru": "Любое"
+  },
+  "Десятичная часть обязательна": {
+    "en": "Decimal part required",
+    "cs": "Desetinná část je povinná",
+    "ru": "Десятичная часть обязательна"
+  },
+  "Восстанавливать пропущенный разделитель": {
+    "en": "Recover a missing decimal separator",
+    "cs": "Obnovit chybějící desetinný oddělovač",
+    "ru": "Восстанавливать пропущенный разделитель"
+  },
+  "Проверяет точку, запятую и узкий штрих, который OCR мог ошибочно прочитать как цифру 1.": {
+    "en": "Checks for a dot, comma or narrow stroke that OCR may have misread as the digit 1.",
+    "cs": "Hledá tečku, čárku nebo úzký tah, který OCR mohlo chybně přečíst jako číslici 1.",
+    "ru": "Проверяет точку, запятую и узкий штрих, который OCR мог ошибочно прочитать как цифру 1."
+  },
+  "Ячейка может быть пустой": {
+    "en": "Cell may be empty",
+    "cs": "Buňka může být prázdná",
+    "ru": "Ячейка может быть пустой"
+  },
+  "Индиго": {
+    "en": "Indigo",
+    "cs": "Indigová",
+    "ru": "Индиго"
+  },
+  "Бирюзовый": {
+    "en": "Teal",
+    "cs": "Tyrkysová",
+    "ru": "Бирюзовый"
+  },
+  "Зелёный": {
+    "en": "Green",
+    "cs": "Zelená",
+    "ru": "Зелёный"
+  },
+  "Оранжевый": {
+    "en": "Orange",
+    "cs": "Oranžová",
+    "ru": "Оранжевый"
+  },
+  "Малиновый": {
+    "en": "Crimson",
+    "cs": "Karmínová",
+    "ru": "Малиновый"
+  },
+  "Название": {
+    "en": "Name",
+    "cs": "Název",
+    "ru": "Название"
+  },
+  "Знаков после точки": {
+    "en": "Decimal places",
+    "cs": "Desetinná místa",
+    "ru": "Знаков после точки"
+  },
+  "Разрешено от / до": {
+    "en": "Allowed minimum / maximum",
+    "cs": "Povolené minimum / maximum",
+    "ru": "Разрешено от / до"
+  },
+  "Цвет области": {
+    "en": "Region color",
+    "cs": "Barva oblasti",
+    "ru": "Цвет области"
+  },
+  "Применить к выделению": {
+    "en": "Apply to selection",
+    "cs": "Použít na výběr",
+    "ru": "Применить к выделению"
+  },
+  "Дополнительно…": {
+    "en": "Advanced…",
+    "cs": "Pokročilé…",
+    "ru": "Дополнительно…"
+  },
+  "Области шаблона": {
+    "en": "Template regions",
+    "cs": "Oblasti šablony",
+    "ru": "Области шаблона"
+  },
+  "Изменить…": {
+    "en": "Edit…",
+    "cs": "Upravit…",
+    "ru": "Изменить…"
+  },
+  "Удалить правило": {
+    "en": "Delete rule",
+    "cs": "Odstranit pravidlo",
+    "ru": "Удалить правило"
+  },
+  "{p0} ячеек": {
+    "en": "Cells: {p0}",
+    "cs": "Počet buněk: {p0}",
+    "ru": "{p0} ячеек"
+  },
+  "{p0} запрещено": {
+    "en": "Disallowed: {p0}",
+    "cs": "Nepovoleno: {p0}",
+    "ru": "{p0} запрещено"
+  },
+  "Точка и запятая будут сохранены как точка.": {
+    "en": "Dots and commas will be saved as dots.",
+    "cs": "Tečky a čárky se uloží jako tečky.",
+    "ru": "Точка и запятая будут сохранены как точка."
+  },
+  " По этому правилу: ": {
+    "en": " Under this rule: ",
+    "cs": " Podle tohoto pravidla: ",
+    "ru": " По этому правилу: "
+  },
+  "Проверьте правило: {p0}": {
+    "en": "Check the rule: {p0}",
+    "cs": "Zkontrolujte pravidlo: {p0}",
+    "ru": "Проверьте правило: {p0}"
+  },
+  "Выделение": {
+    "en": "Selection",
+    "cs": "Výběr",
+    "ru": "Выделение"
+  },
+  "Сначала выберите ячейку или диапазон на таблице.": {
+    "en": "First select a cell or range in the table.",
+    "cs": "Nejprve vyberte buňku nebo oblast v tabulce.",
+    "ru": "Сначала выберите ячейку или диапазон на таблице."
+  },
+  "Некорректное правило": {
+    "en": "Invalid rule",
+    "cs": "Neplatné pravidlo",
+    "ru": "Некорректное правило"
+  },
+  "Значения": {
+    "en": "Values",
+    "cs": "Hodnoty",
+    "ru": "Значения"
+  },
+  "Расширенное правило": {
+    "en": "Advanced rule",
+    "cs": "Pokročilé pravidlo",
+    "ru": "Расширенное правило"
+  },
+  " — вне сетки!": {
+    "en": " — outside the grid!",
+    "cs": " — mimo mřížku!",
+    "ru": " — вне сетки!"
+  },
+  "Правило для выбранных ячеек": {
+    "en": "Rule for selected cells",
+    "cs": "Pravidlo pro vybrané buňky",
+    "ru": "Правило для выбранных ячеек"
+  },
+  "Выбор": {
+    "en": "Select",
+    "cs": "Vybrat",
+    "ru": "Выбор"
+  },
+  "Номер строки": {
+    "en": "Row number",
+    "cs": "Číslo řádku",
+    "ru": "Номер строки"
+  },
+  "Номер столбца": {
+    "en": "Column number",
+    "cs": "Číslo sloupce",
+    "ru": "Номер столбца"
+  },
+  "Строка": {
+    "en": "Row",
+    "cs": "Řádek",
+    "ru": "Строка"
+  },
+  "Столбец": {
+    "en": "Column",
+    "cs": "Sloupec",
+    "ru": "Столбец"
+  },
+  "Правило всего столбца": {
+    "en": "Rule for the whole column",
+    "cs": "Pravidlo pro celý sloupec",
+    "ru": "Правило всего столбца"
+  },
+  "Сетка не найдена": {
+    "en": "Grid not found",
+    "cs": "Mřížka nenalezena",
+    "ru": "Сетка не найдена"
+  },
+  "Выделите область внутри таблицы.": {
+    "en": "Select a region inside the table.",
+    "cs": "Vyberte oblast uvnitř tabulky.",
+    "ru": "Выделите область внутри таблицы."
+  },
+  "Поле {p0}": {
+    "en": "Field {p0}",
+    "cs": "Pole {p0}",
+    "ru": "Поле {p0}"
+  },
+  "Предложенные поля": {
+    "en": "Suggested fields",
+    "cs": "Navržená pole",
+    "ru": "Предложенные поля"
+  },
+  "Добавлено областей: {p0}.": {
+    "en": "Regions added: {p0}.",
+    "cs": "Přidáno oblastí: {p0}.",
+    "ru": "Добавлено областей: {p0}."
+  },
+  "Правило": {
+    "en": "Rule",
+    "cs": "Pravidlo",
+    "ru": "Правило"
+  },
+  "Проверьте формат и границы.": {
+    "en": "Check the format and limits.",
+    "cs": "Zkontrolujte formát a meze.",
+    "ru": "Проверьте формат и границы."
+  },
+  "Проверьте правила": {
+    "en": "Check the rules",
+    "cs": "Zkontrolujte pravidla",
+    "ru": "Проверьте правила"
+  },
+  "Шаблон требует исправления": {
+    "en": "Template needs correction",
+    "cs": "Šablona vyžaduje opravu",
+    "ru": "Шаблон требует исправления"
+  },
+  "Ошибок не найдено.": {
+    "en": "No errors found.",
+    "cs": "Nebyly nalezeny žádné chyby.",
+    "ru": "Ошибок не найдено."
+  },
+  " {p0} ячеек используют широкое базовое правило; для точного OCR задайте им тип и диапазон.": {
+    "en": " Cells using a broad default rule: {p0}. Set their type and range for more precise OCR.",
+    "cs": " Počet buněk se širokým výchozím pravidlem: {p0}. Pro přesnější OCR nastavte jejich typ a rozsah.",
+    "ru": " {p0} ячеек используют широкое базовое правило; для точного OCR задайте им тип и диапазон."
+  },
+  "Проверка шаблона": {
+    "en": "Template validation",
+    "cs": "Ověření šablony",
+    "ru": "Проверка шаблона"
+  },
+  "Страница": {
+    "en": "Page",
+    "cs": "Stránka",
+    "ru": "Страница"
+  },
+  "Нет значений для сверки": {
+    "en": "No values to review",
+    "cs": "Žádné hodnoty ke kontrole",
+    "ru": "Нет значений для сверки"
+  },
+  "Только спорные": {
+    "en": "Disputed only",
+    "cs": "Pouze sporné",
+    "ru": "Только спорные"
+  },
+  "Подтвердить все спорные": {
+    "en": "Confirm all disputed",
+    "cs": "Potvrdit všechny sporné",
+    "ru": "Подтвердить все спорные"
+  },
+  "Принять показанные значения во всём документе": {
+    "en": "Accept the displayed values throughout the document",
+    "cs": "Přijmout zobrazené hodnoty v celém dokumentu",
+    "ru": "Принять показанные значения во всём документе"
+  },
+  "Экспорт в Excel": {
+    "en": "Export to Excel",
+    "cs": "Exportovat do Excelu",
+    "ru": "Экспорт в Excel"
+  },
+  "Оригинал документа": {
+    "en": "Original document",
+    "cs": "Původní dokument",
+    "ru": "Оригинал документа"
+  },
+  "Уменьшить оригинал": {
+    "en": "Zoom out",
+    "cs": "Zmenšit",
+    "ru": "Уменьшить оригинал"
+  },
+  "Увеличить оригинал": {
+    "en": "Zoom in",
+    "cs": "Zvětšit",
+    "ru": "Увеличить оригинал"
+  },
+  "Показать таблицу целиком": {
+    "en": "Fit the whole table",
+    "cs": "Zobrazit celou tabulku",
+    "ru": "Показать таблицу целиком"
+  },
+  "Таблица": {
+    "en": "Table",
+    "cs": "Tabulka",
+    "ru": "Таблица"
+  },
+  "Выберите поле, чтобы увидеть его на оригинале и проверить значение.": {
+    "en": "Select a field to locate it in the original and check its value.",
+    "cs": "Vyberte pole, aby se zvýraznilo v originálu a bylo možné zkontrolovat jeho hodnotu.",
+    "ru": "Выберите поле, чтобы увидеть его на оригинале и проверить значение."
+  },
+  "Поле": {
+    "en": "Field",
+    "cs": "Pole",
+    "ru": "Поле"
+  },
+  "Значение": {
+    "en": "Value",
+    "cs": "Hodnota",
+    "ru": "Значение"
+  },
+  "Оценка OCR": {
+    "en": "OCR score",
+    "cs": "Skóre OCR",
+    "ru": "Оценка OCR"
+  },
+  "Фрагмент оригинала": {
+    "en": "Original crop",
+    "cs": "Výřez originálu",
+    "ru": "Фрагмент оригинала"
+  },
+  "Выберите значение": {
+    "en": "Select a value",
+    "cs": "Vyberte hodnotu",
+    "ru": "Выберите значение"
+  },
+  "Выбранное значение": {
+    "en": "Selected value",
+    "cs": "Vybraná hodnota",
+    "ru": "Выбранное значение"
+  },
+  "Распознано:": {
+    "en": "Recognized:",
+    "cs": "Rozpoznáno:",
+    "ru": "Распознано:"
+  },
+  "Правильное значение": {
+    "en": "Correct value",
+    "cs": "Správná hodnota",
+    "ru": "Правильное значение"
+  },
+  "Сверьте с оригиналом и введите значение": {
+    "en": "Check the original and enter the value",
+    "cs": "Zkontrolujte originál a zadejte hodnotu",
+    "ru": "Сверьте с оригиналом и введите значение"
+  },
+  "Правильное значение выбранной ячейки или поля": {
+    "en": "Correct value of the selected cell or field",
+    "cs": "Správná hodnota vybrané buňky nebo pole",
+    "ru": "Правильное значение выбранной ячейки или поля"
+  },
+  "Подставить вариант почерка": {
+    "en": "Use handwriting suggestion",
+    "cs": "Použít návrh podle rukopisu",
+    "ru": "Подставить вариант почерка"
+  },
+  "Подставить предложенное значение для сверки; сохранится после подтверждения. Alt+A": {
+    "en": "Insert the suggested value for review; it is saved only after confirmation. Alt+A",
+    "cs": "Vložit navrženou hodnotu ke kontrole; uloží se až po potvrzení. Alt+A",
+    "ru": "Подставить предложенное значение для сверки; сохранится после подтверждения. Alt+A"
+  },
+  "Подтвердить и далее": {
+    "en": "Confirm and continue",
+    "cs": "Potvrdit a pokračovat",
+    "ru": "Подтвердить и далее"
+  },
+  "Сохранить значение и перейти к следующему спорному. Enter в поле ввода": {
+    "en": "Save the value and move to the next disputed item. Press Enter in the input field",
+    "cs": "Uložit hodnotu a přejít na další spornou položku. Stiskněte Enter v poli pro zadání",
+    "ru": "Сохранить значение и перейти к следующему спорному. Enter в поле ввода"
+  },
+  "Следующее спорное →": {
+    "en": "Next disputed →",
+    "cs": "Další sporná →",
+    "ru": "Следующее спорное →"
+  },
+  "Перейти без подтверждения текущего значения. Alt+→": {
+    "en": "Move on without confirming the current value. Alt+→",
+    "cs": "Přejít dál bez potvrzení aktuální hodnoty. Alt+→",
+    "ru": "Перейти без подтверждения текущего значения. Alt+→"
+  },
+  "Исключить эту строку": {
+    "en": "Exclude this row",
+    "cs": "Vyloučit tento řádek",
+    "ru": "Исключить эту строку"
+  },
+  "Оставить измерения строки пустыми. Снимите отметку, чтобы восстановить значения.": {
+    "en": "Leave this row’s measurements empty. Clear the checkbox to restore them.",
+    "cs": "Ponechat měření v tomto řádku prázdná. Zrušením zaškrtnutí je obnovíte.",
+    "ru": "Оставить измерения строки пустыми. Снимите отметку, чтобы восстановить значения."
+  },
+  "Почему нужна проверка": {
+    "en": "Why review is needed",
+    "cs": "Proč je nutná kontrola",
+    "ru": "Почему нужна проверка"
+  },
+  "{p0} из {p1}": {
+    "en": "{p0} of {p1}",
+    "cs": "{p0} z {p1}",
+    "ru": "{p0} из {p1}"
+  },
+  "Поля · {p0}": {
+    "en": "Fields · {p0}",
+    "cs": "Pole · {p0}",
+    "ru": "Поля · {p0}"
+  },
+  "Нужно сверить: {p0}": {
+    "en": "To review: {p0}",
+    "cs": "Ke kontrole: {p0}",
+    "ru": "Нужно сверить: {p0}"
+  },
+  "Готово к экспорту": {
+    "en": "Ready to export",
+    "cs": "Připraveno k exportu",
+    "ru": "Готово к экспорту"
+  },
+  "Поле · {p0}": {
+    "en": "Field · {p0}",
+    "cs": "Pole · {p0}",
+    "ru": "Поле · {p0}"
+  },
+  "Подставить вариант почерка: {p0}": {
+    "en": "Use handwriting suggestion: {p0}",
+    "cs": "Použít návrh podle rukopisu: {p0}",
+    "ru": "Подставить вариант почерка: {p0}"
+  },
+  "Ячейка {p0}{p1}": {
+    "en": "Cell {p0}{p1}",
+    "cs": "Buňka {p0}{p1}",
+    "ru": "Ячейка {p0}{p1}"
+  },
+  "Пусто — исключено": {
+    "en": "Empty — excluded",
+    "cs": "Prázdné — vyloučeno",
+    "ru": "Пусто — исключено"
+  },
+  "Пусто": {
+    "en": "Empty",
+    "cs": "Prázdné",
+    "ru": "Пусто"
+  },
+  "Модель не уверена в прочтении — сравните значение с оригиналом": {
+    "en": "The model is uncertain — compare the value with the original",
+    "cs": "Model si není jistý — porovnejte hodnotu s originálem",
+    "ru": "Модель не уверена в прочтении — сравните значение с оригиналом"
+  },
+  "Не удалось прочитать значение": {
+    "en": "The value could not be read",
+    "cs": "Hodnotu se nepodařilo přečíst",
+    "ru": "Не удалось прочитать значение"
+  },
+  "Обязательное поле осталось пустым": {
+    "en": "A required field is empty",
+    "cs": "Povinné pole je prázdné",
+    "ru": "Обязательное поле осталось пустым"
+  },
+  "Модели точного режима согласовали результат": {
+    "en": "High-accuracy models agreed on the result",
+    "cs": "Modely přesného režimu se shodly na výsledku",
+    "ru": "Модели точного режима согласовали результат"
+  },
+  "Цифры и десятичный разделитель прошли многоэтапную локальную проверку": {
+    "en": "Digits and the decimal separator passed multiple local checks",
+    "cs": "Číslice a desetinný oddělovač prošly několika lokálními kontrolami",
+    "ru": "Цифры и десятичный разделитель прошли многоэтапную локальную проверку"
+  },
+  "Локальные модели предлагают разные прочтения": {
+    "en": "Local models suggest different readings",
+    "cs": "Lokální modely navrhují různá čtení",
+    "ru": "Локальные модели предлагают разные прочтения"
+  },
+  "Возможно, пропущен десятичный разделитель": {
+    "en": "A decimal separator may be missing",
+    "cs": "Může chybět desetinný oddělovač",
+    "ru": "Возможно, пропущен десятичный разделитель"
+  },
+  "Граница таблицы могла быть прочитана как 1": {
+    "en": "A table border may have been read as 1",
+    "cs": "Okraj tabulky mohl být přečten jako 1",
+    "ru": "Граница таблицы могла быть прочитана как 1"
+  },
+  "На изображении обнаружен непрерывный штрих через строку": {
+    "en": "A continuous stroke was detected across the row",
+    "cs": "Přes řádek byl nalezen souvislý tah",
+    "ru": "На изображении обнаружен непрерывный штрих через строку"
+  },
+  "Непрерывный штрих найден по всей строке; её значения автоматически оставлены пустыми": {
+    "en": "A continuous stroke spans the whole row; its values were automatically left empty",
+    "cs": "Celým řádkem prochází souvislý tah; jeho hodnoty byly automaticky ponechány prázdné",
+    "ru": "Непрерывный штрих найден по всей строке; её значения автоматически оставлены пустыми"
+  },
+  "В большинстве ячеек строки OCR видит буквы или символы вместо чисел; строка оставлена пустой": {
+    "en": "OCR sees letters or symbols instead of numbers in most cells of this row; the row was left empty",
+    "cs": "OCR ve většině buněk řádku vidí písmena nebo symboly místo čísel; řádek byl ponechán prázdný",
+    "ru": "В большинстве ячеек строки OCR видит буквы или символы вместо чисел; строка оставлена пустой"
+  },
+  "Выбрано альтернативное прочтение; исходный OCR показан выше": {
+    "en": "An alternative reading was selected; the original OCR is shown above",
+    "cs": "Bylo vybráno alternativní čtení; původní OCR je zobrazeno výše",
+    "ru": "Выбрано альтернативное прочтение; исходный OCR показан выше"
+  },
+  "Выбрано другое прочтение OCR, соответствующее вашему правилу": {
+    "en": "A different OCR reading that matches your rule was selected",
+    "cs": "Bylo vybráno jiné čtení OCR, které odpovídá vašemu pravidlu",
+    "ru": "Выбрано другое прочтение OCR, соответствующее вашему правилу"
+  },
+  "Выбран реально прочитанный OCR-вариант из заданного обычного диапазона — проверьте оригинал": {
+    "en": "An observed OCR candidate within the expected range was selected — check the original",
+    "cs": "Byla vybrána skutečně přečtená varianta OCR z očekávaného rozsahu — zkontrolujte originál",
+    "ru": "Выбран реально прочитанный OCR-вариант из заданного обычного диапазона — проверьте оригинал"
+  },
+  "Разделитель предложен по формату, а не прочитан моделью — проверьте оригинал": {
+    "en": "The separator was suggested by the format rather than read by the model — check the original",
+    "cs": "Oddělovač byl navržen podle formátu, nikoli přečten modelem — zkontrolujte originál",
+    "ru": "Разделитель предложен по формату, а не прочитан моделью — проверьте оригинал"
+  },
+  "Узкий штрих, прочитанный как 1, предложен как десятичный разделитель по правилу шаблона — проверьте оригинал": {
+    "en": "A narrow stroke read as 1 was suggested as a decimal separator by the template rule — check the original",
+    "cs": "Úzký tah přečtený jako 1 byl podle pravidla šablony navržen jako desetinný oddělovač — zkontrolujte originál",
+    "ru": "Узкий штрих, прочитанный как 1, предложен как десятичный разделитель по правилу шаблона — проверьте оригинал"
+  },
+  "Ни одно прочтение не соответствует правилу": {
+    "en": "No reading matches the rule",
+    "cs": "Žádné čtení neodpovídá pravidlu",
+    "ru": "Ни одно прочтение не соответствует правилу"
+  },
+  "По формату возможны разные значения — автоматического выбора нет": {
+    "en": "Several values fit the format; none was selected automatically",
+    "cs": "Formátu odpovídá více hodnot; žádná nebyla vybrána automaticky",
+    "ru": "По формату возможны разные значения — автоматического выбора нет"
+  },
+  "Не совпадает число знаков после разделителя": {
+    "en": "The number of decimal places does not match",
+    "cs": "Počet desetinných míst neodpovídá",
+    "ru": "Не совпадает число знаков после разделителя"
+  },
+  "По шаблону десятичная часть обязательна": {
+    "en": "The template requires a decimal part",
+    "cs": "Šablona vyžaduje desetinnou část",
+    "ru": "По шаблону десятичная часть обязательна"
+  },
+  "Здесь разрешено только целое число": {
+    "en": "Only an integer is allowed here",
+    "cs": "Zde je povoleno pouze celé číslo",
+    "ru": "Здесь разрешено только целое число"
+  },
+  "Здесь разрешено только простое число": {
+    "en": "Only a simple number is allowed here",
+    "cs": "Zde je povoleno pouze jednoduché číslo",
+    "ru": "Здесь разрешено только простое число"
+  },
+  "Значения нет в разрешённом списке": {
+    "en": "The value is not in the allowed list",
+    "cs": "Hodnota není v seznamu povolených hodnot",
+    "ru": "Значения нет в разрешённом списке"
+  },
+  "Необычное значение: вне ожидаемого диапазона, но не запрещено": {
+    "en": "Unusual value: outside the expected range, but still allowed",
+    "cs": "Neobvyklá hodnota: mimo očekávaný rozsah, ale stále povolená",
+    "ru": "Необычное значение: вне ожидаемого диапазона, но не запрещено"
+  },
+  "Диапазон нельзя проверить для сложной записи": {
+    "en": "The range cannot be checked for complex notation",
+    "cs": "U složeného zápisu nelze rozsah ověřit",
+    "ru": "Диапазон нельзя проверить для сложной записи"
+  },
+  "Значение проверено по правилу шаблона": {
+    "en": "The value was checked against the template rule",
+    "cs": "Hodnota byla ověřena podle pravidla šablony",
+    "ru": "Значение проверено по правилу шаблона"
+  },
+  "Проверены дополнительные варианты из внутренних вероятностей OCR": {
+    "en": "Additional candidates from internal OCR probabilities were checked",
+    "cs": "Byly ověřeny další varianty z interních pravděpodobností OCR",
+    "ru": "Проверены дополнительные варианты из внутренних вероятностей OCR"
+  },
+  "Дополнительный вырез ячейки повлиял на результат": {
+    "en": "An alternative cell crop contributed to the result",
+    "cs": "Alternativní výřez buňky ovlivnil výsledek",
+    "ru": "Дополнительный вырез ячейки повлиял на результат"
+  },
+  "Разделитель найден отдельным геометрическим детектором": {
+    "en": "A separate geometric detector found the separator",
+    "cs": "Oddělovač byl nalezen samostatným geometrickým detektorem",
+    "ru": "Разделитель найден отдельным геометрическим детектором"
+  },
+  "OCR предложил дробь, но отдельный детектор не подтвердил разделитель": {
+    "en": "OCR suggested a decimal, but the separate detector did not confirm the separator",
+    "cs": "OCR navrhlo desetinné číslo, ale samostatný detektor oddělovač nepotvrdil",
+    "ru": "OCR предложил дробь, но отдельный детектор не подтвердил разделитель"
+  },
+  "Короткий вариант отклонён: на изображении виден дополнительный отдельный знак": {
+    "en": "A shorter candidate was rejected because an additional separate character is visible",
+    "cs": "Kratší varianta byla odmítnuta, protože je viditelný další samostatný znak",
+    "ru": "Короткий вариант отклонён: на изображении виден дополнительный отдельный знак"
+  },
+  "Позиция дробной части найдена между видимыми знаками с учётом формата шаблона": {
+    "en": "The decimal boundary was located between visible characters using the template format",
+    "cs": "Hranice desetinné části byla nalezena mezi viditelnými znaky podle formátu šablony",
+    "ru": "Позиция дробной части найдена между видимыми знаками с учётом формата шаблона"
+  },
+  "Недостаточно устойчивое согласие независимых этапов": {
+    "en": "Independent checks did not reach a stable agreement",
+    "cs": "Nezávislé kontroly nedosáhly stabilní shody",
+    "ru": "Недостаточно устойчивое согласие независимых этапов"
+  },
+  "Независимый распознаватель отдельных цифр согласен": {
+    "en": "The independent digit recognizer agrees",
+    "cs": "Nezávislý rozpoznávač číslic souhlasí",
+    "ru": "Независимый распознаватель отдельных цифр согласен"
+  },
+  "Дополнительный распознаватель цифр предложил другой вариант; основной консенсус сохранён": {
+    "en": "An additional digit recognizer suggested another value; the main consensus was retained",
+    "cs": "Další rozpoznávač číslic navrhl jinou hodnotu; hlavní shoda byla zachována",
+    "ru": "Дополнительный распознаватель цифр предложил другой вариант; основной консенсус сохранён"
+  },
+  "Ответ сравнивался с устойчивыми образцами почерка из других ячеек этой страницы": {
+    "en": "The answer was compared with reliable handwriting samples from other cells on this page",
+    "cs": "Výsledek byl porovnán se spolehlivými vzory rukopisu z jiných buněk této stránky",
+    "ru": "Ответ сравнивался с устойчивыми образцами почерка из других ячеек этой страницы"
+  },
+  "Профиль почерка страницы независимо подтверждает выбранные цифры": {
+    "en": "The page’s handwriting profile independently supports the selected digits",
+    "cs": "Profil rukopisu stránky nezávisle potvrzuje vybrané číslice",
+    "ru": "Профиль почерка страницы независимо подтверждает выбранные цифры"
+  },
+  "Профиль почерка выбрал другой реально прочитанный OCR-вариант — проверьте его по изображению": {
+    "en": "The handwriting profile selected another observed OCR candidate — check it against the image",
+    "cs": "Profil rukopisu vybral jinou skutečně přečtenou variantu OCR — porovnejte ji s obrázkem",
+    "ru": "Профиль почерка выбрал другой реально прочитанный OCR-вариант — проверьте его по изображению"
+  },
+  "Форма цифры противоречит первичному OCR, но доказательств пока недостаточно для уверенного выбора": {
+    "en": "The digit shape conflicts with the primary OCR, but there is not enough evidence for a confident choice",
+    "cs": "Tvar číslice odporuje původnímu OCR, ale pro jistý výběr zatím není dost podkladů",
+    "ru": "Форма цифры противоречит первичному OCR, но доказательств пока недостаточно для уверенного выбора"
+  },
+  "Похожий образец почерка не принят: независимый распознаватель цифр подтвердил исходный ответ": {
+    "en": "A similar handwriting sample was rejected: the independent digit recognizer confirmed the original answer",
+    "cs": "Podobný vzor rukopisu nebyl přijat: nezávislý rozpoznávač číslic potvrdil původní výsledek",
+    "ru": "Похожий образец почерка не принят: независимый распознаватель цифр подтвердил исходный ответ"
+  },
+  "Выполнена многоэтапная локальная проверка": {
+    "en": "Multiple local verification stages were completed",
+    "cs": "Bylo dokončeno několik fází lokálního ověřování",
+    "ru": "Выполнена многоэтапная локальная проверка"
+  },
+  "Значение резко отличается от других сопоставимых ячеек этой строки": {
+    "en": "The value differs sharply from comparable cells in this row",
+    "cs": "Hodnota se výrazně liší od srovnatelných buněk v tomto řádku",
+    "ru": "Значение резко отличается от других сопоставимых ячеек этой строки"
+  },
+  "Среди других прочтений OCR есть вариант, согласующийся со строкой — выберите его только после сверки с фото": {
+    "en": "Another OCR candidate fits the row better — select it only after checking the image",
+    "cs": "Jiná varianta OCR lépe odpovídá řádku — vyberte ji až po kontrole obrázku",
+    "ru": "Среди других прочтений OCR есть вариант, согласующийся со строкой — выберите его только после сверки с фото"
+  },
+  "Дополнительная отметка: {p0}": {
+    "en": "Additional flag: {p0}",
+    "cs": "Další příznak: {p0}",
+    "ru": "Дополнительная отметка: {p0}"
+  },
+  "Что проверить": {
+    "en": "What to check",
+    "cs": "Co zkontrolovat",
+    "ru": "Что проверить"
+  },
+  "Сравните значение с фрагментом оригинала.": {
+    "en": "Compare the value with the original crop.",
+    "cs": "Porovnejte hodnotu s výřezem originálu.",
+    "ru": "Сравните значение с фрагментом оригинала."
+  },
+  "Правило значения": {
+    "en": "Value rule",
+    "cs": "Pravidlo hodnoty",
+    "ru": "Правило значения"
+  },
+  "Первичное распознавание: ": {
+    "en": "Primary reading: ",
+    "cs": "Původní čtení: ",
+    "ru": "Первичное распознавание: "
+  },
+  "До исключения строки: ": {
+    "en": "Before row exclusion: ",
+    "cs": "Před vyloučením řádku: ",
+    "ru": "До исключения строки: "
+  },
+  "Другие прочтения: ": {
+    "en": "Other readings: ",
+    "cs": "Další čtení: ",
+    "ru": "Другие прочтения: "
+  },
+  "Варианты прочтения": {
+    "en": "Reading candidates",
+    "cs": "Varianty čtení",
+    "ru": "Варианты прочтения"
+  },
+  "Выполненные проверки": {
+    "en": "Completed checks",
+    "cs": "Provedené kontroly",
+    "ru": "Выполненные проверки"
+  },
+  "Технические сведения": {
+    "en": "Technical details",
+    "cs": "Technické podrobnosti",
+    "ru": "Технические сведения"
+  },
+  "Оценка OCR: {p0:.0%}. Это оценка модели, а не измеренная точность.": {
+    "en": "OCR score: {p0:.0%}. This is a model estimate, not measured accuracy.",
+    "cs": "Skóre OCR: {p0:.0%}. Jde o odhad modelu, nikoli o změřenou přesnost.",
+    "ru": "Оценка OCR: {p0:.0%}. Это оценка модели, а не измеренная точность."
+  },
+  "Почерк: ": {
+    "en": "Handwriting: ",
+    "cs": "Rukopis: ",
+    "ru": "Почерк: "
+  },
+  "Фрагмент оригинала · ": {
+    "en": "Original crop · ",
+    "cs": "Výřez originálu · ",
+    "ru": "Фрагмент оригинала · "
+  },
+  "Фрагмент оригинала недоступен": {
+    "en": "Original crop unavailable",
+    "cs": "Výřez originálu není k dispozici",
+    "ru": "Фрагмент оригинала недоступен"
+  },
+  "Заполните поле": {
+    "en": "Complete the field",
+    "cs": "Vyplňte pole",
+    "ru": "Заполните поле"
+  },
+  "Это обязательное поле. Введите значение по оригиналу.": {
+    "en": "This field is required. Enter the value shown in the original.",
+    "cs": "Toto pole je povinné. Zadejte hodnotu z originálu.",
+    "ru": "Это обязательное поле. Введите значение по оригиналу."
+  },
+  "Значение не соответствует правилу": {
+    "en": "The value does not match the rule",
+    "cs": "Hodnota neodpovídá pravidlu",
+    "ru": "Значение не соответствует правилу"
+  },
+  "{p0}: {p1}\n\nИсправьте значение или измените правило и повторите распознавание.": {
+    "en": "{p0}: {p1}\n\nCorrect the value, or change the rule and run recognition again.",
+    "cs": "{p0}: {p1}\n\nOpravte hodnotu, nebo změňte pravidlo a spusťte rozpoznávání znovu.",
+    "ru": "{p0}: {p1}\n\nИсправьте значение или измените правило и повторите распознавание."
+  },
+  "Нужны исправления": {
+    "en": "Corrections required",
+    "cs": "Jsou nutné opravy",
+    "ru": "Нужны исправления"
+  },
+  "Оставшиеся значения нарушают правила шаблона. Исправьте их по одному.": {
+    "en": "The remaining values violate template rules. Correct them individually.",
+    "cs": "Zbývající hodnoty porušují pravidla šablony. Opravte je jednotlivě.",
+    "ru": "Оставшиеся значения нарушают правила шаблона. Исправьте их по одному."
+  },
+  "\n\nЕщё {p0} знач. с ошибками правил останутся для ручной проверки.": {
+    "en": "\n\nValues with rule errors that will remain for manual review: {p0}.",
+    "cs": "\n\nPočet hodnot s chybami pravidel, které zůstanou k ruční kontrole: {p0}.",
+    "ru": "\n\nЕщё {p0} знач. с ошибками правил останутся для ручной проверки."
+  },
+  "Принять {p0} знач. точно в том виде, как они показаны?{p1}": {
+    "en": "Accept {p0} values exactly as displayed?{p1}",
+    "cs": "Přijmout {p0} hodnot přesně tak, jak jsou zobrazeny?{p1}",
+    "ru": "Принять {p0} знач. точно в том виде, как они показаны?{p1}"
+  },
+  "На этой странице всё проверено": {
+    "en": "This page has been fully reviewed",
+    "cs": "Tato stránka je zkontrolována",
+    "ru": "На этой странице всё проверено"
+  },
+  "Сверка завершена": {
+    "en": "Review complete",
+    "cs": "Kontrola dokončena",
+    "ru": "Сверка завершена"
+  },
+  "Выберите ячейку или поле для просмотра": {
+    "en": "Select a cell or field to inspect",
+    "cs": "Vyberte buňku nebo pole k prohlédnutí",
+    "ru": "Выберите ячейку или поле для просмотра"
+  },
+  "Что включить в файл?": {
+    "en": "What should the file include?",
+    "cs": "Co má soubor obsahovat?",
+    "ru": "Что включить в файл?"
+  },
+  "Сокращённый — только исходная таблица": {
+    "en": "Compact — original table only",
+    "cs": "Zkrácený — pouze původní tabulka",
+    "ru": "Сокращённый — только исходная таблица"
+  },
+  "Расширенный — таблица, данные и аудит": {
+    "en": "Extended — table, data and audit",
+    "cs": "Rozšířený — tabulka, data a audit",
+    "ru": "Расширенный — таблица, данные и аудит"
+  },
+  "Таблица с проверенными значениями в расположении оригинала. Каждая страница — отдельный лист.": {
+    "en": "Reviewed values in the original table layout. Each page is a separate worksheet.",
+    "cs": "Zkontrolované hodnoty v původním rozložení tabulky. Každá stránka bude na samostatném listu.",
+    "ru": "Таблица с проверенными значениями в расположении оригинала. Каждая страница — отдельный лист."
+  },
+  "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями, оценками и вариантами почерка.": {
+    "en": "Also includes Data for analysis and Audit with original readings, corrections, scores and handwriting suggestions.",
+    "cs": "Navíc obsahuje list Data pro analýzu a Audit s původními čteními, opravami, skóre a návrhy podle rukopisu.",
+    "ru": "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями, оценками и вариантами почерка."
+  },
+  "Выбрать файл…": {
+    "en": "Choose file…",
+    "cs": "Vybrat soubor…",
+    "ru": "Выбрать файл…"
+  },
+  "Отмена": {
+    "en": "Cancel",
+    "cs": "Zrušit",
+    "ru": "Отмена"
+  },
+  "●  Полностью локально": {
+    "en": "●  Fully local",
+    "cs": "●  Zcela lokálně",
+    "ru": "●  Полностью локально"
+  },
+  "Светлая тема": {
+    "en": "Light theme",
+    "cs": "Světlý vzhled",
+    "ru": "Светлая тема"
+  },
+  "Тёмная тема": {
+    "en": "Dark theme",
+    "cs": "Tmavý vzhled",
+    "ru": "Тёмная тема"
+  },
+  "Цветовая тема приложения": {
+    "en": "Application color theme",
+    "cs": "Barevný vzhled aplikace",
+    "ru": "Цветовая тема приложения"
+  },
+  "Документы": {
+    "en": "Documents",
+    "cs": "Dokumenty",
+    "ru": "Документы"
+  },
+  "Настройки": {
+    "en": "Settings",
+    "cs": "Nastavení",
+    "ru": "Настройки"
+  },
+  "●  Локально и офлайн\n\nⓘ  Исходные файлы не изменяются": {
+    "en": "●  Local and offline\n\nⓘ  Source files are not modified",
+    "cs": "●  Lokálně a offline\n\nⓘ  Zdrojové soubory se nemění",
+    "ru": "●  Локально и офлайн\n\nⓘ  Исходные файлы не изменяются"
+  },
+  "1  Файлы": {
+    "en": "1  Files",
+    "cs": "1  Soubory",
+    "ru": "1  Файлы"
+  },
+  "2  Совмещение": {
+    "en": "2  Alignment",
+    "cs": "2  Zarovnání",
+    "ru": "2  Совмещение"
+  },
+  "3  Сверка": {
+    "en": "3  Review",
+    "cs": "3  Kontrola",
+    "ru": "3  Сверка"
+  },
+  "4  Экспорт": {
+    "en": "4  Export",
+    "cs": "4  Export",
+    "ru": "4  Экспорт"
+  },
+  "Завершите сверку, затем экспортируйте проверенную таблицу.": {
+    "en": "Complete the review, then export the verified table.",
+    "cs": "Dokončete kontrolu a pak exportujte ověřenou tabulku.",
+    "ru": "Завершите сверку, затем экспортируйте проверенную таблицу."
+  },
+  "←  К библиотеке шаблонов": {
+    "en": "←  Template library",
+    "cs": "←  Knihovna šablon",
+    "ru": "←  К библиотеке шаблонов"
+  },
+  "Распознавание выполняется локально. Для числовых ячеек используется многоэтапный режим, а экспорт блокируется до сверки спорных значений.": {
+    "en": "Recognition runs locally. Numeric cells use multiple verification stages, and export remains blocked until disputed values are reviewed.",
+    "cs": "Rozpoznávání probíhá lokálně. Číselné buňky procházejí několika fázemi ověřování a export je možný až po kontrole sporných hodnot.",
+    "ru": "Распознавание выполняется локально. Для числовых ячеек используется многоэтапный режим, а экспорт блокируется до сверки спорных значений."
+  },
+  "Открыть": {
+    "en": "Open",
+    "cs": "Otevřít",
+    "ru": "Открыть"
+  },
+  "Экспорт": {
+    "en": "Export",
+    "cs": "Export",
+    "ru": "Экспорт"
+  },
+  "Выберите образец таблицы": {
+    "en": "Choose a sample table",
+    "cs": "Vyberte vzorovou tabulku",
+    "ru": "Выберите образец таблицы"
+  },
+  "Файл не содержит страниц": {
+    "en": "The file contains no pages",
+    "cs": "Soubor neobsahuje žádné stránky",
+    "ru": "Файл не содержит страниц"
+  },
+  "Не удалось открыть образец": {
+    "en": "Could not open the sample",
+    "cs": "Vzor se nepodařilo otevřít",
+    "ru": "Не удалось открыть образец"
+  },
+  "{p0} — шаблон": {
+    "en": "{p0} — template",
+    "cs": "{p0} — šablona",
+    "ru": "{p0} — шаблон"
+  },
+  "Шаблон недоступен": {
+    "en": "Template unavailable",
+    "cs": "Šablona není k dispozici",
+    "ru": "Шаблон недоступен"
+  },
+  "Не удалось загрузить выбранный шаблон.": {
+    "en": "Could not load the selected template.",
+    "cs": "Vybranou šablonu se nepodařilo načíst.",
+    "ru": "Не удалось загрузить выбранный шаблон."
+  },
+  "Укажите образец для шаблона": {
+    "en": "Choose a sample for the template",
+    "cs": "Vyberte vzor pro šablonu",
+    "ru": "Укажите образец для шаблона"
+  },
+  "Образец недоступен": {
+    "en": "Sample unavailable",
+    "cs": "Vzor není k dispozici",
+    "ru": "Образец недоступен"
+  },
+  "Не указан эталонный документ": {
+    "en": "No reference document specified",
+    "cs": "Není zadán referenční dokument",
+    "ru": "Не указан эталонный документ"
+  },
+  "Шаблон не сохранён": {
+    "en": "Template not saved",
+    "cs": "Šablona nebyla uložena",
+    "ru": "Шаблон не сохранён"
+  },
+  "Шаблон сохранён": {
+    "en": "Template saved",
+    "cs": "Šablona byla uložena",
+    "ru": "Шаблон сохранён"
+  },
+  "Сохранена версия v{p0}. Предыдущие версии не изменены.": {
+    "en": "Version v{p0} saved. Earlier versions are unchanged.",
+    "cs": "Verze v{p0} byla uložena. Předchozí verze se nezměnily.",
+    "ru": "Сохранена версия v{p0}. Предыдущие версии не изменены."
+  },
+  "Создана версия v{p0}: {p1}": {
+    "en": "Version v{p0} created: {p1}",
+    "cs": "Byla vytvořena verze v{p0}: {p1}",
+    "ru": "Создана версия v{p0}: {p1}"
+  },
+  "Удалить шаблон?": {
+    "en": "Delete template?",
+    "cs": "Odstranit šablonu?",
+    "ru": "Удалить шаблон?"
+  },
+  "Будет удалена только версия v{p0} шаблона «{p1}». Обработанные документы сохранятся.": {
+    "en": "Only version v{p0} of template “{p1}” will be deleted. Processed documents will be kept.",
+    "cs": "Bude odstraněna pouze verze v{p0} šablony „{p1}“. Zpracované dokumenty zůstanou zachovány.",
+    "ru": "Будет удалена только версия v{p0} шаблона «{p1}». Обработанные документы сохранятся."
+  },
+  "Открыть изображения таблиц": {
+    "en": "Open table images",
+    "cs": "Otevřít obrázky tabulek",
+    "ru": "Открыть изображения таблиц"
+  },
+  "Документы (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)": {
+    "en": "Documents (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)",
+    "cs": "Dokumenty (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)",
+    "ru": "Документы (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)"
+  },
+  "Очередь создана": {
+    "en": "Queue created",
+    "cs": "Fronta vytvořena",
+    "ru": "Очередь создана"
+  },
+  "The document contains no pages.": {
+    "en": "The document contains no pages.",
+    "cs": "Dokument neobsahuje žádné stránky.",
+    "ru": "Документ не содержит страниц."
+  },
+  "Не удалось открыть документ": {
+    "en": "Could not open the document",
+    "cs": "Dokument se nepodařilo otevřít",
+    "ru": "Не удалось открыть документ"
+  },
+  "Предложен шаблон с совпадением {p0}%. Проверьте наложение сетки, ориентацию и число строк заголовка.": {
+    "en": "A template with a {p0}% match is suggested. Check the grid overlay, orientation and number of header rows.",
+    "cs": "Je navržena šablona se shodou {p0}%. Zkontrolujte překrytí mřížky, orientaci a počet řádků záhlaví.",
+    "ru": "Предложен шаблон с совпадением {p0}%. Проверьте наложение сетки, ориентацию и число строк заголовка."
+  },
+  "Проверьте наложение сохранённого шаблона и число строк заголовка.": {
+    "en": "Check the saved template overlay and number of header rows.",
+    "cs": "Zkontrolujte překrytí uložené šablony a počet řádků záhlaví.",
+    "ru": "Проверьте наложение сохранённого шаблона и число строк заголовка."
+  },
+  "Повернуть документ": {
+    "en": "Rotate document",
+    "cs": "Otočit dokument",
+    "ru": "Повернуть документ"
+  },
+  "Поворот сбросит текущую сетку и выделенные поля. Сохранённый исходный файл не изменится. Продолжить?": {
+    "en": "Rotation will reset the current grid and marked fields. The saved source file will not change. Continue?",
+    "cs": "Otočení resetuje aktuální mřížku a vyznačená pole. Uložený zdrojový soubor se nezmění. Pokračovat?",
+    "ru": "Поворот сбросит текущую сетку и выделенные поля. Сохранённый исходный файл не изменится. Продолжить?"
+  },
+  "Задание недоступно": {
+    "en": "Job unavailable",
+    "cs": "Úloha není k dispozici",
+    "ru": "Задание недоступно"
+  },
+  "Не удалось открыть сохранённое задание.": {
+    "en": "Could not open the saved job.",
+    "cs": "Uloženou úlohu se nepodařilo otevřít.",
+    "ru": "Не удалось открыть сохранённое задание."
+  },
+  "Исходник недоступен": {
+    "en": "Source unavailable",
+    "cs": "Zdroj není k dispozici",
+    "ru": "Исходник недоступен"
+  },
+  "Импортированный файл": {
+    "en": "Imported file",
+    "cs": "Importovaný soubor",
+    "ru": "Импортированный файл"
+  },
+  "Для этого файла ещё нет шаблона. Импортируйте его снова, чтобы настроить таблицу.": {
+    "en": "This file has no template yet. Import it again to set up the table.",
+    "cs": "Tento soubor zatím nemá šablonu. Importujte jej znovu a nastavte tabulku.",
+    "ru": "Для этого файла ещё нет шаблона. Импортируйте его снова, чтобы настроить таблицу."
+  },
+  "Не удалось загрузить сохранённый шаблон.": {
+    "en": "Could not load the saved template.",
+    "cs": "Uloženou šablonu se nepodařilo načíst.",
+    "ru": "Не удалось загрузить сохранённый шаблон."
+  },
+  "Проверьте сохранённый шаблон, особенно строки заголовка и поворот страницы, перед распознаванием.": {
+    "en": "Check the saved template, especially header rows and page rotation, before recognition.",
+    "cs": "Před rozpoznáváním zkontrolujte uloženou šablonu, zejména řádky záhlaví a otočení stránky.",
+    "ru": "Проверьте сохранённый шаблон, особенно строки заголовка и поворот страницы, перед распознаванием."
+  },
+  "Подготовка локального OCR…": {
+    "en": "Preparing local OCR…",
+    "cs": "Příprava lokálního OCR…",
+    "ru": "Подготовка локального OCR…"
+  },
+  "Ошибка распознавания": {
+    "en": "Recognition error",
+    "cs": "Chyba rozpoznávání",
+    "ru": "Ошибка распознавания"
+  },
+  "Завершение анализа": {
+    "en": "Finishing analysis",
+    "cs": "Ukončování analýzy",
+    "ru": "Завершение анализа"
+  },
+  "Останавливаю локальный анализ. Закройте приложение ещё раз после завершения остановки.": {
+    "en": "Stopping local analysis. Close the application again once it has stopped.",
+    "cs": "Zastavuji lokální analýzu. Po jejím zastavení aplikaci znovu zavřete.",
+    "ru": "Останавливаю локальный анализ. Закройте приложение ещё раз после завершения остановки."
+  },
+  "Перед экспортом проверьте все спорные значения: {p0}.": {
+    "en": "Review all disputed values before exporting: {p0}.",
+    "cs": "Před exportem zkontrolujte všechny sporné hodnoty: {p0}.",
+    "ru": "Перед экспортом проверьте все спорные значения: {p0}."
+  },
+  "Экспорт проверенной таблицы": {
+    "en": "Export reviewed table",
+    "cs": "Exportovat zkontrolovanou tabulku",
+    "ru": "Экспорт проверенной таблицы"
+  },
+  "Книга Excel (*.xlsx)": {
+    "en": "Excel workbook (*.xlsx)",
+    "cs": "Sešit Excel (*.xlsx)",
+    "ru": "Книга Excel (*.xlsx)"
+  },
+  "Ошибка экспорта": {
+    "en": "Export error",
+    "cs": "Chyba exportu",
+    "ru": "Ошибка экспорта"
+  },
+  "Экспорт завершён": {
+    "en": "Export complete",
+    "cs": "Export dokončen",
+    "ru": "Экспорт завершён"
+  },
+  "Проверенная таблица сохранена:\n{p0}": {
+    "en": "Reviewed table saved:\n{p0}",
+    "cs": "Zkontrolovaná tabulka byla uložena:\n{p0}",
+    "ru": "Проверенная таблица сохранена:\n{p0}"
+  },
+  "Правила значения": {
+    "en": "Value rules",
+    "cs": "Pravidla hodnot",
+    "ru": "Правила значения"
+  },
+  "Строки (включительно)": {
+    "en": "Rows (inclusive)",
+    "cs": "Řádky (včetně)",
+    "ru": "Строки (включительно)"
+  },
+  "Столбцы (включительно)": {
+    "en": "Columns (inclusive)",
+    "cs": "Sloupce (včetně)",
+    "ru": "Столбцы (включительно)"
+  },
+  "Выбрать готовый формат…": {
+    "en": "Choose a preset…",
+    "cs": "Vyberte přednastavený formát…",
+    "ru": "Выбрать готовый формат…"
+  },
+  "Дробь 0–100, один знак (34,4)": {
+    "en": "Decimal 0–100, one place (34.4)",
+    "cs": "Desetinné číslo 0–100, jedno místo (34,4)",
+    "ru": "Дробь 0–100, один знак (34,4)"
+  },
+  "Дробь 0–1000, два знака (34,45)": {
+    "en": "Decimal 0–1000, two places (34.45)",
+    "cs": "Desetinné číslo 0–1000, dvě místa (34,45)",
+    "ru": "Дробь 0–1000, два знака (34,45)"
+  },
+  "Целое число ≥ 0": {
+    "en": "Integer ≥ 0",
+    "cs": "Celé číslo ≥ 0",
+    "ru": "Целое число ≥ 0"
+  },
+  "Текст / обозначение": {
+    "en": "Text / label",
+    "cs": "Text / označení",
+    "ru": "Текст / обозначение"
+  },
+  "Дата (текст)": {
+    "en": "Date (text)",
+    "cs": "Datum (text)",
+    "ru": "Дата (текст)"
+  },
+  "Сложная запись: ±, <, %, …": {
+    "en": "Complex notation: ±, <, %, …",
+    "cs": "Složený zápis: ±, <, %, …",
+    "ru": "Сложная запись: ±, <, %, …"
+  },
+  "Например: 0; 1; 2; 3 — пусто: без списка": {
+    "en": "For example: 0; 1; 2; 3 — leave blank for no list",
+    "cs": "Například: 0; 1; 2; 3 — prázdné pole znamená bez seznamu",
+    "ru": "Например: 0; 1; 2; 3 — пусто: без списка"
+  },
+  "Предлагать пропущенный разделитель (требует сверки)": {
+    "en": "Suggest a missing decimal separator (requires review)",
+    "cs": "Navrhovat chybějící desetinný oddělovač (vyžaduje kontrolu)",
+    "ru": "Предлагать пропущенный разделитель (требует сверки)"
+  },
+  "Предпочитать OCR-вариант из обычного диапазона (требует сверки)": {
+    "en": "Prefer an OCR candidate within the expected range (requires review)",
+    "cs": "Upřednostnit variantu OCR z očekávaného rozsahu (vyžaduje kontrolu)",
+    "ru": "Предпочитать OCR-вариант из обычного диапазона (требует сверки)"
+  },
+  "Готовый формат": {
+    "en": "Preset",
+    "cs": "Přednastavený formát",
+    "ru": "Готовый формат"
+  },
+  "Ровно знаков после точки/запятой": {
+    "en": "Exact number of decimal places",
+    "cs": "Přesný počet desetinných míst",
+    "ru": "Ровно знаков после точки/запятой"
+  },
+  "Обычно от / до (только предупреждение)": {
+    "en": "Expected minimum / maximum (warning only)",
+    "cs": "Očekávané minimum / maximum (pouze upozornění)",
+    "ru": "Обычно от / до (только предупреждение)"
+  },
+  "Без нижней границы": {
+    "en": "No lower limit",
+    "cs": "Bez dolní meze",
+    "ru": "Без нижней границы"
+  },
+  "Без верхней границы": {
+    "en": "No upper limit",
+    "cs": "Bez horní meze",
+    "ru": "Без верхней границы"
+  },
+  "Только значения из списка": {
+    "en": "Only values from this list",
+    "cs": "Pouze hodnoty z tohoto seznamu",
+    "ru": "Только значения из списка"
+  },
+  "Точка и запятая равнозначны. Жёсткие границы исключают невозможные варианты. Обычный диапазон меняет порядок только при включённом предпочтении и только среди реально прочитанных кандидатов; результат всё равно требует сверки.": {
+    "en": "Dots and commas are equivalent. Hard limits rule out impossible values. The expected range changes the ranking only when the preference is enabled, and only among observed OCR candidates; the result still requires review.",
+    "cs": "Tečka a čárka jsou rovnocenné. Pevné meze vyloučí nemožné hodnoty. Očekávaný rozsah mění pořadí pouze při zapnuté preferenci a jen mezi skutečně přečtenými variantami OCR; výsledek stále vyžaduje kontrolu.",
+    "ru": "Точка и запятая равнозначны. Жёсткие границы исключают невозможные варианты. Обычный диапазон меняет порядок только при включённом предпочтении и только среди реально прочитанных кандидатов; результат всё равно требует сверки."
+  },
+  "Проверить пример": {
+    "en": "Test a sample",
+    "cs": "Vyzkoušet příklad",
+    "ru": "Проверить пример"
+  },
+  "Применить правило": {
+    "en": "Apply rule",
+    "cs": "Použít pravidlo",
+    "ru": "Применить правило"
+  },
+  "{p0} → предложение {p1}. Узкий штрих 1 проверяется как разделитель; обязательно сравните с изображением.": {
+    "en": "{p0} → suggested {p1}. A narrow stroke read as 1 is being checked as a separator; always compare with the image.",
+    "cs": "{p0} → návrh {p1}. Úzký tah přečtený jako 1 se ověřuje jako oddělovač; vždy porovnejte s obrázkem.",
+    "ru": "{p0} → предложение {p1}. Узкий штрих 1 проверяется как разделитель; обязательно сравните с изображением."
+  },
+  "{p0} → предложение {p1}. Разделитель предполагается, проверьте изображение.": {
+    "en": "{p0} → suggested {p1}. The separator is inferred; check the image.",
+    "cs": "{p0} → návrh {p1}. Oddělovač je odhadnutý; zkontrolujte obrázek.",
+    "ru": "{p0} → предложение {p1}. Разделитель предполагается, проверьте изображение."
+  },
+  "Пример не соответствует правилу. Без подходящего прочтения OCR он останется спорным.": {
+    "en": "The sample does not match the rule. Without a suitable OCR reading, it will remain disputed.",
+    "cs": "Příklad neodpovídá pravidlu. Bez vhodného čtení OCR zůstane sporný.",
+    "ru": "Пример не соответствует правилу. Без подходящего прочтения OCR он останется спорным."
+  },
+  "Допустимо, но вне обычного диапазона. Значение не подменяется.": {
+    "en": "Allowed, but outside the expected range. The value is not replaced.",
+    "cs": "Povoleno, ale mimo očekávaný rozsah. Hodnota se nenahrazuje.",
+    "ru": "Допустимо, но вне обычного диапазона. Значение не подменяется."
+  },
+  "Пример соответствует формату. Перед экспортом всё равно нужна сверка.": {
+    "en": "The sample matches the format. Review is still required before export.",
+    "cs": "Příklad odpovídá formátu. Před exportem je stále nutná kontrola.",
+    "ru": "Пример соответствует формату. Перед экспортом всё равно нужна сверка."
+  },
+  "Проверьте настройку: {p0}": {
+    "en": "Check the settings: {p0}",
+    "cs": "Zkontrolujte nastavení: {p0}",
+    "ru": "Проверьте настройку: {p0}"
+  },
+  "Начало выделения должно быть раньше конца": {
+    "en": "The selection must start before it ends",
+    "cs": "Začátek výběru musí být před jeho koncem",
+    "ru": "Начало выделения должно быть раньше конца"
+  },
+  "Неизвестный тип значения": {
+    "en": "Unknown value type",
+    "cs": "Neznámý typ hodnoty",
+    "ru": "Неизвестный тип значения"
+  },
+  "Границы должны быть конечными числами": {
+    "en": "Limits must be finite numbers",
+    "cs": "Meze musí být konečná čísla",
+    "ru": "Границы должны быть конечными числами"
+  },
+  "Нижняя граница не может быть больше верхней": {
+    "en": "The lower limit cannot exceed the upper limit",
+    "cs": "Dolní mez nesmí být vyšší než horní mez",
+    "ru": "Нижняя граница не может быть больше верхней"
+  },
+  "Допустимо от 0 до 8 знаков после разделителя": {
+    "en": "Use between 0 and 8 decimal places",
+    "cs": "Použijte 0 až 8 desetinných míst",
+    "ru": "Допустимо от 0 до 8 знаков после разделителя"
+  },
+  "Целое число не может иметь дробные знаки": {
+    "en": "An integer cannot have decimal places",
+    "cs": "Celé číslo nemůže mít desetinná místa",
+    "ru": "Целое число не может иметь дробные знаки"
+  },
+  "Обязательная десятичная часть доступна только для десятичного числа": {
+    "en": "A required decimal part is available only for decimal numbers",
+    "cs": "Povinná desetinná část je dostupná pouze pro desetinná čísla",
+    "ru": "Обязательная десятичная часть доступна только для десятичного числа"
+  },
+  "Для обязательной десятичной части нужно хотя бы один знак после разделителя": {
+    "en": "A required decimal part needs at least one decimal place",
+    "cs": "Povinná desetinná část vyžaduje alespoň jedno desetinné místo",
+    "ru": "Для обязательной десятичной части нужно хотя бы один знак после разделителя"
+  },
+  "Число дробных знаков доступно только для простых чисел": {
+    "en": "Decimal places can only be specified for simple numbers",
+    "cs": "Počet desetinných míst lze zadat pouze pro jednoduchá čísla",
+    "ru": "Число дробных знаков доступно только для простых чисел"
+  },
+  "Для предложения разделителя задайте число дробных знаков": {
+    "en": "Set the number of decimal places to suggest a missing separator",
+    "cs": "Pro návrh chybějícího oddělovače nastavte počet desetinných míst",
+    "ru": "Для предложения разделителя задайте число дробных знаков"
+  },
+  "Для предпочтения обычного диапазона задайте хотя бы одну его границу": {
+    "en": "Set at least one expected limit to prefer the expected range",
+    "cs": "Pro upřednostnění očekávaného rozsahu nastavte alespoň jednu jeho mez",
+    "ru": "Для предпочтения обычного диапазона задайте хотя бы одну его границу"
+  },
+  "Числовые диапазоны неприменимы к тексту и дате": {
+    "en": "Numeric ranges do not apply to text or dates",
+    "cs": "Číselné rozsahy nelze použít pro text ani datum",
+    "ru": "Числовые диапазоны неприменимы к тексту и дате"
+  },
+  "Ни одно разрешённое значение не соответствует формату и диапазону": {
+    "en": "None of the allowed values matches the format and range",
+    "cs": "Žádná povolená hodnota neodpovídá formátu a rozsahu",
+    "ru": "Ни одно разрешённое значение не соответствует формату и диапазону"
+  },
+  "Целое": {
+    "en": "Integer",
+    "cs": "Celé číslo",
+    "ru": "Целое"
+  },
+  "Число / сложная запись": {
+    "en": "Number / complex notation",
+    "cs": "Číslo / složený zápis",
+    "ru": "Число / сложная запись"
+  },
+  "дробных знаков: {p0}": {
+    "en": "decimal places: {p0}",
+    "cs": "desetinná místa: {p0}",
+    "ru": "дробных знаков: {p0}"
+  },
+  "от {p0} до {p1}": {
+    "en": "from {p0} to {p1}",
+    "cs": "od {p0} do {p1}",
+    "ru": "от {p0} до {p1}"
+  },
+  "из списка: ": {
+    "en": "from the list: ",
+    "cs": "ze seznamu: ",
+    "ru": "из списка: "
+  },
+  "обычно {p0}…{p1}": {
+    "en": "usually {p0}…{p1}",
+    "cs": "obvykle {p0}…{p1}",
+    "ru": "обычно {p0}…{p1}"
+  },
+  "предлагать пропущенный разделитель (со сверкой)": {
+    "en": "suggest missing separator (with review)",
+    "cs": "navrhovat chybějící oddělovač (s kontrolou)",
+    "ru": "предлагать пропущенный разделитель (со сверкой)"
+  },
+  "десятичная часть обязательна": {
+    "en": "decimal part required",
+    "cs": "desetinná část je povinná",
+    "ru": "десятичная часть обязательна"
+  },
+  "предпочитать OCR-кандидата из обычного диапазона (со сверкой)": {
+    "en": "prefer an OCR candidate within the expected range (with review)",
+    "cs": "upřednostnit variantu OCR z očekávaného rozsahu (s kontrolou)",
+    "ru": "предпочитать OCR-кандидата из обычного диапазона (со сверкой)"
+  },
+  "Column index cannot be negative": {
+    "en": "Column index cannot be negative",
+    "cs": "Index sloupce nesmí být záporný",
+    "ru": "Индекс столбца не может быть отрицательным"
+  },
+  "Правило «{p0}» выходит за текущую сетку; измените или удалите его": {
+    "en": "Rule “{p0}” extends outside the current grid; edit or remove it",
+    "cs": "Pravidlo „{p0}“ přesahuje aktuální mřížku; upravte je nebo odstraňte",
+    "ru": "Правило «{p0}» выходит за текущую сетку; измените или удалите его"
+  },
+  "Правила «{p0}» и «{p1}» одинаково специфичны и перекрываются; разделите области или сделайте одну из них точнее": {
+    "en": "Rules “{p0}” and “{p1}” overlap and are equally specific; separate their regions or make one more specific",
+    "cs": "Pravidla „{p0}“ a „{p1}“ se překrývají a mají stejnou prioritu; oddělte jejich oblasti nebo jedno z pravidel zpřesněte",
+    "ru": "Правила «{p0}» и «{p1}» одинаково специфичны и перекрываются; разделите области или сделайте одну из них точнее"
+  },
+  "Исходная таблица": {
+    "en": "Original table",
+    "cs": "Původní tabulka",
+    "ru": "Исходная таблица"
+  },
+  "Исходная таблица {p0}": {
+    "en": "Original table {p0}",
+    "cs": "Původní tabulka {p0}",
+    "ru": "Исходная таблица {p0}"
+  },
+  "Неизвестный режим экспорта": {
+    "en": "Unknown export mode",
+    "cs": "Neznámý režim exportu",
+    "ru": "Неизвестный режим экспорта"
+  },
+  "Нет страниц для экспорта": {
+    "en": "No pages to export",
+    "cs": "Žádné stránky k exportu",
+    "ru": "Нет страниц для экспорта"
+  },
+  "{p0} values still need review": {
+    "en": "{p0} values still need review",
+    "cs": "Počet hodnot, které ještě vyžadují kontrolu: {p0}",
+    "ru": "Осталось значений для сверки: {p0}"
+  },
+  "R{p0}C{p1}: значение не соответствует правилу «{p2}»": {
+    "en": "R{p0}C{p1}: value does not match rule “{p2}”",
+    "cs": "R{p0}C{p1}: hodnota neodpovídá pravidlu „{p2}“",
+    "ru": "R{p0}C{p1}: значение не соответствует правилу «{p2}»"
+  },
+  "Повреждён внутренний файл Excel: {p0}": {
+    "en": "Damaged internal Excel file: {p0}",
+    "cs": "Poškozený interní soubor Excelu: {p0}",
+    "ru": "Повреждён внутренний файл Excel: {p0}"
+  },
+  "сетка {p0}×{p1}": {
+    "en": "grid {p0}×{p1}",
+    "cs": "mřížka {p0}×{p1}",
+    "ru": "сетка {p0}×{p1}"
+  },
+  "число строк совпадает": {
+    "en": "row count matches",
+    "cs": "počet řádků souhlasí",
+    "ru": "число строк совпадает"
+  },
+  "число строк отличается": {
+    "en": "row count differs",
+    "cs": "počet řádků se liší",
+    "ru": "число строк отличается"
+  },
+  "число столбцов совпадает": {
+    "en": "column count matches",
+    "cs": "počet sloupců souhlasí",
+    "ru": "число столбцов совпадает"
+  },
+  "число столбцов отличается": {
+    "en": "column count differs",
+    "cs": "počet sloupců se liší",
+    "ru": "число столбцов отличается"
+  },
+  "пропорции страницы совпадают": {
+    "en": "page proportions match",
+    "cs": "poměr stran stránky souhlasí",
+    "ru": "пропорции страницы совпадают"
+  },
+  "положение таблицы похоже": {
+    "en": "table position is similar",
+    "cs": "poloha tabulky je podobná",
+    "ru": "положение таблицы похоже"
+  },
+  "Unsupported file type: {p0}": {
+    "en": "Unsupported file type: {p0}",
+    "cs": "Nepodporovaný typ souboru: {p0}",
+    "ru": "Неподдерживаемый тип файла: {p0}"
+  },
+  "Rotation must be a multiple of 90 degrees": {
+    "en": "Rotation must be a multiple of 90 degrees",
+    "cs": "Otočení musí být násobkem 90 stupňů",
+    "ru": "Угол поворота должен быть кратен 90 градусам"
+  },
+  "No table grid was detected. Draw the table boundary manually.": {
+    "en": "No table grid was detected. Draw the table boundary manually.",
+    "cs": "Mřížka tabulky nebyla nalezena. Vyznačte okraj tabulky ručně.",
+    "ru": "Сетка таблицы не найдена. Обозначьте её границы вручную."
+  },
+  "Recognizing field {p0}": {
+    "en": "Recognizing field {p0}",
+    "cs": "Rozpoznávání pole {p0}",
+    "ru": "Распознавание поля {p0}"
+  },
+  "Recognizing cell {p0}, {p1}": {
+    "en": "Recognizing cell {p0}, {p1}",
+    "cs": "Rozpoznávání buňky {p0}, {p1}",
+    "ru": "Распознавание ячейки {p0}, {p1}"
+  },
+  "{p0} — копия": {
+    "en": "{p0} — copy",
+    "cs": "{p0} — kopie",
+    "ru": "{p0} — копия"
+  },
+  "The first file opens now. {p0} remaining file(s) will reuse this template after each export.": {
+    "en": "The first file opens now. Remaining files: {p0}. Each will reuse this template after the preceding export.",
+    "cs": "První soubor se nyní otevře. Zbývající soubory: {p0}. Každý po předchozím exportu použije tuto šablonu.",
+    "ru": "Сейчас откроется первый файл. Осталось файлов: {p0}. Для каждого будет использован этот шаблон после предыдущего экспорта."
+  },
+  "Grid not detected. Rotate if needed, then redraw the table boundary and set its rows and columns.": {
+    "en": "Grid not detected. Rotate if needed, then redraw the table boundary and set its rows and columns.",
+    "cs": "Mřížka nebyla nalezena. Podle potřeby dokument otočte, znovu vyznačte okraj tabulky a nastavte řádky a sloupce.",
+    "ru": "Сетка не найдена. При необходимости поверните документ, затем обозначьте границу таблицы и задайте строки и столбцы."
+  },
+  "Language": {
+    "en": "Language",
+    "cs": "Jazyk",
+    "ru": "Язык"
+  },
+  "Interface language": {
+    "en": "Interface language",
+    "cs": "Jazyk rozhraní",
+    "ru": "Язык интерфейса"
+  },
+  "Language changes apply immediately and are saved for the next launch. Your document data is not translated.": {
+    "en": "Language changes apply immediately and are saved for the next launch. Your document data is not translated.",
+    "cs": "Změna jazyka se projeví ihned a uloží se pro příští spuštění. Data dokumentů se nepřekládají.",
+    "ru": "Язык меняется сразу и сохраняется для следующего запуска. Данные документов не переводятся."
+  },
+  "Column {p0}": {
+    "en": "Column {p0}",
+    "cs": "Sloupec {p0}",
+    "ru": "Столбец {p0}"
+  },
+  "Missing required value": {
+    "en": "Missing required value",
+    "cs": "Chybí povinná hodnota",
+    "ru": "Отсутствует обязательное значение"
+  },
+  "Invalid numeric notation": {
+    "en": "Invalid numeric notation",
+    "cs": "Neplatný číselný zápis",
+    "ru": "Некорректная числовая запись"
+  },
+  "The value is below the allowed minimum": {
+    "en": "The value is below the allowed minimum",
+    "cs": "Hodnota je nižší než povolené minimum",
+    "ru": "Значение ниже допустимого минимума"
+  },
+  "The value exceeds the allowed maximum": {
+    "en": "The value exceeds the allowed maximum",
+    "cs": "Hodnota přesahuje povolené maximum",
+    "ru": "Значение выше допустимого максимума"
+  },
+  "Some row boundaries were reconstructed. Check every blue guide.": {
+    "en": "Some row boundaries were reconstructed. Check every blue guide.",
+    "cs": "Některé hranice řádků byly obnoveny. Zkontrolujte každou modrou vodicí čáru.",
+    "ru": "Некоторые границы строк восстановлены. Проверьте каждую синюю направляющую."
+  },
+  "Rows under heavy ink were recovered from the label column. Check those guides.": {
+    "en": "Rows under heavy ink were recovered from the label column. Check those guides.",
+    "cs": "Řádky překryté silnými tahy byly obnoveny podle sloupce s názvy. Zkontrolujte příslušné vodicí čáry.",
+    "ru": "Строки под толстыми штрихами восстановлены по столбцу с названиями. Проверьте эти направляющие."
+  },
+  "Enter a number using a dot or comma as the decimal separator": {
+    "en": "Enter a number using a dot or comma as the decimal separator",
+    "cs": "Zadejte číslo s tečkou nebo čárkou jako desetinným oddělovačem",
+    "ru": "Введите число с точкой или запятой в качестве десятичного разделителя"
+  },
+  "{p0} · v{p1}\nGrid: {p2} × {p3} · Regions: {p4} · Sample: {p5}": {
+    "en": "{p0} · v{p1}\nGrid: {p2} × {p3} · Regions: {p4} · Sample: {p5}",
+    "cs": "{p0} · v{p1}\nMřížka: {p2} × {p3} · Oblasti: {p4} · Vzor: {p5}",
+    "ru": "{p0} · v{p1}\nСетка: {p2} × {p3} · Области: {p4} · Образец: {p5}"
+  }
+}

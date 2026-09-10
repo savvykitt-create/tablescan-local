@@ -10,8 +10,8 @@ def test_main_window_has_complete_workflow(monkeypatch, tmp_path, qtbot) -> None
     _app, window = create_application()
     qtbot.addWidget(window)
 
-    assert window.windowTitle() == "TableScan Local 0.6.5"
+    assert window.windowTitle() == "TableScan Local 0.7.3"
     assert window.table_page.high_accuracy.isChecked()
     assert window.stack.count() == 4
-    assert [button.text().split()[-1] for button in window.nav_buttons] == ["Файлы", "Совмещение", "Сверка", "Экспорт"]
-    assert [button.text().split()[-1] for button in window.section_buttons] == ["Документы", "Шаблоны", "Настройки"]
+    assert [button.text().split()[-1] for button in window.nav_buttons] == ["Files", "Alignment", "Review", "Export"]
+    assert [button.text().split()[-1] for button in window.section_buttons] == ["Documents", "Templates", "Settings"]

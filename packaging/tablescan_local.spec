@@ -13,6 +13,8 @@ a = Analysis(
     pathex=[str(project_root / "src")],
     binaries=[],
     datas=rapid_data + [
+        (str(project_root / "src/tablescan_local/translations"), "tablescan_local/translations"),
+        (str(project_root / "src/tablescan_local/assets"), "tablescan_local/assets"),
         (str(project_root / "src/tablescan_local/models"), "tablescan_local/models"),
         (str(project_root / "LICENSE"), "."),
         (str(project_root / "THIRD_PARTY_NOTICES.md"), "."),
@@ -33,6 +35,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
+    icon=str(project_root / "src/tablescan_local/assets/savvykit.ico") if sys.platform == "win32" else None,
 )
 coll = COLLECT(
     exe,
@@ -45,11 +48,12 @@ coll = COLLECT(
 if sys.platform == "darwin":
     app = BUNDLE(
         coll,
+        icon=str(project_root / "src/tablescan_local/assets/savvykit.icns"),
         name=os.getenv("TABLESCAN_BUNDLE_NAME", "TableScan Local.app"),
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "0.6.5",
-            "CFBundleVersion": "0.6.5",
+            "CFBundleShortVersionString": "0.7.3",
+            "CFBundleVersion": "0.7.3",
         },
     )

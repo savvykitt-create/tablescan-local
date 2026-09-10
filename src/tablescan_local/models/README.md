@@ -37,5 +37,11 @@ this source repository.
 The digit verifier is a secondary opinion over safely segmented candidates;
 it is not allowed to override strong multi-model OCR evidence on its own.
 
+Version 0.7 adds no new model weights. It combines the existing verifier with
+a temporary page-local profile built from stable OCR cells. The profile is
+discarded after the page is processed, cannot invent a candidate, excludes the
+cell under review from its own evidence, and only suggests alternatives for
+explicit human confirmation, even when the independent verifier agrees.
+
 These are research-grade recognizers, not a certified digit-reading system.
 Model scores are not calibrated accuracy. Numeric values require human review.

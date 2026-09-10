@@ -4,8 +4,10 @@ TableScan Local is a desktop application for converting scanned and photographed
 tables into editable Excel workbooks. Recognition, template matching, review,
 and export run locally on the computer.
 
-The interface is currently available in Russian. The application supports
-Windows, macOS, and Ubuntu packaging from a shared Python and Qt codebase.
+The interface is available in English (default), Czech, and Russian. Change it
+in Settings → Language; the change applies immediately and is remembered.
+The application supports Windows, macOS, and Ubuntu packaging from a shared
+Python and Qt codebase.
 
 ## Main features
 
@@ -16,10 +18,16 @@ Windows, macOS, and Ubuntu packaging from a shared Python and Qt codebase.
   to columns or visually selected cell blocks.
 - Normalize decimal commas and points to a single numeric Excel value.
 - Run a multi-stage offline OCR cascade with bundled ONNX models.
+- Use stable cells on the current page as temporary writer-style evidence for
+  ambiguous OCR candidates, without retaining handwriting samples or learning
+  from user corrections.
 - Review uncertain cells against the corresponding highlighted source region.
 - Detect empty and conservatively identified cancelled rows.
-- Export a normalized data sheet, a scan-layout matrix, and a detailed audit
-  sheet in one `.xlsx` workbook.
+- Switch between table and field tabs, with linked source highlights and original-image previews.
+- Review with keyboard navigation, handwriting suggestions, and collapsed explanations.
+- Use a pastel light theme or a dark theme; the selection is saved locally.
+- Choose compact Excel export (source-layout sheets only), or extended export
+  (source-layout sheets, normalized Data, and detailed Audit).
 
 ## Privacy and repository data policy
 
@@ -40,7 +48,7 @@ origins and checksums are documented in
 ## Requirements
 
 - Python 3.11 or 3.12
-- Approximately 1 GB of free space for dependencies and build artifacts
+- Approximately 3 GB of free space for dependencies and a native application build
 - CPU inference; a discrete GPU is not required
 
 ## Run from source
@@ -48,6 +56,8 @@ origins and checksums are documented in
 macOS or Linux:
 
 ```bash
+git clone https://github.com/CoolMage/tablescan-local.git
+cd tablescan-local
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
@@ -58,6 +68,8 @@ tablescan-local
 Windows PowerShell:
 
 ```powershell
+git clone https://github.com/CoolMage/tablescan-local.git
+cd tablescan-local
 py -3.12 -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -108,3 +120,57 @@ using an exported workbook.
 Application source code is licensed under Apache-2.0. Bundled dependencies and
 model weights retain their upstream licenses; see
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+
+## Review workspace (0.7.1)
+
+The lower preview now comes directly from the original page using the selected
+cell or field coordinates. OCR masks and retry crops remain available to the
+recognition pipeline but are never substituted for the source image in review.
+Existing saved recognition results benefit immediately; rerunning OCR is not required.
+
+- **Enter** in the value input confirms and advances; **Alt+Right** moves to the
+  next disputed value without confirming. Navigation wraps across pages.
+- **Alt+A** inserts a handwriting suggestion for inspection. Explicit confirmation
+  is still required before it changes the result.
+- **Why review is needed** expands grouped reasons, value rules, alternative
+  readings, and technical checks. It is collapsed initially.
+- Excluding a row blanks its measurements; clearing the checkbox restores them.
+- The original document supports panning, zoom buttons, and **Fit**.
+- Both export modes require completed review and retain the same value-rule checks.
+  Compact export preserves the grid and blank excluded measurements on one sheet
+  per page. Extended export retains the existing Data and Audit sheets.
+
+The application icon uses the supplied SavvyKit logo. Source documents, OCR
+models, and recognition policy are unaffected by this interface update.
+
+## Interface languages (0.7.2)
+
+English is the default for installations without a saved language choice,
+regardless of the operating system language. Settings → Language offers
+English, Čeština, and Русский. Switching language updates existing controls,
+dialogs, tooltips, and review explanations without rebuilding the workspace.
+The choice is stored alongside the theme in the local preferences file.
+
+The review selection, entered value, template edits, and document images are
+preserved. Document text, custom names, and existing audit evidence are data:
+they are not translated. Generated names become ordinary text when they are
+created. Numeric parsing and the review/export checks are identical in all
+three languages. Source-layout worksheet titles use the selected language;
+Data and Audit retain their established names and column schema.
+
+Contributor notes: [Localization](docs/LOCALIZATION.md).
+
+## Digit segmentation (0.7.3)
+
+The independent digit verifier and page-local handwriting comparison now preserve
+complete digit groups when clear whitespace separates them. This avoids cutting
+a wide glyph in half when it follows or precedes a narrow glyph, such as a handwritten
+1. Small detached marks do not count as complete digit groups. The existing fallback
+remains available when whitespace does not establish the expected segmentation.
+
+There are no fixed substitutions between 1/7/2 or 4/9/6. Handwriting suggestions
+still require explicit confirmation.
+
+For an isolated first-run check, set `TABLESCAN_DATA_DIR` to an empty temporary
+directory before launching the application. Reinstalling the source code alone
+does not erase the existing per-user document database or preferences.

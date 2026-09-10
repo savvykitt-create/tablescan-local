@@ -1,6 +1,7 @@
 """User-declared value rules. Hard limits and expectations are kept separate."""
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
@@ -25,30 +26,30 @@ class ValueConstraints:
 
     def validate(self) -> None:
         if self.value_format not in {"complex_numeric", "numeric", "integer", "text", "date"}:
-            raise ValueError("Неизвестный тип значения")
+            raise ValueError(tr('Неизвестный тип значения'))
         for low, high in ((self.minimum, self.maximum), (self.expected_minimum, self.expected_maximum)):
             if any(v is not None and not Decimal(str(v)).is_finite() for v in (low, high)):
-                raise ValueError("Границы должны быть конечными числами")
+                raise ValueError(tr('Границы должны быть конечными числами'))
             if low is not None and high is not None and low > high:
-                raise ValueError("Нижняя граница не может быть больше верхней")
+                raise ValueError(tr('Нижняя граница не может быть больше верхней'))
         if self.decimal_places is not None and (type(self.decimal_places) is not int or not 0 <= self.decimal_places <= 8):
-            raise ValueError("Допустимо от 0 до 8 знаков после разделителя")
+            raise ValueError(tr('Допустимо от 0 до 8 знаков после разделителя'))
         if self.value_format == "integer" and self.decimal_places not in (None, 0):
-            raise ValueError("Целое число не может иметь дробные знаки")
+            raise ValueError(tr('Целое число не может иметь дробные знаки'))
         if self.require_decimal and self.value_format != "numeric":
-            raise ValueError("Обязательная десятичная часть доступна только для десятичного числа")
+            raise ValueError(tr('Обязательная десятичная часть доступна только для десятичного числа'))
         if self.require_decimal and self.decimal_places == 0:
-            raise ValueError("Для обязательной десятичной части нужно хотя бы один знак после разделителя")
+            raise ValueError(tr('Для обязательной десятичной части нужно хотя бы один знак после разделителя'))
         if self.value_format not in {"integer", "numeric"} and (self.decimal_places is not None or self.suggest_missing_decimal):
-            raise ValueError("Число дробных знаков доступно только для простых чисел")
+            raise ValueError(tr('Число дробных знаков доступно только для простых чисел'))
         if self.suggest_missing_decimal and not self.decimal_places:
-            raise ValueError("Для предложения разделителя задайте число дробных знаков")
+            raise ValueError(tr('Для предложения разделителя задайте число дробных знаков'))
         if self.prefer_expected_range and self.expected_minimum is None and self.expected_maximum is None:
-            raise ValueError("Для предпочтения обычного диапазона задайте хотя бы одну его границу")
+            raise ValueError(tr('Для предпочтения обычного диапазона задайте хотя бы одну его границу'))
         if self.value_format in {"text", "date"} and any(v is not None for v in (self.minimum, self.maximum, self.expected_minimum, self.expected_maximum)):
-            raise ValueError("Числовые диапазоны неприменимы к тексту и дате")
+            raise ValueError(tr('Числовые диапазоны неприменимы к тексту и дате'))
         if self.allowed_values and not any(not self.hard_errors(v, check_allowed=False) for v in self.allowed_values):
-            raise ValueError("Ни одно разрешённое значение не соответствует формату и диапазону")
+            raise ValueError(tr('Ни одно разрешённое значение не соответствует формату и диапазону'))
 
     def hard_errors(self, text: str, *, check_allowed: bool = True) -> list[str]:
         text = text.strip()
@@ -132,20 +133,20 @@ class ValueConstraints:
         return proposal if not self.hard_errors(proposal) else None
 
     def summary(self) -> str:
-        labels = {"numeric": "Число", "integer": "Целое", "text": "Текст", "date": "Дата", "complex_numeric": "Число / сложная запись"}
+        labels = {"numeric": tr('Число'), "integer": tr('Целое'), "text": tr('Текст'), "date": tr('Дата'), "complex_numeric": tr('Число / сложная запись')}
         parts = [labels[self.value_format]]
         if self.decimal_places is not None:
-            parts.append(f"дробных знаков: {self.decimal_places}")
+            parts.append(tr('дробных знаков: {p0}', p0=self.decimal_places))
         if self.minimum is not None or self.maximum is not None:
-            parts.append(f"от {self.minimum if self.minimum is not None else '−∞'} до {self.maximum if self.maximum is not None else '+∞'}")
+            parts.append(tr('от {p0} до {p1}', p0=self.minimum if self.minimum is not None else '−∞', p1=self.maximum if self.maximum is not None else '+∞'))
         if self.allowed_values:
-            parts.append("из списка: " + "; ".join(self.allowed_values))
+            parts.append(tr('из списка: ') + join_text('; ', self.allowed_values))
         if self.expected_minimum is not None or self.expected_maximum is not None:
-            parts.append(f"обычно {self.expected_minimum}…{self.expected_maximum}")
+            parts.append(tr('обычно {p0}…{p1}', p0=self.expected_minimum, p1=self.expected_maximum))
         if self.suggest_missing_decimal:
-            parts.append("предлагать пропущенный разделитель (со сверкой)")
+            parts.append(tr('предлагать пропущенный разделитель (со сверкой)'))
         if self.require_decimal:
-            parts.append("десятичная часть обязательна")
+            parts.append(tr('десятичная часть обязательна'))
         if self.prefer_expected_range:
-            parts.append("предпочитать OCR-кандидата из обычного диапазона (со сверкой)")
-        return "; ".join(parts)
+            parts.append(tr('предпочитать OCR-кандидата из обычного диапазона (со сверкой)'))
+        return join_text('; ', parts)

@@ -154,7 +154,7 @@ def test_auto_excluded_crossed_row_displays_blank_and_can_be_restored(qtbot):
     assert review.table.item(1, 1).text() == "—"
     review._cell_clicked(1, 1)
     assert review.exclude_row.isChecked()
-    assert review.value_label.text() == "Пусто — исключено"
+    assert review.value_label.text() == "Empty — excluded"
     review.exclude_row.setChecked(False)
     assert page.excluded_rows == []
     assert page.cell(1, 1).final_text == "2.2"
@@ -187,3 +187,29 @@ def test_only_real_conflicts_need_review_and_all_can_be_confirmed(qtbot, monkeyp
     assert disputed.status == another.status == "confirmed"
     assert result.unresolved_count == 0
     assert not review.confirm_all_button.isEnabled()
+
+
+def test_writer_style_suggestion_requires_explicit_confirmation(qtbot):
+    template = TableTemplate(
+        id="writer-suggestion", name="Writer suggestion",
+        table_rect=NormalizedRect(0, 0, 1, 1), row_guides=[0, 1], column_guides=[0, 1],
+    )
+    template.ensure_column_rules()
+    cell = CellResult(
+        0, 0, "99.1", "99.1", .98,
+        flags=["writer_style_ambiguous"], alternatives="49.1",
+        writer_suggestion="49.1",
+    )
+    review = ReviewPage()
+    qtbot.addWidget(review)
+    review.show()
+    review.set_result(
+        [np.full((100, 100, 3), 255, np.uint8)],
+        JobResult("sample.pdf", template, [PageResult(0, "sample.pdf", [cell], [])]),
+    )
+
+    assert review.writer_suggestion_button.isVisible()
+    review.writer_suggestion_button.click()
+
+    assert review.correct_value.text() == "49.1"
+    assert cell.final_text == "99.1"

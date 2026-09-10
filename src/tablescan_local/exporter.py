@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -58,7 +59,7 @@ def _separator_evidence(raw_text: str, final_text: str, flags: list[str]) -> str
 
 
 def _layout_sheet_title(page_index: int) -> str:
-    return "Исходная таблица" if page_index == 0 else f"Исходная таблица {page_index + 1}"
+    return tr('Исходная таблица') if page_index == 0 else tr('Исходная таблица {p0}', p0=page_index + 1)
 
 
 def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> None:
@@ -118,20 +119,30 @@ def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> N
     sheet.sheet_properties.pageSetUpPr.fitToPage = True
 
 
-def export_job(job: JobResult, target: str | Path) -> Path:
+def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") -> Path:
+    """Export reviewed results; compact includes only the source-layout sheets."""
+    if mode not in {"compact", "extended"}:
+        raise ValueError(tr('Неизвестный режим экспорта'))
+    if not job.pages:
+        raise ValueError(tr('Нет страниц для экспорта'))
     job.template.validate_value_rules()
     if job.unresolved_count:
-        raise ValueError(f"{job.unresolved_count} values still need review")
+        raise ValueError(tr('{p0} values still need review', p0=job.unresolved_count))
     for page in job.pages:
         for cell in page.cells:
             if cell.applied_rule and cell.status != "excluded" and cell.row not in page.excluded_rows:
                 rule, name = job.template.value_constraints(cell.row, cell.column)
                 if rule.hard_errors(cell.final_text):
-                    raise ValueError(f"R{cell.row + 1}C{cell.column + 1}: значение не соответствует правилу «{name}»")
+                    raise ValueError(tr('R{p0}C{p1}: значение не соответствует правилу «{p2}»', p0=cell.row + 1, p1=cell.column + 1, p2=name))
 
     target_path = Path(target)
     target_path.parent.mkdir(parents=True, exist_ok=True)
     workbook = Workbook()
+    if mode == "compact":
+        workbook.remove(workbook.active)
+        for page in job.pages:
+            _add_layout_sheet(workbook, page, job)
+        return _save_workbook(workbook, target_path)
     data_sheet = workbook.active
     data_sheet.title = "Data"
 
@@ -193,6 +204,7 @@ def export_job(job: JobResult, target: str | Path) -> Path:
         "Source file", "Page", "Kind", "Address", "Raw value", "Final value", "Confidence",
         "Flags", "Status", "Template", "Template version", "Model version", "Exported at UTC",
         "Decimal separator evidence", "Applied value rule", "Alternative readings",
+        "Writer style suggestion", "Writer adaptation evidence",
     ]
     audit_sheet.append(audit_headers)
     exported_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -202,7 +214,7 @@ def export_job(job: JobResult, target: str | Path) -> Path:
                 job.source_name, page.page_index + 1, "field", item.name, item.raw_text, item.final_text,
                 round(item.confidence, 4), ", ".join(item.flags), item.status, job.template.name,
                 job.template.template_version, job.model_version, exported_at,
-                _separator_evidence(item.raw_text, item.final_text, item.flags), "", item.alternatives,
+                _separator_evidence(item.raw_text, item.final_text, item.flags), "", item.alternatives, "", "",
             ])
         for item in page.cells:
             audit_sheet.append([
@@ -210,6 +222,8 @@ def export_job(job: JobResult, target: str | Path) -> Path:
                 item.raw_text, item.final_text, round(item.confidence, 4), ", ".join(item.flags), item.status,
                 job.template.name, job.template.template_version, job.model_version, exported_at,
                 _separator_evidence(item.raw_text, item.final_text, item.flags), item.applied_rule, item.alternatives,
+                item.writer_suggestion,
+                item.writer_evidence,
             ])
 
     for sheet in (data_sheet, audit_sheet):
@@ -230,10 +244,20 @@ def export_job(job: JobResult, target: str | Path) -> Path:
             table = Table(displayName=f"{sheet.title.replace(' ', '')}Table", ref=sheet.dimensions)
             table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True, showFirstColumn=False, showLastColumn=False)
             sheet.add_table(table)
+    return _save_workbook(workbook, target_path)
+
+
+def _save_workbook(workbook: Workbook, target_path: Path) -> Path:
+    # All sheets, including the original layout, contain data rather than formulas.
+    for sheet in workbook:
+        for row in sheet:
+            for cell in row:
+                if isinstance(cell.value, str):
+                    cell.data_type = "s"
     workbook.save(target_path)
     load_workbook(target_path, read_only=True, data_only=False).close()
     with ZipFile(target_path) as archive:
         broken_member = archive.testzip()
         if broken_member:
-            raise ValueError(f"Повреждён внутренний файл Excel: {broken_member}")
+            raise ValueError(tr('Повреждён внутренний файл Excel: {p0}', p0=broken_member))
     return target_path

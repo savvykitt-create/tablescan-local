@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -26,7 +27,7 @@ def load_document(path: str | Path, scale: float = 3.0) -> list[np.ndarray]:
     source = Path(path)
     suffix = source.suffix.lower()
     if suffix not in SUPPORTED_EXTENSIONS:
-        raise ValueError(f"Unsupported file type: {suffix}")
+        raise ValueError(tr('Unsupported file type: {p0}', p0=suffix))
     if suffix == ".pdf":
         import pypdfium2 as pdfium
 
@@ -98,7 +99,7 @@ def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
 def rotate_document(images: list[np.ndarray], degrees: int) -> list[np.ndarray]:
     """Rotate copies counterclockwise; original source files are unchanged."""
     if degrees % 90:
-        raise ValueError("Rotation must be a multiple of 90 degrees")
+        raise ValueError(tr('Rotation must be a multiple of 90 degrees'))
     return [np.ascontiguousarray(np.rot90(image, (degrees // 90) % 4)) for image in images]
 
 
@@ -129,7 +130,7 @@ def detect_grid(image: np.ndarray) -> GridDetection:
         aspect_bonus = min(candidate_width / width, 1.0)
         candidates.append((candidate_width * candidate_height * aspect_bonus, (x, y, candidate_width, candidate_height)))
     if not candidates:
-        raise ValueError("No table grid was detected. Draw the table boundary manually.")
+        raise ValueError(tr('No table grid was detected. Draw the table boundary manually.'))
 
     _, (x, y, table_width, table_height) = max(candidates, key=lambda item: item[0])
     padding = max(2, round(min(width, height) * 0.002))
@@ -184,7 +185,7 @@ def detect_grid(image: np.ndarray) -> GridDetection:
         table_rect=NormalizedRect.from_pixels((x, y, table_width, table_height), image.shape),
         row_guides=row_guides,
         column_guides=column_guides,
-        warnings=(["Some row boundaries were reconstructed. Check every blue guide."] if reconstructed else []) + (["Rows under heavy ink were recovered from the label column. Check those guides."] if recovered_from_margin else []),
+        warnings=([tr('Some row boundaries were reconstructed. Check every blue guide.')] if reconstructed else []) + ([tr('Rows under heavy ink were recovered from the label column. Check those guides.')] if recovered_from_margin else []),
     )
 
 
@@ -288,7 +289,12 @@ def crop_cell_owned_context(
     return cv2.copyMakeBorder(result, 4, 4, 6, 6, cv2.BORDER_CONSTANT, value=(255, 255, 255))
 
 
-def crop_cell_variants(image: np.ndarray, template: TableTemplate, row: int, column: int) -> list[np.ndarray]:
+def cell_crop_bundle(
+    image: np.ndarray,
+    template: TableTemplate,
+    row: int,
+    column: int,
+) -> tuple[list[np.ndarray], np.ndarray | None]:
     """Return grid-safe crops for recovering edge strokes and rejecting rules.
 
     The standard 3 px inset is first so saved previews and existing behavior
@@ -306,7 +312,11 @@ def crop_cell_variants(image: np.ndarray, template: TableTemplate, row: int, col
         if any(existing.shape == variant.shape and np.array_equal(existing, variant) for existing in result):
             continue
         result.append(variant)
-    return result
+    return result, context
+
+
+def crop_cell_variants(image: np.ndarray, template: TableTemplate, row: int, column: int) -> list[np.ndarray]:
+    return cell_crop_bundle(image, template, row, column)[0]
 
 
 def detect_crossed_rows(image: np.ndarray, template: TableTemplate) -> list[int]:

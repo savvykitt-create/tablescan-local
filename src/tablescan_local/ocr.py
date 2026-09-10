@@ -96,7 +96,7 @@ class LocalOcrEngine:
                 rec_img_shape=[3, 48, 320],
             )
             self._digit_verifier = DigitVerifier()
-            self.model_version = "ppocrv5+ppocrv6+en/numeric-template-cascade-v9"
+            self.model_version = "ppocrv5+ppocrv6+en/numeric-template-cascade-v11-whitespace-glyphs"
 
     @staticmethod
     def _prepare(crop: np.ndarray, threshold: bool = False) -> np.ndarray:
@@ -351,7 +351,6 @@ class LocalOcrEngine:
         verifier_source = strongest_source if strongest_source is not None else geometric_source
         verifier_x = strongest_separator.x if strongest_separator is not None else (geometry.separator_x if geometry else None)
         verifier_width = strongest_separator.width if strongest_separator is not None else (geometry.separator_width if geometry else 0)
-        repetition_support: dict[str, float] = {}
         if verifier_source is not None and self._digit_verifier is not None and scores and verifier_x is not None:
             provisional = sorted(scores, key=scores.get, reverse=True)[:12]
             digit_verifications = self._digit_verifier.verify(
@@ -365,14 +364,6 @@ class LocalOcrEngine:
             # multi-model OCR evidence by itself.
             for verification in digit_verifications:
                 scores[verification.text] += .55 * verification.support * verification.confidence
-            repetition_support = self._digit_verifier.repeated_digit_support(
-                verifier_source, provisional, verifier_x, verifier_width,
-            )
-            for candidate, support in repetition_support.items():
-                # This vote is deliberately strong but narrowly gated: one
-                # glyph must be a >=.88 anchor, the other must be ambiguous,
-                # and their local handwriting shapes must closely match.
-                scores[candidate] += 15.5 * support
         ordered = sorted(scores, key=scores.get, reverse=True)
         if not ordered:
             fallback = self._recognize_numeric(crop)
@@ -395,8 +386,6 @@ class LocalOcrEngine:
             flags.append("visible_digit_count_used")
         if geometry_boundary_available:
             flags.append("decimal_boundary_inferred_from_glyphs")
-        if value in repetition_support:
-            flags.append("repeated_digit_shape_agrees")
         margin = scores[value] / max(1e-9, scores[ordered[1]]) if len(ordered) > 1 else float("inf")
         if len(ordered) > 1 and margin < 1.8:
             flags.append("model_disagreement")

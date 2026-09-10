@@ -129,7 +129,7 @@ def test_cell_overrides_column_latest_region_wins_and_roundtrips():
     assert restored.value_constraints(1, 1)[0].value_format == "integer"
     assert restored.value_constraints(1, 0)[0].value_format == "complex_numeric"
     restored.row_guides.pop()
-    with pytest.raises(ValueError, match="выходит"):
+    with pytest.raises(ValueError, match="outside"):
         restored.validate_value_rules()
 
 
@@ -149,7 +149,7 @@ def test_equal_specificity_overlaps_are_reported_as_conflict():
         CellRuleRegion("left", "Слева", 0, 0, 0, 1, ValueConstraints("integer")),
         CellRuleRegion("right", "Справа", 0, 1, 1, 1, ValueConstraints("numeric", decimal_places=1)),
     ]
-    with pytest.raises(ValueError, match="одинаково специфичны"):
+    with pytest.raises(ValueError, match="equally specific"):
         t.validate_value_rules()
 
 

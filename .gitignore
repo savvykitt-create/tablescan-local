@@ -29,3 +29,5 @@ docs/design/
 *.tif
 *.tiff
 :memory:*
+
+!src/tablescan_local/assets/*.png

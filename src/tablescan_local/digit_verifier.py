@@ -151,6 +151,26 @@ def _split_part(mask: np.ndarray, start: int, end: int, count: int) -> list[tupl
     if width < count * 3:
         return None
     projection = np.sum(mask[:, left:right], axis=0).astype(np.float32)
+    # Handwritten digits do not have equal widths: a narrow 1 can sit next
+    # to a wide 2/7/4. Prefer complete ink groups when whitespace already
+    # separates exactly the requested number of substantial glyphs. Searching
+    # only near equal-width positions can otherwise cut through the wide
+    # digit and attach half of it to the narrow one.
+    occupied = projection > 0
+    edges = np.diff(np.r_[False, occupied, False].astype(np.int8))
+    starts = np.flatnonzero(edges == 1) + left
+    ends = np.flatnonzero(edges == -1) + left
+    if len(starts) == count:
+        groups = list(zip(starts.tolist(), ends.tolist(), strict=True))
+        heights = []
+        for a, b in groups:
+            rows = np.flatnonzero(np.any(mask[:, a:b], axis=1))
+            heights.append(int(rows[-1] - rows[0] + 1))
+        if (
+            min(heights) >= max(3, max(heights) * .55)
+            and all(np.count_nonzero(mask[:, a:b]) >= 4 for a, b in groups)
+        ):
+            return groups
     cuts = []
     previous = left
     for index in range(1, count):
@@ -275,59 +295,3 @@ class DigitVerifier:
             joint_support = float(np.exp(np.mean(np.log(np.clip(support, 1e-9, 1)))))
             results.append(DigitVerification(candidate.replace(",", "."), joint_support, "".join(map(str, best)), confidence))
         return sorted(results, key=lambda item: item.support, reverse=True)
-
-    def repeated_digit_support(
-        self,
-        crop: np.ndarray,
-        candidates: list[str],
-        separator_x: int | None,
-        separator_width: int = 0,
-    ) -> dict[str, float]:
-        """Use a confidently labelled glyph as an in-cell handwriting exemplar.
-
-        Sequence recognizers can collapse or relabel the second of two similar
-        handwritten digits.  When two segmented glyphs have closely matching
-        HOG shapes and one is classified very confidently, this supplies a
-        small independent vote for candidates that label both alike.
-        """
-        candidates = list(dict.fromkeys(candidate.replace(",", ".") for candidate in candidates))
-        references = [
-            candidate for candidate in candidates
-            if segment_digits(crop, candidate, separator_x, separator_width)
-        ]
-        if not references:
-            return {}
-        reference = max(references, key=lambda value: sum(character.isdigit() for character in value))
-        glyphs = segment_digits(crop, reference, separator_x, separator_width)
-        if not glyphs or len(glyphs) < 2:
-            return {}
-        features = hog_features(np.stack(glyphs))
-        norms = np.maximum(1e-9, np.linalg.norm(features, axis=1))
-        similarities = features @ features.T / (norms[:, None] * norms[None, :])
-        probabilities = self._probabilities(glyphs)
-        support: dict[str, float] = {}
-        for candidate in candidates:
-            digits = "".join(character for character in candidate if character.isdigit())
-            if len(digits) != len(glyphs):
-                continue
-            votes = []
-            for first in range(len(digits)):
-                for second in range(first + 1, len(digits)):
-                    if digits[first] != digits[second]:
-                        continue
-                    digit = int(digits[first])
-                    similarity = float(similarities[first, second])
-                    first_anchor = (
-                        float(probabilities[first, digit]) >= .88
-                        and float(np.max(probabilities[second])) < .85
-                    )
-                    second_anchor = (
-                        float(probabilities[second, digit]) >= .88
-                        and float(np.max(probabilities[first])) < .85
-                    )
-                    anchor = float(max(probabilities[first, digit], probabilities[second, digit]))
-                    if similarity >= .62 and (first_anchor or second_anchor):
-                        votes.append(similarity * anchor)
-            if votes:
-                support[candidate] = float(max(votes))
-        return support

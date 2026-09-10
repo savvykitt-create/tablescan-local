@@ -66,7 +66,7 @@ def test_excel_like_selection_and_noncontiguous_rule_application(qtbot):
     t = template(); page.set_document(np.full((1000, 1000, 3), 255, np.uint8), t)
     page.tabs.setCurrentIndex(3)
     page.canvas.select_cells({(0, 1), (0, 2), (2, 1), (2, 2)})
-    assert page.selection_label.text() == "4 ячеек"
+    assert page.selection_label.text() == "Cells: 4"
     page._apply_quick_rule()
     assert len(t.cell_rules) == 2
     assert {region.address() for region in t.cell_rules} == {"B1:C1", "B3:C3"}

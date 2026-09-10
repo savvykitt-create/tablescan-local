@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 import tempfile
 from math import ceil
 from pathlib import Path
@@ -9,9 +10,10 @@ import cv2
 import numpy as np
 
 from .domain import CellResult, FieldRegion, FieldResult, JobResult, NormalizedRect, PageResult, TableTemplate
-from .imaging import crop_cell_variants, crop_normalized, detect_crossed_rows
+from .imaging import cell_crop_bundle, crop_normalized, detect_crossed_rows
 from .ocr import LocalOcrEngine, is_complex_number, is_simple_number
 from .table_checks import flag_table_outliers
+from .writer_adapter import apply_writer_adaptation
 
 
 ProgressCallback = Callable[[int, int, str], None]
@@ -124,14 +126,21 @@ def process_page(
         ))
         completed += 1
         if progress:
-            progress(completed, total, f"Recognizing field {region.name}")
+            progress(completed, total, tr('Recognizing field {p0}', p0=region.name))
 
     cells: list[CellResult] = []
     for row in range(template.rows):
         for column in range(template.columns):
-            crop_variants = crop_cell_variants(image, template, row, column)
+            crop_variants, context_crop = cell_crop_bundle(image, template, row, column)
             crop = crop_variants[0]
+            # Keep ownership-masked context as OCR diagnostic data. The review
+            # workspace independently crops the original loaded page, so masks
+            # cannot replace or distort the source shown to the reviewer.
             crop_path = _write_crop(crop, crop_directory, f"page-{page_index + 1}-r{row + 1}-c{column + 1}.png")
+            preview_crop_path = (
+                _write_crop(context_crop, crop_directory, f"page-{page_index + 1}-r{row + 1}-c{column + 1}-context.png")
+                if context_crop is not None else ""
+            )
             rule = template.column_rules[column]
             if rule.role == "ignored":
                 result = CellResult(row, column, "", "", 1.0, crop_path, [], "excluded")
@@ -164,11 +173,14 @@ def process_page(
                     alternatives=recognized.alternative,
                     applied_rule=f"{rule_name}: {constraints.summary()}" if active else "",
                     suggested_text=recognized.text if crossed_data_cell else "",
+                    candidate_confidences=dict(recognized.candidate_confidences),
+                    candidate_scores=dict(recognized.candidate_scores),
+                    preview_crop_path=preview_crop_path,
                 )
             cells.append(result)
             completed += 1
             if progress:
-                progress(completed, total, f"Recognizing cell {row + 1}, {column + 1}")
+                progress(completed, total, tr('Recognizing cell {p0}, {p1}', p0=row + 1, p1=column + 1))
 
     # Wavy cancellations are often broken at cell borders and therefore do
     # not form one row-wide geometric component.  OCR nevertheless gives a
@@ -189,6 +201,7 @@ def process_page(
     excluded_rows.sort()
 
     page = PageResult(page_index, source_path, cells, fields, excluded_rows)
+    apply_writer_adaptation(page, template, getattr(engine, "_digit_verifier", None))
     flag_table_outliers(page, template)
     return page
 

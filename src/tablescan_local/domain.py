@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -15,7 +16,7 @@ ColumnRole = Literal["data", "header", "row_label", "ignored"]
 def excel_column_name(index: int) -> str:
     """Return the one-based spreadsheet column label for a zero-based index."""
     if index < 0:
-        raise ValueError("Column index cannot be negative")
+        raise ValueError(tr('Column index cannot be negative'))
     label = ""
     value = index + 1
     while value:
@@ -170,7 +171,7 @@ class TableTemplate:
             rule.constraints().validate()
         for region in self.cell_rules:
             if not (0 <= region.row_start <= region.row_end < self.rows and 0 <= region.column_start <= region.column_end < self.columns):
-                raise ValueError(f"Правило «{region.name}» выходит за текущую сетку; измените или удалите его")
+                raise ValueError(tr('Правило «{p0}» выходит за текущую сетку; измените или удалите его', p0=region.name))
             region.constraints.validate()
         for left_index, left in enumerate(self.cell_rules):
             left_area = (left.row_end - left.row_start + 1) * (left.column_end - left.column_start + 1)
@@ -187,8 +188,7 @@ class TableTemplate:
                 )
                 if overlaps and left_area == right_area and not same_rect and left.constraints != right.constraints:
                     raise ValueError(
-                        f"Правила «{left.name}» и «{right.name}» одинаково специфичны и перекрываются; "
-                        "разделите области или сделайте одну из них точнее"
+                        tr('Правила «{p0}» и «{p1}» одинаково специфичны и перекрываются; разделите области или сделайте одну из них точнее', p0=left.name, p1=right.name)
                     )
 
     def to_dict(self) -> dict[str, Any]:
@@ -239,12 +239,14 @@ NON_BLOCKING_OCR_FLAGS = frozenset({
     "multistage_cascade",
     "non_numeric_mark_row",
     "numeric_verification_required",
-    "repeated_digit_shape_agrees",
     "rule_selected_alternative",
     "separator_not_visually_confirmed",
     "decimal_boundary_inferred_from_glyphs",
     "value_rule_review_required",
     "visible_digit_count_used",
+    "writer_style_agrees",
+    "writer_style_conflict_rejected",
+    "writer_style_profile_used",
 })
 
 
@@ -271,6 +273,11 @@ class CellResult:
     alternatives: str = ""
     applied_rule: str = ""
     suggested_text: str = ""
+    candidate_confidences: dict[str, float] = field(default_factory=dict)
+    candidate_scores: dict[str, float] = field(default_factory=dict)
+    writer_suggestion: str = ""
+    writer_evidence: str = ""
+    preview_crop_path: str = ""
 
     @property
     def needs_review(self) -> bool:

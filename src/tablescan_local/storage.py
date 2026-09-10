@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .i18n import tr, fmt, join_text
 import json
 import shutil
 import sqlite3
@@ -106,7 +107,7 @@ class LocalStore:
         duplicate.id = str(uuid4())
         duplicate.family_id = duplicate.id
         duplicate.template_version = 1
-        duplicate.name = f"{template.name} — копия"
+        duplicate.name = str(tr('{p0} — копия', p0=template.name))
         self.save_template(duplicate, template.reference_source_path or None)
         return duplicate
 

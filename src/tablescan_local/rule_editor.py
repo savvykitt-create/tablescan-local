@@ -1,7 +1,10 @@
 """Native, reusable value-rule editor; no OCR or file writes inside the dialog."""
+from .i18n import tr, fmt, join_text
 from dataclasses import asdict
 
-from PySide6.QtWidgets import QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QVBoxLayout
+
+from .localized_widgets import QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit, QSpinBox, QWidget
 
 from .constraints import ValueConstraints
 from .ocr import OcrValue, constrain_reading
@@ -9,59 +12,62 @@ from .ocr import OcrValue, constrain_reading
 
 def optional_number(text: str) -> float | None:
     text = text.strip().replace(",", ".").replace("−", "-")
-    return float(text) if text else None
+    try:
+        return float(text) if text else None
+    except ValueError as exc:
+        raise ValueError(tr("Enter a number using a dot or comma as the decimal separator")) from exc
 
 
 class ValueRuleDialog(QDialog):
-    def __init__(self, rule: ValueConstraints, parent=None, *, title: str = "Правила значения", region=None, rows=1, columns=1):
+    def __init__(self, rule: ValueConstraints, parent=None, *, title: str = tr('Правила значения'), region=None, rows=1, columns=1):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setMinimumWidth(570)
+        self.setMinimumWidth(740)
         self.rule = ValueConstraints(**asdict(rule))
         outer = QVBoxLayout(self)
         form = QFormLayout()
         self.region = region
         if region is not None:
             self.region_name = QLineEdit(region.name)
-            form.addRow("Название", self.region_name)
+            form.addRow(tr('Название'), self.region_name)
             self.coordinates = []
-            for label, start, end, maximum in (("Строки (включительно)", region.row_start, region.row_end, rows), ("Столбцы (включительно)", region.column_start, region.column_end, columns)):
+            for label, start, end, maximum in ((tr('Строки (включительно)'), region.row_start, region.row_end, rows), (tr('Столбцы (включительно)'), region.column_start, region.column_end, columns)):
                 box = QWidget(); row = QHBoxLayout(box); row.setContentsMargins(0, 0, 0, 0)
                 for value in (start, end):
                     spin = QSpinBox(); spin.setRange(1, maximum); spin.setValue(value + 1)
                     self.coordinates.append(spin); row.addWidget(spin)
                 form.addRow(label, box)
         self.preset = QComboBox()
-        self.preset.addItems(["Выбрать готовый формат…", "Дробь 0–100, один знак (34,4)", "Дробь 0–1000, два знака (34,45)", "Целое число ≥ 0", "Текст / обозначение"])
+        self.preset.addItems([tr('Выбрать готовый формат…'), tr('Дробь 0–100, один знак (34,4)'), tr('Дробь 0–1000, два знака (34,45)'), tr('Целое число ≥ 0'), tr('Текст / обозначение')])
         self.kind = QComboBox()
-        for text, code in (("Десятичное число", "numeric"), ("Целое число", "integer"), ("Текст", "text"), ("Дата (текст)", "date"), ("Сложная запись: ±, <, %, …", "complex_numeric")):
+        for text, code in ((tr('Десятичное число'), "numeric"), (tr('Целое число'), "integer"), (tr('Текст'), "text"), (tr('Дата (текст)'), "date"), (tr('Сложная запись: ±, <, %, …'), "complex_numeric")):
             self.kind.addItem(text, code)
-        self.places = QSpinBox(); self.places.setRange(-1, 8); self.places.setSpecialValueText("Любое")
+        self.places = QSpinBox(); self.places.setRange(-1, 8); self.places.setSpecialValueText(tr('Любое'))
         self.minimum = QLineEdit(); self.maximum = QLineEdit()
         self.expected_minimum = QLineEdit(); self.expected_maximum = QLineEdit()
-        self.allowed = QLineEdit(); self.allowed.setPlaceholderText("Например: 0; 1; 2; 3 — пусто: без списка")
-        self.allow_empty = QCheckBox("Ячейка может быть пустой")
-        self.suggest = QCheckBox("Предлагать пропущенный разделитель (требует сверки)")
-        self.require_decimal = QCheckBox("Десятичная часть обязательна")
-        self.prefer_expected = QCheckBox("Предпочитать OCR-вариант из обычного диапазона (требует сверки)")
-        form.addRow("Готовый формат", self.preset)
-        form.addRow("Тип значения", self.kind)
-        form.addRow("Ровно знаков после точки/запятой", self.places)
-        for label, low, high in (("Разрешено от / до", self.minimum, self.maximum), ("Обычно от / до (только предупреждение)", self.expected_minimum, self.expected_maximum)):
+        self.allowed = QLineEdit(); self.allowed.setPlaceholderText(tr('Например: 0; 1; 2; 3 — пусто: без списка'))
+        self.allow_empty = QCheckBox(tr('Ячейка может быть пустой'))
+        self.suggest = QCheckBox(tr('Предлагать пропущенный разделитель (требует сверки)'))
+        self.require_decimal = QCheckBox(tr('Десятичная часть обязательна'))
+        self.prefer_expected = QCheckBox(tr('Предпочитать OCR-вариант из обычного диапазона (требует сверки)'))
+        form.addRow(tr('Готовый формат'), self.preset)
+        form.addRow(tr('Тип значения'), self.kind)
+        form.addRow(tr('Ровно знаков после точки/запятой'), self.places)
+        for label, low, high in ((tr('Разрешено от / до'), self.minimum, self.maximum), (tr('Обычно от / до (только предупреждение)'), self.expected_minimum, self.expected_maximum)):
             box = QWidget(); row = QHBoxLayout(box); row.setContentsMargins(0, 0, 0, 0)
-            low.setPlaceholderText("Без нижней границы"); high.setPlaceholderText("Без верхней границы")
+            low.setPlaceholderText(tr('Без нижней границы')); high.setPlaceholderText(tr('Без верхней границы'))
             row.addWidget(low); row.addWidget(high); form.addRow(label, box)
-        form.addRow("Только значения из списка", self.allowed)
+        form.addRow(tr('Только значения из списка'), self.allowed)
         form.addRow(self.allow_empty); form.addRow(self.require_decimal); form.addRow(self.suggest); form.addRow(self.prefer_expected)
         outer.addLayout(form)
-        note = QLabel("Точка и запятая равнозначны. Жёсткие границы исключают невозможные варианты. Обычный диапазон меняет порядок только при включённом предпочтении и только среди реально прочитанных кандидатов; результат всё равно требует сверки.")
+        note = QLabel(tr('Точка и запятая равнозначны. Жёсткие границы исключают невозможные варианты. Обычный диапазон меняет порядок только при включённом предпочтении и только среди реально прочитанных кандидатов; результат всё равно требует сверки.'))
         note.setWordWrap(True); outer.addWidget(note)
         self.sample = QLineEdit("344")
-        form.addRow("Проверить пример", self.sample)
+        form.addRow(tr('Проверить пример'), self.sample)
         self.preview = QLabel(); self.preview.setWordWrap(True); outer.addWidget(self.preview)
         self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
-        self.buttons.button(QDialogButtonBox.StandardButton.Save).setText("Применить правило")
-        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Отмена")
+        self.buttons.button(QDialogButtonBox.StandardButton.Save).setText(tr('Применить правило'))
+        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr('Отмена'))
         self.buttons.accepted.connect(self._accept_rule); self.buttons.rejected.connect(self.reject)
         outer.addWidget(self.buttons)
         self._load(rule)
@@ -79,7 +85,7 @@ class ValueRuleDialog(QDialog):
         self.places.setValue(-1 if rule.decimal_places is None else rule.decimal_places)
         for name in ("minimum", "maximum", "expected_minimum", "expected_maximum"):
             value = getattr(rule, name); getattr(self, name).setText("" if value is None else str(value))
-        self.allowed.setText("; ".join(rule.allowed_values))
+        self.allowed.setText(join_text('; ', rule.allowed_values))
         self.allow_empty.setChecked(rule.allow_empty); self.suggest.setChecked(rule.suggest_missing_decimal)
         self.require_decimal.setChecked(rule.require_decimal)
         self.prefer_expected.setChecked(rule.prefer_expected_range)
@@ -119,18 +125,18 @@ class ValueRuleDialog(QDialog):
             rule = self.read_rule()
             reading = constrain_reading(OcrValue(self.sample.text(), 0), rule)
             if "separator_reclassified_from_one" in reading.flags:
-                message = f"{self.sample.text()} → предложение {reading.text}. Узкий штрих 1 проверяется как разделитель; обязательно сравните с изображением."
+                message = tr('{p0} → предложение {p1}. Узкий штрих 1 проверяется как разделитель; обязательно сравните с изображением.', p0=self.sample.text(), p1=reading.text)
             elif "separator_inferred_from_rule" in reading.flags:
-                message = f"{self.sample.text()} → предложение {reading.text}. Разделитель предполагается, проверьте изображение."
+                message = tr('{p0} → предложение {p1}. Разделитель предполагается, проверьте изображение.', p0=self.sample.text(), p1=reading.text)
             elif rule.hard_errors(reading.text):
-                message = "Пример не соответствует правилу. Без подходящего прочтения OCR он останется спорным."
+                message = tr('Пример не соответствует правилу. Без подходящего прочтения OCR он останется спорным.')
             elif rule.warnings(reading.text):
-                message = "Допустимо, но вне обычного диапазона. Значение не подменяется."
+                message = tr('Допустимо, но вне обычного диапазона. Значение не подменяется.')
             else:
-                message = "Пример соответствует формату. Перед экспортом всё равно нужна сверка."
+                message = tr('Пример соответствует формату. Перед экспортом всё равно нужна сверка.')
             self.preview.setText(message)
         except (ValueError, TypeError) as exc:
-            self.preview.setText(f"Проверьте настройку: {exc}")
+            self.preview.setText(tr('Проверьте настройку: {p0}', p0=exc))
 
     def _accept_rule(self):
         try:
@@ -138,9 +144,9 @@ class ValueRuleDialog(QDialog):
             if self.region is not None:
                 rs, re, cs, ce = [spin.value() - 1 for spin in self.coordinates]
                 if rs > re or cs > ce:
-                    raise ValueError("Начало выделения должно быть раньше конца")
+                    raise ValueError(tr('Начало выделения должно быть раньше конца'))
                 self.selection = (rs, re, cs, ce)
             self.rule = rule
         except (ValueError, TypeError) as exc:
-            QMessageBox.warning(self, "Некорректное правило", str(exc)); return
+            QMessageBox.warning(self, tr('Некорректное правило'), str(exc)); return
         self.accept()

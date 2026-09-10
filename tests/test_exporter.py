@@ -58,7 +58,7 @@ def test_export_creates_normalized_data_and_audit(tmp_path) -> None:
     output = export_job(make_job(), tmp_path / "result.xlsx")
     workbook = load_workbook(output, data_only=True)
 
-    assert workbook.sheetnames == ["Data", "Исходная таблица", "Audit"]
+    assert workbook.sheetnames == ["Data", "Original table", "Audit"]
     data = workbook["Data"]
     headers = [cell.value for cell in data[1]]
     assert headers == [
@@ -68,7 +68,7 @@ def test_export_creates_normalized_data_and_audit(tmp_path) -> None:
     assert data["G2"].value == 12.5
     assert data["G3"].value == "8.2 ± 0.4"
     assert data["D2"].value == "Left Hind"
-    layout = workbook["Исходная таблица"]
+    layout = workbook["Original table"]
     assert layout.max_row == 3 and layout.max_column == 3
     assert layout["A2"].value == "A1"
     assert layout["B2"].value == 12.5
@@ -88,7 +88,7 @@ def test_layout_sheet_keeps_excluded_measurements_empty(tmp_path):
     job.pages[0].cell(2, 2).status = "excluded"
 
     workbook = load_workbook(export_job(job, tmp_path / "excluded.xlsx"), data_only=True)
-    layout = workbook["Исходная таблица"]
+    layout = workbook["Original table"]
 
     assert layout["A3"].value == "A2"
     assert layout["B3"].value is None and layout["C3"].value is None
@@ -104,7 +104,7 @@ def test_export_keeps_raw_and_alternatives_as_literal_text(tmp_path):
     rows = list(wb["Audit"].values)
     record = next(r for r in rows[1:] if r[3] == "R2C2")
     assert record[4] == "=1+1"
-    assert record[-1] == "125 | I2.5"
+    assert record[-3] == "125 | I2.5"
     assert all(c.data_type != "f" for row in wb["Audit"] for c in row)
 
 
@@ -139,4 +139,49 @@ def test_confirmed_value_cannot_bypass_hard_rule_on_export(tmp_path):
     output = export_job(job, tmp_path / "valid.xlsx")
     rows = list(load_workbook(output)["Audit"].values)
     record = next(row for row in rows[1:] if row[3] == "R2C2")
-    assert record[-2] == "1 decimal place"
+    assert record[-4] == "1 decimal place"
+
+
+def test_export_records_writer_adaptation_evidence(tmp_path):
+    job = make_job()
+    item = job.pages[0].cell(1, 1)
+    item.writer_suggestion = "12.5"
+    item.writer_evidence = "page-local prototypes: 4 independent cells"
+    output = export_job(job, tmp_path / "writer-audit.xlsx")
+    rows = list(load_workbook(output)["Audit"].values)
+    record = next(row for row in rows[1:] if row[3] == "R2C2")
+    assert record[-2] == item.writer_suggestion
+    assert record[-1] == item.writer_evidence
+
+
+def test_compact_exports_only_original_layout_for_every_page(tmp_path):
+    job = make_job()
+    second = PageResult.from_dict(job.pages[0].to_dict())
+    second.page_index = 1
+    job.pages.append(second)
+    output = export_job(job, tmp_path / "compact.xlsx", mode="compact")
+    wb = load_workbook(output, data_only=True)
+    assert wb.sheetnames == ["Original table", "Original table 2"]
+    for sheet in wb:
+        assert sheet["B2"].value == 12.5
+        assert sheet["C2"].value == "8.2 ± 0.4"
+    wb.close()
+
+
+def test_compact_still_enforces_review_and_preserves_text_and_exclusions(tmp_path):
+    import pytest
+    job = make_job()
+    item = job.pages[0].cell(1, 1)
+    item.status = "automatic"
+    item.flags = ["low_confidence"]
+    with pytest.raises(ValueError, match="need review"):
+        export_job(job, tmp_path / "blocked-compact.xlsx", mode="compact")
+    item.status = "confirmed"
+    item.final_text = "=1+1"
+    job.pages[0].excluded_rows = [2]
+    for mode in ("compact", "extended"):
+        wb = load_workbook(export_job(job, tmp_path / f"{mode}.xlsx", mode=mode), data_only=False)
+        sheet = wb["Original table"]
+        assert sheet["B2"].value == "=1+1" and sheet["B2"].data_type == "s"
+        assert sheet["B3"].value is None and sheet["C3"].value is None
+        wb.close()
