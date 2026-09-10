@@ -3,9 +3,20 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to build and upload to
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   test:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -53,17 +64,15 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging\windows\TableScanLocal.iss'
-      - name: Upload native bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: TableScanLocal-${{ matrix.os }}
-          path: |
-            dist/TableScanLocal
-            dist/TableScan Local.app
-            release/*
-      - name: Upload release packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: Release-${{ matrix.os }}
-          path: release/*
-          if-no-files-found: error
+      - name: Upload packages to release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          git fetch origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "$RELEASE_TAG^{commit}")"
+          gh release view "$RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" release/* --clobber
