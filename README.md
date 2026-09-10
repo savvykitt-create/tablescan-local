@@ -82,7 +82,8 @@ Original documents are never modified.
 
 For update run:
 
-```git pull --ff-only
+```
+git pull --ff-only
 .venv\Scripts\python.exe -m pip install -e .
 ```
 
