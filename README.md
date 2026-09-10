@@ -71,7 +71,7 @@ Windows PowerShell:
 git clone https://github.com/CoolMage/tablescan-local.git
 cd tablescan-local
 py -3.12 -m venv .venv
-.venv\Scripts\Activate.ps1
+.venv\Scripts\Activate.bat
 python -m pip install --upgrade pip
 python -m pip install -e .
 tablescan-local
