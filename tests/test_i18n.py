@@ -39,7 +39,7 @@ def test_every_message_has_three_complete_translations_with_same_placeholders():
 def test_no_unmarked_russian_ui_literals_or_missing_catalog_entries():
     root = Path(__file__).parents[1] / 'src/tablescan_local'
     for file in root.glob('*.py'):
-        tree = ast.parse(file.read_text())
+        tree = ast.parse(file.read_text(encoding="utf-8"))
         parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
         for node in ast.walk(tree):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'tr':
