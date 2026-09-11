@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 
+from .components import connected_components
+
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -71,7 +73,7 @@ def infer_numeric_geometry(crop: np.ndarray, fraction_digits: int | None = None)
         return None
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop.copy()
     mask = np.uint8(gray < 185)
-    count, _, stats, _ = cv2.connectedComponentsWithStats(mask)
+    count, _, stats, _ = connected_components(mask)
     components = [
         tuple(map(int, stat))
         for stat in stats[1:count]

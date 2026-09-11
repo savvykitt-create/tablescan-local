@@ -52,6 +52,21 @@ class LocalStore:
         self.connection.commit()
         return job_id, copied
 
+    def save_draft(self, job_id: str, template: TableTemplate) -> None:
+        """Persist the exact run settings before entering native OCR code."""
+        folder = self.jobs_dir / job_id
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / "working-template.json"
+        pending = target.with_suffix(".tmp")
+        pending.write_text(json.dumps(template.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        pending.replace(target)
+
+    def load_draft(self, job_id: str) -> TableTemplate | None:
+        path = self.jobs_dir / job_id / "working-template.json"
+        if not path.exists():
+            return None
+        return TableTemplate.from_dict(json.loads(path.read_text(encoding="utf-8")))
+
     def save_result(self, job_id: str, result: JobResult) -> None:
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         status = "ready" if result.unresolved_count == 0 else "review"
@@ -60,6 +75,9 @@ class LocalStore:
             (json.dumps(result.to_dict(), ensure_ascii=False), status, now, job_id),
         )
         self.connection.commit()
+        draft = self.load_draft(job_id)
+        if draft and draft.to_dict() == result.template.to_dict():
+            (self.jobs_dir / job_id / "working-template.json").unlink(missing_ok=True)
 
     def recent_jobs(self, limit: int = 20) -> list[dict[str, str]]:
         rows = self.connection.execute(

@@ -144,6 +144,41 @@ class TableTemplate:
             self.column_rules.append(ColumnRule(name=f"Column {index + 1}", role=role))
         self.column_rules = self.column_rules[: self.columns]
 
+    def resize_grid(self, rows: int, columns: int) -> list[str]:
+        """Resize edited axes; retain cell addresses and follow outer edges.
+
+        A rule reaching the previous last row/column follows that edge. A
+        partially removed range is intersected with the new grid. Entirely
+        removed ranges remain visible as invalid instead of moving their rules
+        to unrelated measurements.
+        """
+        if rows < 1 or columns < 1:
+            raise ValueError("The grid must contain at least one row and column")
+        old_rows, old_columns = self.rows, self.columns
+        changed = []
+        for region in self.cell_rules:
+            before = region.address()
+            for start_key, end_key, old, new in (
+                ("row_start", "row_end", old_rows, rows),
+                ("column_start", "column_end", old_columns, columns),
+            ):
+                start, end = getattr(region, start_key), getattr(region, end_key)
+                if 0 <= start < new:
+                    if (old != new and end == old - 1) or end >= new:
+                        setattr(region, end_key, new - 1)
+            if region.address() != before:
+                changed.append(f"{region.name}: {before} → {region.address()}")
+        if rows != old_rows:
+            lo, hi = self.row_guides[0], self.row_guides[-1]
+            self.row_guides = [lo + (hi - lo) * i / rows for i in range(rows + 1)]
+        if columns != old_columns:
+            lo, hi = self.column_guides[0], self.column_guides[-1]
+            self.column_guides = [lo + (hi - lo) * i / columns for i in range(columns + 1)]
+        self.header_rows = min(self.header_rows, rows - 1)
+        self.row_label_columns = min(self.row_label_columns, columns - 1)
+        self.ensure_column_rules()
+        return changed
+
     def value_constraints(self, row: int, column: int) -> tuple[ValueConstraints, str]:
         matches = [
             (index, region)
@@ -244,6 +279,8 @@ NON_BLOCKING_OCR_FLAGS = frozenset({
     "decimal_boundary_inferred_from_glyphs",
     "value_rule_review_required",
     "visible_digit_count_used",
+    "split_consensus_used",
+    "isolated_digit_consensus",
     "writer_style_agrees",
     "writer_style_conflict_rejected",
     "writer_style_profile_used",
@@ -275,9 +312,11 @@ class CellResult:
     suggested_text: str = ""
     candidate_confidences: dict[str, float] = field(default_factory=dict)
     candidate_scores: dict[str, float] = field(default_factory=dict)
+    ranking_scores: dict[str, float] = field(default_factory=dict)
     writer_suggestion: str = ""
     writer_evidence: str = ""
     preview_crop_path: str = ""
+    slow_mode_evidence: dict[str, Any] = field(default_factory=dict)
 
     @property
     def needs_review(self) -> bool:
@@ -308,6 +347,7 @@ class PageResult:
     cells: list[CellResult]
     fields: list[FieldResult]
     excluded_rows: list[int] = field(default_factory=list)
+    slow_mode: dict[str, Any] = field(default_factory=dict)
 
     def cell(self, row: int, column: int) -> CellResult | None:
         return next((cell for cell in self.cells if cell.row == row and cell.column == column), None)
@@ -327,6 +367,7 @@ class PageResult:
             cells=[CellResult(**item) for item in data.get("cells", [])],
             fields=[FieldResult(**item) for item in data.get("fields", [])],
             excluded_rows=[int(value) for value in data.get("excluded_rows", [])],
+            slow_mode=dict(data.get("slow_mode", {})),
         )
 
 

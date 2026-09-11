@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tablescan-local"
-version = "0.7.6"
+version = "0.7.11"
 description = "Offline desktop OCR for handwritten laboratory tables"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -34,7 +34,7 @@ tablescan-local = "tablescan_local.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-tablescan_local = ["models/*.onnx", "models/*.txt", "models/*.md", "assets/*.png", "assets/*.icns", "assets/*.ico", "translations/*.json", "translations/*.qm"]
+tablescan_local = ["slow_runner.py", "models/*.onnx", "models/*.txt", "models/*.md", "assets/*.png", "assets/*.icns", "assets/*.ico", "translations/*.json", "translations/*.qm"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

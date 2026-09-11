@@ -18,6 +18,8 @@ Python and Qt codebase.
   to columns or visually selected cell blocks.
 - Normalize decimal commas and points to a single numeric Excel value.
 - Run a multi-stage offline OCR cascade with bundled ONNX models.
+- Optionally recheck disputed numeric cells with Qwen and GLM in Slow mode
+  on Apple Silicon Macs; changed values remain available for review.
 - Use stable cells on the current page as temporary writer-style evidence for
   ambiguous OCR candidates, without retaining handwriting samples or learning
   from user corrections.
@@ -32,8 +34,9 @@ Python and Qt codebase.
 ## Privacy and repository data policy
 
 The application does not upload documents, cell images, templates, or recognized
-values. It does not require an online account and does not download models at
-runtime.
+values. Recognition does not require an online account or a network connection.
+The standard models are bundled. The optional Slow mode installer downloads its
+pinned models once; subsequent recognition uses local files only.
 
 This repository intentionally contains no source documents, validation images,
 cell crops, manually transcribed answers, OCR run reports, exported workbooks,
@@ -50,6 +53,26 @@ origins and checksums are documented in
 - Python 3.11 or 3.12
 - Approximately 3 GB of free space for dependencies and a native application build
 - CPU inference; a discrete GPU is not required
+
+## Slow mode (optional, Apple Silicon)
+
+Version **0.7.11** adds **Alignment → Grid → Slow mode — additional verification**.
+This runs after Maximum accuracy and only changes disputed numeric cells when
+Qwen and GLM agree on a rule-compatible reading. Excluded rows remain excluded.
+
+Install the optional module once from the repository root:
+
+```bash
+python3.12 packaging/install_slow_mode.py
+```
+
+Installation needs internet access, an Apple Silicon Mac, and about 5 GB for
+model weights plus the Python runtime. Models are stored separately from the app
+and survive application updates. Windows, Linux, and Intel Macs continue to use
+the standard OCR modes. The distributed app packages do not include this module.
+
+See [Slow mode setup and behavior](docs/slow-mode.md) and
+[0.7.11 release notes](docs/release-0.7.11.md).
 
 ## Run from source
 

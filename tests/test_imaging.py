@@ -102,3 +102,16 @@ def test_heavy_black_ink_uses_unobscured_label_column():
     detection = detect_grid(image)
     assert len(detection.row_guides) - 1 == 10
     assert any("label column" in warning for warning in detection.warnings)
+
+
+def test_border_connecting_handwriting_is_not_a_cancellation():
+    from tablescan_local.domain import NormalizedRect
+    image = np.full((120,600,3),255,np.uint8)
+    # A blue-tinted printed lower border joins several otherwise separate digits.
+    cv2.line(image,(0,57),(599,57),(100,65,50),4)
+    for x in range(30,590,100):
+        cv2.line(image,(x,17),(x+20,57),(180,60,20),4)
+    # The next row has a real black cancellation in its interior.
+    cv2.line(image,(10,85),(590,90),(45,45,45),7)
+    template = TableTemplate("t","t",NormalizedRect(0,0,1,1),[0,.5,1],[0,.5,1])
+    assert detect_crossed_rows(image,template) == [1]

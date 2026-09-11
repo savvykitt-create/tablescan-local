@@ -42,6 +42,72 @@ class CtcCandidate:
     confidence: float
 
 
+@dataclass(frozen=True, slots=True)
+class CtcSequence:
+    """Compact original probabilities, reusable after candidate discovery.
+
+    Keeping only numeric columns saves memory without renormalizing them.
+    A candidate absent from a truncated beam can still be scored exactly.
+    """
+
+    probabilities: np.ndarray
+    characters: tuple[str, ...]
+
+    @classmethod
+    def from_output(cls, probabilities: np.ndarray, characters: list[str]) -> CtcSequence:
+        if probabilities.ndim != 2 or probabilities.shape[1] != len(characters):
+            raise ValueError("CTC probabilities and character dictionary do not match")
+        indices = [i for i, c in enumerate(characters) if i == 0 or c in "0123456789.,+-−"]
+        return cls(probabilities[:, indices].copy(), tuple(characters[i] for i in indices))
+
+    def log_likelihoods(self, candidates: list[str]) -> dict[str, float]:
+        """CTC forward sum for every literal candidate, including repeated digits.
+
+        Decimal/sign spellings are evaluated as separate literal CTC sequences
+        and their probabilities summed, so aliases do not change token collapse.
+        """
+        from itertools import product
+        variants: list[tuple[str, str]] = []
+        for value in dict.fromkeys(candidates):
+            choices = [(".", ",") if c == "." else ("-", "−") if c == "-" else (c,) for c in value]
+            variants.extend((value, "".join(chars)) for chars in product(*choices))
+        result = {value: NEG_INF for value in candidates}
+        if not variants or not len(self.probabilities):
+            return result
+        lookup = {c: i for i, c in enumerate(self.characters)}
+        variants = [(v, s) for v, s in variants if all(c in lookup for c in s)]
+        if not variants:
+            return result
+        states = max(2 * len(s) + 1 for _, s in variants)
+        tokens = np.zeros((len(variants), states), dtype=np.intp)
+        valid = np.zeros(tokens.shape, dtype=bool)
+        skip = np.zeros(tokens.shape, dtype=bool)
+        ends = []
+        for row, (_, text) in enumerate(variants):
+            length = 2 * len(text) + 1
+            valid[row, :length] = True
+            tokens[row, 1:length:2] = [lookup[c] for c in text]
+            for position in range(3, length, 2):
+                skip[row, position] = tokens[row, position] != tokens[row, position - 2]
+            ends.append(length - 1)
+        alpha = np.full(tokens.shape, NEG_INF)
+        alpha[:, 0] = 0.0
+        with np.errstate(divide="ignore"):
+            logs = np.log(np.clip(self.probabilities.astype(np.float64), 0.0, 1.0))
+        for timestep in logs:
+            advance = np.full_like(alpha, NEG_INF)
+            advance[:, 1:] = alpha[:, :-1]
+            jump = np.full_like(alpha, NEG_INF)
+            jump[:, 2:] = alpha[:, :-2]
+            jump[~skip] = NEG_INF
+            alpha = np.logaddexp(np.logaddexp(alpha, advance), jump) + timestep[tokens]
+            alpha[~valid] = NEG_INF
+        for row, ((value, _), end) in enumerate(zip(variants, ends, strict=True)):
+            probability = float(np.logaddexp(alpha[row, end], alpha[row, max(0, end - 1)])) if end else float(alpha[row, end])
+            result[value] = _log_add(result[value], probability)
+        return result
+
+
 class NumericPrefixGrammar:
     """A fail-closed prefix grammar compiled from one cell's hard rules."""
 

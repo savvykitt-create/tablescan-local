@@ -792,6 +792,8 @@ class TemplateLibraryPage(QWidget):
         signature = tuple((item.id, item.template_version, item.name, len(item.cell_rules)) for item in ordered)
         if signature == self._template_signature:
             return
+        selected = self.list.currentItem()
+        selected_id = selected.data(Qt.ItemDataRole.UserRole) if selected else None
         self._template_signature = signature
         self.list.clear()
         for template in ordered:
@@ -803,6 +805,13 @@ class TemplateLibraryPage(QWidget):
             self.list.addItem(item)
         if ordered:
             self.list.setCurrentRow(0)
+            self.select_template(selected_id)
+
+    def select_template(self, template_id: str | None) -> None:
+        for index in range(self.list.count()):
+            if self.list.item(index).data(Qt.ItemDataRole.UserRole) == template_id:
+                self.list.setCurrentRow(index)
+                return
 
 
 class TablePage(QWidget):
@@ -820,6 +829,11 @@ class TablePage(QWidget):
         self.template: TableTemplate | None = None
         self._loading_form = False
         self._selected_cells: set[tuple[int, int]] = set()
+        self._loading_quick_rule = False
+        self._quick_dirty = False
+        self._quick_error = ""
+        self._quick_pending_cells = set()
+        self._quick_active_rule_id = None
         outer = QVBoxLayout(self)
         outer.setContentsMargins(20, 18, 20, 20)
         header = QHBoxLayout()
@@ -914,6 +928,11 @@ class TablePage(QWidget):
         layout.addLayout(form)
         layout.addWidget(self.crossed)
         layout.addWidget(self.high_accuracy)
+        self.slow_mode = QCheckBox(tr('Slow mode — дополнительная перепроверка'))
+        self.slow_mode.setToolTip(tr('Две дополнительные модели перепроверяют спорные измерения. Обычно добавляет несколько минут на таблицу. Всё работает локально; исправления остаются доступными для проверки.'))
+        self.slow_mode.toggled.connect(lambda checked: self.high_accuracy.setChecked(True) if checked else None)
+        self.high_accuracy.toggled.connect(lambda checked: self.slow_mode.setChecked(False) if not checked else None)
+        layout.addWidget(self.slow_mode)
         accuracy_note = QLabel(tr('Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки.'))
         accuracy_note.setWordWrap(True)
         set_theme_style(accuracy_note, fmt('color: {p0};', p0=MUTED))
@@ -933,10 +952,13 @@ class TablePage(QWidget):
         redraw = QPushButton(tr('Перерисовать границу таблицы'))
         redraw.clicked.connect(lambda: self.canvas.begin_draw("table"))
         layout.addWidget(load_saved)
+        settings_note = QLabel(tr('Распознавание использует текущие настройки. Сохранённый шаблон — только основа.'))
+        settings_note.setWordWrap(True)
+        layout.addWidget(settings_note)
         layout.addWidget(detect)
         layout.addWidget(redraw)
         save_as_template = QPushButton(tr('Сохранить как новую версию шаблона'))
-        save_as_template.clicked.connect(lambda: self.saveTemplateRequested.emit(self.template) if self.template else None)
+        save_as_template.clicked.connect(self._save_current_template)
         save_as_template.setVisible(self.mode != "template")
         layout.addWidget(save_as_template)
         layout.addStretch()
@@ -947,6 +969,9 @@ class TablePage(QWidget):
         layout.addWidget(self.continue_button)
         if self.mode == "template":
             self.high_accuracy.hide(); accuracy_note.hide(); load_saved.hide()
+            self.slow_mode.hide()
+        self.rows_spin.setKeyboardTracking(False)
+        self.columns_spin.setKeyboardTracking(False)
         self.rows_spin.valueChanged.connect(self._grid_count_changed)
         self.columns_spin.valueChanged.connect(self._grid_count_changed)
         self.template_name.editingFinished.connect(self._save_common)
@@ -960,7 +985,8 @@ class TablePage(QWidget):
         self.continue_button.setText(tr('Распознавание выполняется…') if running else tr('Сохранить сетку и продолжить'))
 
     def set_saved_templates(self, templates: list[TableTemplate]) -> None:
-        selected_id = self.saved_template_select.currentData()
+        selected_id = self.template.id if self.template else self.saved_template_select.currentData()
+        self.saved_template_select.blockSignals(True)
         self.saved_template_select.clear()
         self.saved_template_select.addItem(tr('Выберите сохранённый шаблон…'), "")
         for template in templates:
@@ -968,6 +994,7 @@ class TablePage(QWidget):
         if selected_id:
             index = self.saved_template_select.findData(selected_id)
             self.saved_template_select.setCurrentIndex(max(0, index))
+        self.saved_template_select.blockSignals(False)
 
     def _request_saved_template(self) -> None:
         template_id = self.saved_template_select.currentData()
@@ -1054,6 +1081,8 @@ class TablePage(QWidget):
         for label, code in ((tr('Данные'), "data"), (tr('Заголовок'), "header"), (tr('Название строки'), "row_label"), (tr('Игнорировать'), "ignored")):
             self.column_role.addItem(label, code)
         self._column_constraints = ValueConstraints()
+        self.column_name.textEdited.connect(self._column_identity_edited)
+        self.column_role.activated.connect(self._column_identity_edited)
         form.addRow(tr('Выбранный столбец'), self.column_select)
         form.addRow(tr('Название столбца'), self.column_name)
         form.addRow(tr('Назначение'), self.column_role)
@@ -1123,10 +1152,20 @@ class TablePage(QWidget):
         self.quick_explanation.setWordWrap(True)
         set_theme_style(self.quick_explanation, fmt('background: {p0}; color: {p1}; padding: 9px; border-radius: 6px;', p0=LIGHT_BLUE, p1=TEXT))
         layout.addWidget(self.quick_explanation)
+        self.rule_edit_status = QLabel(tr('Изменения правил применяются сразу к выбранной области.'))
+        self.rule_edit_status.setWordWrap(True)
+        layout.addWidget(self.rule_edit_status)
         for widget in (self.quick_minimum, self.quick_maximum): widget.textChanged.connect(self._quick_preview)
         self.quick_places.valueChanged.connect(self._quick_preview)
         self.quick_kind.currentIndexChanged.connect(self._quick_kind_changed)
         self.quick_require_decimal.toggled.connect(self._quick_preview)
+        for widget in (self.quick_rule_name, self.quick_minimum, self.quick_maximum):
+            widget.textChanged.connect(self._quick_edited)
+        self.quick_places.valueChanged.connect(self._quick_edited)
+        self.quick_kind.currentIndexChanged.connect(self._quick_edited)
+        self.quick_color.currentIndexChanged.connect(self._quick_edited)
+        self.quick_require_decimal.toggled.connect(self._quick_edited)
+        self.quick_allow_empty.toggled.connect(self._quick_edited)
 
         actions = QHBoxLayout()
         apply_rule = QPushButton(tr('Применить к выделению')); apply_rule.setProperty("primary", True); apply_rule.clicked.connect(self._apply_quick_rule)
@@ -1164,6 +1203,12 @@ class TablePage(QWidget):
         return scroll
 
     def _selection_changed(self, cells: set[tuple[int, int]]) -> None:
+        if self._quick_dirty and not self._quick_pending_cells and cells:
+            self._quick_pending_cells = set(cells)
+            self._commit_quick_edits()
+        if self._quick_dirty and self._quick_pending_cells and not self._loading_form and cells != self._quick_pending_cells:
+            self.canvas.select_cells(set(self._quick_pending_cells))
+            return
         self._selected_cells = set(cells)
         self.apply_rule_button.setEnabled(bool(cells))
         self.advanced_rule_button.setEnabled(bool(cells))
@@ -1178,6 +1223,8 @@ class TablePage(QWidget):
         self.selection_label.setText(address if rectangular else tr('{p0} ячеек', p0=len(cells)))
 
     def _quick_kind_changed(self) -> None:
+        loading = self._loading_quick_rule
+        self._loading_quick_rule = True
         kind = self.quick_kind.currentData()
         numeric = kind == "numeric"
         for widget in (self.quick_places, self.quick_require_decimal):
@@ -1189,10 +1236,31 @@ class TablePage(QWidget):
             self.quick_places.setValue(-1)
             self.quick_require_decimal.setChecked(False)
             self.quick_minimum.clear(); self.quick_maximum.clear()
+        self._loading_quick_rule = loading
         self._quick_preview()
 
+    def _quick_targets(self) -> set[tuple[int, int]]:
+        if self._quick_dirty:
+            return set(self._quick_pending_cells)
+        if self._selected_cells:
+            return set(self._selected_cells)
+        index = self.rule_list.currentRow() if hasattr(self, "rule_list") else -1
+        if self.template and 0 <= index < len(self.template.cell_rules):
+            r = self.template.cell_rules[index]
+            return {(row, col) for row in range(r.row_start, r.row_end + 1)
+                    for col in range(r.column_start, r.column_end + 1)}
+        return set()
+
     def _read_quick_rule(self) -> ValueConstraints:
-        return ValueConstraints(
+        values = {}
+        if self.template:
+            rectangles = self._selection_rectangles(self._quick_targets())
+            if len(rectangles) == 1:
+                for r in reversed(self.template.cell_rules):
+                    if (r.row_start, r.row_end, r.column_start, r.column_end) == rectangles[0]:
+                        values = asdict(r.constraints)
+                        break
+        values.update(
             value_format=str(self.quick_kind.currentData()),
             minimum=optional_number(self.quick_minimum.text()),
             maximum=optional_number(self.quick_maximum.text()),
@@ -1200,6 +1268,72 @@ class TablePage(QWidget):
             allow_empty=self.quick_allow_empty.isChecked(),
             require_decimal=self.quick_require_decimal.isChecked(),
         )
+        return ValueConstraints(**values)
+
+    def _quick_edited(self, *_args) -> None:
+        if self._loading_quick_rule or self._loading_form or not self.template:
+            return
+        if not self._quick_dirty:
+            self._quick_pending_cells = self._quick_targets()
+        self._quick_dirty = True
+        self._commit_quick_edits()
+
+    def _commit_quick_edits(self) -> bool:
+        if not self._quick_dirty:
+            return True
+        targets = self._quick_targets()
+        try:
+            if not targets:
+                raise ValueError(tr('Сначала выберите ячейку или диапазон на таблице.'))
+            rule = self._read_quick_rule()
+            rule.validate()
+        except (ValueError, TypeError) as exc:
+            self._quick_error = str(exc)
+            self.rule_edit_status.setText(tr('Правило не применено: {p0}', p0=exc))
+            return False
+        name = self.quick_rule_name.text().strip() or "Values"
+        for bounds in self._selection_rectangles(targets):
+            matching = next((r for r in reversed(self.template.cell_rules)
+                             if (r.row_start, r.row_end, r.column_start, r.column_end) == bounds), None)
+            if matching:
+                matching.name = name
+                matching.constraints = ValueConstraints(**asdict(rule))
+                matching.color = str(self.quick_color.currentData())
+            else:
+                self.template.cell_rules.append(CellRuleRegion(
+                    str(uuid4()), name, *bounds, constraints=ValueConstraints(**asdict(rule)),
+                    color=str(self.quick_color.currentData())))
+        self.template.schema_version = max(3, self.template.schema_version)
+        # Refresh labels without reloading the form or moving its text cursor.
+        self.rule_list.blockSignals(True)
+        while self.rule_list.count() < len(self.template.cell_rules):
+            self.rule_list.addItem("")
+        for i, region in enumerate(self.template.cell_rules):
+            self.rule_list.item(i).setText(fmt('{p0}. {p1}\n{p2}', p0=i + 1, p1=region.name, p2=region.address()))
+        self.rule_list.blockSignals(False)
+        self._quick_dirty = False
+        self._quick_error = ""
+        self.rule_summary.setText(rule.summary())
+        self.rule_edit_status.setText(tr('Текущие правила применены к документу.'))
+        self.canvas.redraw()
+        self.templateChanged.emit(self.template)
+        return True
+
+    def prepare_current_settings(self) -> bool:
+        self.rows_spin.interpretText()
+        self.columns_spin.interpretText()
+        self.quick_places.interpretText()
+        self.header_rows_spin.interpretText()
+        self.row_labels_spin.interpretText()
+        if not self._commit_quick_edits():
+            QMessageBox.warning(self, tr('Проверьте правила'), self._quick_error)
+            return False
+        self._save_common()
+        return True
+
+    def _save_current_template(self) -> None:
+        if self.template and self.prepare_current_settings():
+            self.saveTemplateRequested.emit(self.template)
 
     def _quick_preview(self) -> None:
         if not hasattr(self, "quick_kind"):
@@ -1309,9 +1443,19 @@ class TablePage(QWidget):
         self._rule_selected(self.rule_list.currentRow())
 
     def _rule_selected(self, index: int) -> None:
+        if self._quick_dirty and not self._loading_form and not self._commit_quick_edits():
+            previous = next((i for i, r in enumerate(self.template.cell_rules)
+                             if r.id == self._quick_active_rule_id), -1)
+            self.rule_list.blockSignals(True)
+            self.rule_list.setCurrentRow(previous)
+            self.rule_list.blockSignals(False)
+            return
+        self._loading_quick_rule = True
+        self._quick_dirty = False
         self.canvas.active_rule = index
         if self.template and 0 <= index < len(self.template.cell_rules):
             region = self.template.cell_rules[index]
+            self._quick_active_rule_id = region.id
             self.rule_summary.setText(region.constraints.summary())
             self.canvas.select_region(region.row_start, region.row_end, region.column_start, region.column_end)
             self.quick_rule_name.setText(region.name)
@@ -1326,6 +1470,7 @@ class TablePage(QWidget):
                 self.quick_color.setCurrentIndex(color_index)
         else:
             self.rule_summary.clear()
+        self._loading_quick_rule = False
         self.canvas.redraw()
 
     def _edit_rule(self, region: CellRuleRegion, *, existing: bool = False) -> None:
@@ -1373,12 +1518,16 @@ class TablePage(QWidget):
             self.save_column()
 
     def set_document(self, image: np.ndarray, template: TableTemplate) -> None:
+        self._quick_dirty = False
+        self._quick_pending_cells = set()
+        self._quick_error = ""
         self.image = image
         self.template = template
+        resized_rules = template.resize_grid(template.rows, template.columns)
+        self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(resized_rules)) if resized_rules else '')
         self.version_label.setText(fmt('v{p0}', p0=template.template_version))
         saved_index = self.saved_template_select.findData(template.id)
-        if saved_index >= 0:
-            self.saved_template_select.setCurrentIndex(saved_index)
+        self.saved_template_select.setCurrentIndex(max(0, saved_index))
         template.ensure_column_rules()
         self._loading_form = True
         self.template_name.setText(template.name)
@@ -1403,6 +1552,7 @@ class TablePage(QWidget):
         self.canvas.fit_document()
 
     def _tab_changed(self, index: int) -> None:
+        self.canvas.set_active_field(self.field_list.currentRow() if index == 1 else -1)
         self.canvas.show_grid = index == 0
         self.canvas.show_fields = index == 1
         self.canvas.show_rules = index == 2
@@ -1423,12 +1573,25 @@ class TablePage(QWidget):
     def _grid_count_changed(self) -> None:
         if self._loading_form or not self.template:
             return
-        self.template.row_guides, self.template.column_guides = evenly_spaced_guides(
-            self.template.table_rect, self.rows_spin.value(), self.columns_spin.value()
-        )
-        self.template.ensure_column_rules()
+        if not self._commit_quick_edits():
+            self._loading_form = True
+            self.rows_spin.setValue(self.template.rows)
+            self.columns_spin.setValue(self.template.columns)
+            self._loading_form = False
+            QMessageBox.warning(self, tr('Проверьте правила'), self._quick_error)
+            return
+        changes = self.template.resize_grid(self.rows_spin.value(), self.columns_spin.value())
+        self._loading_form = True
+        self.header_rows_spin.setValue(self.template.header_rows)
+        self.row_labels_spin.setValue(self.template.row_label_columns)
+        self._loading_form = False
+        self._selected_cells = {(r, c) for r, c in self._selected_cells
+                                if r < self.template.rows and c < self.template.columns}
+        self.canvas.select_cells(self._selected_cells)
         self._refresh_columns()
         self._refresh_cell_rules()
+        if changes:
+            self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(changes)))
         self.canvas.redraw()
         self.templateChanged.emit(self.template)
 
@@ -1440,12 +1603,16 @@ class TablePage(QWidget):
         except ValueError as exc:
             QMessageBox.warning(self, tr('Сетка не найдена'), str(exc))
             return
+        changes = self.template.resize_grid(len(detection.row_guides) - 1, len(detection.column_guides) - 1)
         self.template.table_rect = detection.table_rect
         self.template.row_guides = detection.row_guides
         self.template.column_guides = detection.column_guides
         self.template.ensure_column_rules()
         self.set_document(self.image, self.template)
-        self.grid_warning.setText(join_text(' ', detection.warnings))
+        notices = list(detection.warnings)
+        if changes:
+            notices.append(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(changes)))
+        self.grid_warning.setText(join_text(' ', notices))
         self.templateChanged.emit(self.template)
         notify(self, tr("Grid detected"))
 
@@ -1592,6 +1759,16 @@ class TablePage(QWidget):
         self._column_constraints = rule.constraints()
         self.column_rule_summary.setText(self._column_constraints.summary())
 
+    def _column_identity_edited(self, *_args) -> None:
+        index = self.column_select.currentIndex()
+        if not self.template or index < 0 or self._loading_form:
+            return
+        rule = self.template.column_rules[index]
+        rule.name = self.column_name.text().strip() or rule.name
+        rule.role = str(self.column_role.currentData())
+        self.column_select.setItemText(index, fmt('{p0}: {p1}', p0=index + 1, p1=rule.name))
+        self.templateChanged.emit(self.template)
+
     def save_column(self) -> None:
         index = self.column_select.currentIndex()
         if not self.template or index < 0:
@@ -1605,14 +1782,15 @@ class TablePage(QWidget):
         updated = asdict(rule) | asdict(self._column_constraints)
         updated.update(name=self.column_name.text().strip() or rule.name, role=str(self.column_role.currentData()))
         self.template.column_rules[index] = ColumnRule(**updated)
-        self.template.schema_version = 2
+        self.template.schema_version = max(2, self.template.schema_version)
         self._refresh_columns()
         self.column_select.setCurrentIndex(index)
         self.templateChanged.emit(self.template)
         notify(self, tr("Column settings saved"))
 
     def _continue(self) -> None:
-        self._save_common()
+        if not self.prepare_current_settings():
+            return
         if self.template:
             try:
                 self.template.validate_value_rules()
@@ -1626,7 +1804,8 @@ class TablePage(QWidget):
     def _validate_template(self) -> None:
         if not self.template:
             return
-        self._save_common()
+        if not self.prepare_current_settings():
+            return
         try:
             self.template.validate_value_rules()
         except ValueError as exc:
@@ -1649,13 +1828,14 @@ class RecognitionWorker(QThread):
     failed = Signal(str)
     cancelled = Signal()
 
-    def __init__(self, images: list[np.ndarray], source_path: str, template: TableTemplate, crop_root: Path, high_accuracy: bool = True, parent: QObject | None = None) -> None:
+    def __init__(self, images: list[np.ndarray], source_path: str, template: TableTemplate, crop_root: Path, high_accuracy: bool = True, parent: QObject | None = None, slow_mode: bool = False) -> None:
         super().__init__(parent)
         self.images = images
         self.source_path = source_path
         self.template = template
         self.crop_root = crop_root
         self.high_accuracy = high_accuracy
+        self.slow_mode = slow_mode
 
     def run(self) -> None:
         try:
@@ -1666,7 +1846,7 @@ class RecognitionWorker(QThread):
 
             result = process_document(
                 self.images, self.source_path, self.template,
-                report, self.crop_root, self.high_accuracy,
+                report, self.crop_root, self.high_accuracy, slow_mode=self.slow_mode,
             )
             self.completed.emit(result)
         except InterruptedError:
@@ -2078,6 +2258,7 @@ class ReviewPage(QWidget):
             self.value_label.setText(item.final_text or tr('Пусто'))
         self.correct_value.setText(item.final_text)
         reasons = {
+            "slow_mode_selected": tr('Qwen и GLM согласовали другое число. Сравните исправление с оригиналом.'),
             "required_cell_empty": tr("Missing required value"),
             "invalid_numeric_format": tr("Invalid numeric notation"),
             "below_minimum": tr("The value is below the allowed minimum"),
@@ -2122,6 +2303,12 @@ class ReviewPage(QWidget):
             "writer_style_selected": tr('Профиль почерка выбрал другой реально прочитанный OCR-вариант — проверьте его по изображению'),
             "writer_style_ambiguous": tr('Форма цифры противоречит первичному OCR, но доказательств пока недостаточно для уверенного выбора'),
             "writer_style_conflict_rejected": tr('Похожий образец почерка не принят: независимый распознаватель цифр подтвердил исходный ответ'),
+            "isolated_digit_consensus": tr('All three models agree on the separately read disputed digit'),
+            "isolated_digit_disagreement": tr('Separate reading of the disputed digit remains uncertain'),
+            "split_consensus_used": tr('Independent models agree when reading the number in parts'),
+            "candidate_reranked": tr('Selected another OCR candidate using balanced model evidence; verify against the original'),
+            "candidate_ranking_disagreement": tr('Several readings have similar support; verify the ambiguous digit'),
+            "weak_sequence_evidence": tr('All numeric readings have weak image evidence; verify the whole value'),
             "multistage_cascade": tr('Выполнена многоэтапная локальная проверка'),
             "table_outlier": tr('Значение резко отличается от других сопоставимых ячеек этой строки'),
             "table_outlier_with_plausible_alternative": tr('Среди других прочтений OCR есть вариант, согласующийся со строкой — выберите его только после сверки с фото'),
@@ -2142,6 +2329,13 @@ class ReviewPage(QWidget):
             rule, rule_name = self.result.template.value_constraints(item.row, item.column)
             rule_lines = [fmt("{p0}: {p1}", p0=rule_name, p1=rule.summary())]
         details += section(tr('Правило значения'), rule_lines)
+        evidence = getattr(item, 'slow_mode_evidence', {})
+        if evidence:
+            details += section(tr('Перепроверка slow mode'), [
+                tr('До перепроверки: {p0}', p0=evidence.get('baseline') or tr('Пусто')),
+                fmt('Qwen: {p0}', p0=evidence.get('qwen') or '—'),
+                fmt('GLM: {p0}', p0=evidence.get('glm') or '—'),
+            ])
         readings = []
         if item.raw_text:
             readings.append(tr('Первичное распознавание: ') + item.raw_text)
@@ -2662,6 +2856,8 @@ class MainWindow(QMainWindow):
             self.template_library.set_templates(templates)
         if hasattr(self, "table_page"):
             self.table_page.set_saved_templates(templates)
+        if hasattr(self, "template_editor"):
+            self.template_editor.set_saved_templates(templates)
 
     def _template_editor_changed(self, template: TableTemplate) -> None:
         self.template_editor_working = template
@@ -2720,8 +2916,10 @@ class MainWindow(QMainWindow):
         except Exception as exc:
             QMessageBox.warning(self, tr('Шаблон не сохранён'), str(exc)); return
         self.template_editor_working = saved
+        self.template_editor.template = saved
         self.template_editor_reference = saved.reference_source_path
         self._refresh_templates()
+        self.template_library.select_template(saved.id)
         try:
             image = rotate_document(load_document(saved.reference_source_path), saved.rotation_degrees)[0]
             self.template_editor.set_document(image, saved)
@@ -2732,6 +2930,10 @@ class MainWindow(QMainWindow):
     def _save_document_template_version(self, template: TableTemplate) -> None:
         if not self.images:
             return
+        if self.table_page.template is not None:
+            if not self.table_page.prepare_current_settings():
+                return
+            template = self.table_page.template
         template.reference_page_aspect = self.images[0].shape[1] / max(1, self.images[0].shape[0])
         try:
             saved = self.store.save_template_version(template, self.stored_source_path or self.source_path)
@@ -2740,6 +2942,7 @@ class MainWindow(QMainWindow):
         self.template = saved
         self.table_page.set_document(self.images[0], saved)
         self._refresh_templates()
+        self.template_library.select_template(saved.id)
         notify(self, tr('Создана версия v{p0}: {p1}', p0=saved.template_version, p1=saved.name))
 
     def duplicate_template(self, template_id: str) -> None:
@@ -2891,6 +3094,19 @@ class MainWindow(QMainWindow):
         self.source_path = metadata["source_path"]
         self.stored_source_path = metadata["stored_source_path"]
         self.file_title.setText(metadata["source_name"])
+        try:
+            draft = self.store.load_draft(job_id)
+        except (OSError, ValueError, TypeError) as exc:
+            QMessageBox.warning(self, tr('Проверьте правила'), str(exc))
+            return
+        if draft:
+            self.result = None
+            self.template = draft
+            self.images = rotate_document(self.images, draft.rotation_degrees)
+            self.table_page.set_document(self.images[0], draft)
+            self._navigate(1)
+            notify(self, tr('Восстановлены настройки последнего запуска. Проверьте их и продолжите.'))
+            return
         if result:
             self.result = result
             self.template = TableTemplate.from_dict(result.template.to_dict())
@@ -2921,7 +3137,6 @@ class MainWindow(QMainWindow):
         self.template = TableTemplate.from_dict(template.to_dict())
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
-        self.table_page.grid_warning.clear()
 
     def start_recognition(self, template: TableTemplate) -> None:
         if not self.images or not self.job_id:
@@ -2936,10 +3151,27 @@ class MainWindow(QMainWindow):
                 self.progress_dialog.raise_()
                 self.progress_dialog.activateWindow()
             return
+        if self.table_page.template is not None:
+            if not self.table_page.prepare_current_settings():
+                return
+            template = self.table_page.template
+        if self.table_page.slow_mode.isChecked():
+            from .slow_mode import runtime_config
+            try:
+                runtime_config()
+            except RuntimeError as exc:
+                QMessageBox.warning(self, tr('Slow mode недоступен'), str(exc))
+                return
+        template = TableTemplate.from_dict(template.to_dict())
         try:
             template.validate_value_rules()
         except ValueError as exc:
             QMessageBox.warning(self, tr('Проверьте правила'), str(exc)); return
+        try:
+            self.store.save_draft(self.job_id, template)
+        except OSError as exc:
+            QMessageBox.warning(self, tr('Проверьте правила'), str(exc))
+            return
         self.template = template
         crop_root = self.store.jobs_dir / self.job_id / "crops"
         self.progress_dialog = QProgressDialog(tr('Подготовка локального OCR…'), tr('Отмена'), 0, 100, self)
@@ -2949,6 +3181,7 @@ class MainWindow(QMainWindow):
             self.images, self.source_path, TableTemplate.from_dict(template.to_dict()), crop_root,
             self.table_page.high_accuracy.isChecked(),
             self,
+            slow_mode=self.table_page.slow_mode.isChecked(),
         )
         self._workers.append(self.worker)
         self.table_page.set_recognition_running(True)
@@ -2989,6 +3222,13 @@ class MainWindow(QMainWindow):
         self.review_page.set_result(self.images, result)
         self._navigate(2)
         self.refresh_recent()
+        incomplete = [page for page in result.pages if page.slow_mode.get('status') in {'failed', 'partial'}]
+        if incomplete:
+            QMessageBox.warning(self, tr('Перепроверка завершена не полностью'),
+                tr('Для части ячеек slow mode не завершён. Основные результаты сохранены; спорные значения требуют проверки.'))
+        elif any(page.slow_mode for page in result.pages):
+            notify(self, tr('Slow mode завершён. Исправлено измерений: {p0}. Проверьте спорные значения.',
+                           p0=sum(page.slow_mode.get('changed', 0) for page in result.pages)))
 
     def _recognition_failed(self, message: str) -> None:
         if self.progress_dialog:

@@ -11,7 +11,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from .domain import CellResult, FieldRegion, JobResult, PageResult
+from .domain import CellResult, FieldRegion, JobResult, PageResult, TableTemplate
 from .ocr import is_simple_number
 
 
@@ -62,6 +62,17 @@ def _layout_sheet_title(page_index: int) -> str:
     return tr('Исходная таблица') if page_index == 0 else tr('Исходная таблица {p0}', p0=page_index + 1)
 
 
+def _is_header_cell(template: TableTemplate, row: int, column: int) -> bool:
+    if row >= template.header_rows:
+        return False
+    # The OCR pipeline already gives explicit numeric regions precedence over
+    # the generic header count. Export must use the same interpretation, or a
+    # reviewed measurement silently becomes a column name and disappears.
+    explicit = any(region.contains(row, column) for region in template.cell_rules)
+    rule, _ = template.value_constraints(row, column)
+    return not (explicit and rule.value_format in {"numeric", "integer", "complex_numeric"})
+
+
 def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> None:
     """Add the reviewed cell matrix in the same row/column layout as the scan."""
     sheet = workbook.create_sheet(_layout_sheet_title(page.page_index))
@@ -85,7 +96,7 @@ def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> N
             cell = sheet.cell(row=row + 1, column=column + 1, value=value)
             cell.border = grid_border
             cell.alignment = Alignment(horizontal="center", vertical="center")
-            if row < job.template.header_rows:
+            if _is_header_cell(job.template, row, column):
                 cell.fill = header_fill
                 cell.font = Font(bold=True, color="1F2937")
             elif column < job.template.row_label_columns:
@@ -161,13 +172,20 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
             matching = next((region for region in repeated_regions if region.name == name), None)
             repeated_values[name] = _field_result(page, matching) if matching else ""
 
-        for row in range(job.template.header_rows, job.template.rows):
+        for row in range(job.template.rows):
+            data_columns = [column for column in range(job.template.row_label_columns, job.template.columns)
+                            if job.template.column_rules[column].role == "data"
+                            and not _is_header_cell(job.template, row, column)]
+            if not data_columns:
+                continue
             row_label_parts = []
             for column in range(job.template.row_label_columns):
                 result = _cell(page, row, column)
                 if result and result.final_text:
                     row_label_parts.append(result.final_text)
-            row_label = " ".join(row_label_parts) or str(row + 1 - job.template.header_rows)
+            earlier_headers = sum(all(_is_header_cell(job.template, previous, column) for column in data_columns)
+                                  for previous in range(row))
+            row_label = " ".join(row_label_parts) or str(row + 1 - earlier_headers)
 
             if row in page.excluded_rows:
                 record = [job.source_name, page.page_index + 1, *[repeated_values[name] for name in repeated_names]]
@@ -177,7 +195,7 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
                 data_sheet.append(record)
                 continue
 
-            for column in range(job.template.row_label_columns, job.template.columns):
+            for column in data_columns:
                 rule = job.template.column_rules[column]
                 if rule.role != "data":
                     continue
@@ -186,6 +204,8 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
                     continue
                 header_parts = []
                 for header_row in range(job.template.header_rows):
+                    if not _is_header_cell(job.template, header_row, column):
+                        continue
                     header_cell = _cell(page, header_row, column)
                     if header_cell and header_cell.final_text:
                         header_parts.append(header_cell.final_text)

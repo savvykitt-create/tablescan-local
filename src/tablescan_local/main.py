@@ -33,7 +33,34 @@ def self_test() -> int:
     return 0
 
 
+def slow_mode_self_test() -> int:
+    """Exercise both external models and packaged IPC without a GUI or user data."""
+    import json
+    import tempfile
+    from pathlib import Path
+    from .domain import CellResult, PageResult, TableTemplate, NormalizedRect, CellRuleRegion
+    from .constraints import ValueConstraints
+    from .slow_mode import runtime_config, refine_page
+    image = np.full((100, 600, 3), 255, np.uint8)
+    for x, value in [(20, '12.3'), (320, '45.6')]:
+        cv2.putText(image, value, (x, 70), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 0, 0), 3, cv2.LINE_AA)
+    template = TableTemplate('self-test', 'Self-test', NormalizedRect(0, 0, 1, 1), [0, 1], [0, .5, 1])
+    template.row_label_columns = 0
+    template.ensure_column_rules()
+    template.cell_rules = [CellRuleRegion('values', 'Values', 0, 0, 0, 1,
+        ValueConstraints('numeric', minimum=0, maximum=70, decimal_places=1))]
+    page = PageResult(0, 'synthetic', [CellResult(0, c, '99.9', '99.9', .5, flags=['model_disagreement']) for c in range(2)], [])
+    with tempfile.TemporaryDirectory(prefix='tablescan-slow-selftest-') as directory:
+        refine_page(image, page, template, Path(directory), runtime_config())
+        if page.slow_mode.get('status') != 'complete' or [c.final_text for c in page.cells] != ['12.3', '45.6']:
+            raise RuntimeError(f'Slow-mode self-test failed: {page.to_dict()}')
+        print(json.dumps(page.slow_mode))
+    return 0
+
+
 def main() -> int:
+    if "--slow-mode-self-test" in sys.argv:
+        return slow_mode_self_test()
     if "--self-test" in sys.argv:
         return self_test()
     app, window = create_application()

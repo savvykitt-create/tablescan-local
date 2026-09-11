@@ -30,3 +30,20 @@ def test_template_versions_and_reference_samples_are_immutable(tmp_path) -> None
     assert next(item for item in saved if item.template_version == 1).name == "Test"
     assert second.reference_source_path != first.reference_source_path
     assert second.family_id == first.family_id
+
+
+def test_completed_result_removes_only_its_own_draft(tmp_path):
+    from tablescan_local.domain import JobResult
+    store = LocalStore(tmp_path / "store")
+    source = tmp_path / "sample.png"; source.write_bytes(b"sample")
+    job_id, _ = store.import_source(source)
+    template = TableTemplate("id", "Test", NormalizedRect(0, 0, 1, 1), [0, 1], [0, 1])
+    template.ensure_column_rules()
+    result = JobResult(str(source), template, [])
+    store.save_draft(job_id, template)
+    store.save_result(job_id, result)
+    assert store.load_draft(job_id) is None
+    newer = TableTemplate.from_dict(template.to_dict()); newer.name = "Changed"
+    store.save_draft(job_id, newer)
+    store.save_result(job_id, result)
+    assert store.load_draft(job_id).name == "Changed"

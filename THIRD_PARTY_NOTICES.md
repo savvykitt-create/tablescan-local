@@ -26,3 +26,10 @@ Version 0.5 additionally bundles a compact digit-verifier model trained by the
 project on NIST EMNIST Digits. Dataset provenance and the exact model checksum
 are recorded in `tablescan_local/models/README.md`. Training and validation
 datasets are not included in the repository or release package.
+
+Version 0.7.11 provides an optional, separately installed Apple Silicon module.
+Its pinned Qwen3.5-4B MLX model card declares Apache-2.0; its GLM-OCR model card
+declares MIT. The installer retains downloaded model cards and any upstream
+LICENSE/NOTICE files. MLX and mlx-vlm use MIT licensing. Optional weights and
+dependencies are not bundled in the standard application packages. See
+`docs/slow-mode.md` and `packaging/install_slow_mode.py` for repositories and pins.

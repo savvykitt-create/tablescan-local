@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from math import exp
 from pathlib import Path
 
+from .components import connected_components
+
 import cv2
 import numpy as np
 import onnxruntime as ort
@@ -13,9 +15,10 @@ import onnxruntime as ort
 ort.disable_telemetry_events()
 
 from rapidocr_onnxruntime import RapidOCR
+from .candidate_ranking import CandidateEvidence, is_layout_preserving_view
 from .constraints import ValueConstraints
-from .digit_verifier import DigitVerifier, infer_numeric_geometry
-from .numeric_decoder import CtcCandidate, ctc_prefix_beam_search
+from .digit_verifier import DigitVerifier, infer_numeric_geometry, segment_digits
+from .numeric_decoder import CtcCandidate, CtcSequence, ctc_prefix_beam_search
 
 
 COMPLEX_NUMBER_RE = re.compile(
@@ -35,6 +38,7 @@ class OcrValue:
     candidates: list[str] = field(default_factory=list)
     candidate_confidences: dict[str, float] = field(default_factory=dict)
     candidate_scores: dict[str, float] = field(default_factory=dict)
+    ranking_scores: dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.flags is None:
@@ -51,6 +55,36 @@ class DecimalEvidence:
     width: int
     confidence: float
     kind: str = "mark"
+
+
+def reading_order(boxes: list) -> list:
+    """Group vertically overlapping text fragments before sorting left to right.
+
+    Sorting by the top pixel alone places tall handwriting before the printed
+    label on the same line. Compare against the median line box to avoid a
+    tall outlier joining several separate lines.
+    """
+    def bounds(item):
+        xs, ys = zip(*item[0])
+        return min(xs), min(ys), max(xs), max(ys)
+
+    lines: list[list] = []
+    for item in sorted(boxes, key=lambda item: (bounds(item)[1], bounds(item)[0])):
+        _, top, _, bottom = bounds(item)
+        best, best_overlap = None, 0.0
+        for line in lines:
+            line_top = float(np.median([bounds(value)[1] for value in line]))
+            line_bottom = float(np.median([bounds(value)[3] for value in line]))
+            overlap = max(0.0, min(bottom, line_bottom) - max(top, line_top))
+            overlap /= max(1.0, min(bottom - top, line_bottom - line_top))
+            if overlap >= .5 and overlap > best_overlap:
+                best, best_overlap = line, overlap
+        if best is None:
+            lines.append([item])
+        else:
+            best.append(item)
+    lines.sort(key=lambda line: float(np.median([bounds(value)[1] for value in line])))
+    return [item for line in lines for item in sorted(line, key=lambda value: bounds(value)[0])]
 
 
 def clean_text(text: str) -> str:
@@ -96,7 +130,7 @@ class LocalOcrEngine:
                 rec_img_shape=[3, 48, 320],
             )
             self._digit_verifier = DigitVerifier()
-            self.model_version = "ppocrv5+ppocrv6+en/numeric-template-cascade-v11-whitespace-glyphs"
+            self.model_version = "ppocrv5+ppocrv6+en/numeric-template-cascade-v13-complete-evidence"
 
     @staticmethod
     def _prepare(crop: np.ndarray, threshold: bool = False) -> np.ndarray:
@@ -165,23 +199,23 @@ class LocalOcrEngine:
         crop: np.ndarray,
         engine,
         constraints: ValueConstraints,
-    ) -> tuple[str, float, list[CtcCandidate]]:
+    ) -> tuple[str, float, list[CtcCandidate], CtcSequence | None]:
         # Test doubles and future OCR adapters may expose only the public
         # recognition interface.  They retain the safe greedy path.
         if not hasattr(engine, "text_rec"):
             raw, confidence = self._recognize_direct(crop, engine)
-            return raw, confidence, []
+            return raw, confidence, [], None
         try:
             raw, confidence, probabilities, characters = self._recognize_probabilities(crop, engine)
             hypotheses = ctc_prefix_beam_search(
                 probabilities, characters, constraints, beam_width=64, result_limit=6,
             )
-            return raw, confidence, hypotheses
+            return raw, confidence, hypotheses, CtcSequence.from_output(probabilities, characters)
         except (ValueError, IndexError, FloatingPointError):
             # An incompatible third-party model must not abort a document.  Its
             # literal greedy reading remains available and requires review.
             raw, confidence = self._recognize_direct(crop, engine)
-            return raw, confidence, []
+            return raw, confidence, [], None
 
     @staticmethod
     def _rotate_view(view: np.ndarray, angle: float) -> np.ndarray:
@@ -264,7 +298,8 @@ class LocalOcrEngine:
             and geometry.separator_x is not None
         )
         raw_literals: list[str] = []
-        recognition_cache: dict[tuple[str, tuple[int, ...], bytes], tuple[str, float, list[CtcCandidate]]] = {}
+        ranking_evidence = CandidateEvidence()
+        recognition_cache = {}
 
         for view_name, view in named_views:
             prepared = self._prepare(view)
@@ -275,7 +310,9 @@ class LocalOcrEngine:
                 if cached is None:
                     cached = self._recognize_hypotheses(prepared, model, constraints)
                     recognition_cache[cache_key] = cached
-                raw, confidence, hypotheses = cached
+                raw, confidence, hypotheses, sequence = cached
+                if is_layout_preserving_view(view_name):
+                    ranking_evidence.add(model_name, image_key, hypotheses, sequence)
                 literal = clean_numeric(raw)
                 value = canonical_numeric(literal)
                 if value:
@@ -328,6 +365,7 @@ class LocalOcrEngine:
                 if a.isdigit() and b.isdigit():
                     value = a + "." + b
                     if not constraints.hard_errors(value):
+                        ranking_evidence.add_split(model_name, value, min(ca, cb))
                         scores[value] += weight * min(ca, cb) * 1.8
                         confidence_by_value[value] = max(confidence_by_value[value], min(ca, cb))
                         model_support[value].add(model_name)
@@ -344,15 +382,13 @@ class LocalOcrEngine:
                     # digit-sized ink group.
                     scores[candidate] *= .20 ** missing
                     geometry_used = True
-                elif missing == 0:
-                    scores[candidate] += geometry.confidence * .65
 
         digit_verifications = []
         verifier_source = strongest_source if strongest_source is not None else geometric_source
         verifier_x = strongest_separator.x if strongest_separator is not None else (geometry.separator_x if geometry else None)
         verifier_width = strongest_separator.width if strongest_separator is not None else (geometry.separator_width if geometry else 0)
         if verifier_source is not None and self._digit_verifier is not None and scores and verifier_x is not None:
-            provisional = sorted(scores, key=scores.get, reverse=True)[:12]
+            provisional = sorted(scores, key=scores.get, reverse=True)
             digit_verifications = self._digit_verifier.verify(
                 verifier_source,
                 provisional,
@@ -369,9 +405,20 @@ class LocalOcrEngine:
             fallback = self._recognize_numeric(crop)
             fallback.flags = sorted(set([*(fallback.flags or []), "high_accuracy_no_consensus"]))
             return fallback
-        value = ordered[0]
+        value, ranking_scores, ranking_flags = ranking_evidence.rank(
+            ordered[0], ordered,
+            minimum_digits=geometry.digit_count if geometry is not None and geometry.confidence >= .60 else 0,
+            digit_support={item.text: item.support for item in digit_verifications},
+        )
+        value, glyph_flags = self._resolve_ambiguous_digit(
+            value, ranking_scores, verifier_source, verifier_x, verifier_width,
+        )
+        ranking_flags.extend(glyph_flags)
+        # Keep original scores as cascade diagnostics; the final ranking has
+        # its own explicit evidence and must not masquerade as the old vote sum.
+        ordered = [value, *(candidate for candidate in ordered if candidate != value)]
         raw_primary = raw_literals[0] if raw_literals else value
-        flags = ["numeric_verification_required", "high_accuracy_consensus", "multistage_cascade"]
+        flags = ["numeric_verification_required", "high_accuracy_consensus", "multistage_cascade", *ranking_flags]
         if value in beam_values:
             flags.append("constrained_decoder_used")
         if any(name == "retry" for name in crop_support[value]):
@@ -405,8 +452,51 @@ class LocalOcrEngine:
         candidates = list(dict.fromkeys([*ordered, *raw_values]))
         return OcrValue(
             value, confidence_by_value[value], " | ".join(v for v in candidates if v != value)[:1000],
-            flags, raw_primary, candidates, dict(confidence_by_value), dict(scores),
+            flags, raw_primary, candidates, dict(confidence_by_value), dict(scores), ranking_scores,
         )
+
+    def _resolve_ambiguous_digit(
+        self, current: str, scores: dict[str, float], source: np.ndarray | None,
+        separator_x: int | None, separator_width: int,
+    ) -> tuple[str, list[str]]:
+        """Read just one disputed glyph when two complete readings are close.
+
+        This reuses the shipped OCR models and never invents a candidate or a
+        segmentation length. Unanimity plus usable confidence is required; the
+        auxiliary digit classifier alone cannot settle the transcription.
+        """
+        ordered = sorted(scores, key=scores.get, reverse=True)
+        if source is None or len(ordered) < 2 or current not in ordered[:2]:
+            return current, []
+        first, second = ordered[:2]
+        # Use the same ambiguity boundary as whole-cell ranking. A glyph cut
+        # must not overturn a resolved whole-cell comparison.
+        if scores[first] / max(1e-12, scores[second]) >= 1.10 or len(first) != len(second):
+            return current, []
+        differences = [i for i, (a, b) in enumerate(zip(first, second, strict=True)) if a != b]
+        if len(differences) != 1:
+            return current, []
+        position = differences[0]
+        if not first[position].isdigit() or not second[position].isdigit():
+            return current, []
+        glyphs = segment_digits(source, first, separator_x, separator_width)
+        digit_index = sum(c.isdigit() for c in first[:position])
+        if not glyphs or digit_index >= len(glyphs):
+            return current, []
+        prepared = self._prepare(cv2.cvtColor(255 - glyphs[digit_index], cv2.COLOR_GRAY2BGR))
+        readings = [self._recognize_direct(prepared, model)
+                    for model in (self._engine, self._numeric_check, self._precision_engine)]
+        texts = [clean_numeric(text) for text, _ in readings]
+        confidences = sorted(confidence for _, confidence in readings)
+        if len(set(texts)) != 1 or texts[0] not in {first[position], second[position]}:
+            return current, ["isolated_digit_disagreement"]
+        if confidences[0] < .25 or confidences[1] < .5 or confidences[2] < .9:
+            return current, ["isolated_digit_disagreement"]
+        selected = first if first[position] == texts[0] else second
+        flags = ["isolated_digit_consensus"]
+        if selected != current:
+            flags.append("candidate_reranked")
+        return selected, flags
 
     def _read_cell(self, crop: np.ndarray, numeric: bool) -> OcrValue:
         if crop.size == 0 or self._ink_ratio(crop) < 0.003:
@@ -499,10 +589,12 @@ class LocalOcrEngine:
             return self.recognize_cell(crop, numeric=True, constraints=constraints)
         if self._ink_ratio(crop) < 0.008:
             return OcrValue("", 1.0, flags=[])
-        result, _ = self._engine(crop)
+        # Page orientation is set by the user. Short handwritten tokens such
+        # as W6 can be incorrectly flipped to 6M by the angle classifier.
+        result, _ = self._engine(crop, use_cls=False)
         if not result:
             return OcrValue("", 0.0, flags=["empty_prediction"])
-        ordered = sorted(result, key=lambda item: (min(point[1] for point in item[0]), min(point[0] for point in item[0])))
+        ordered = reading_order(result)
         text = clean_text(" ".join(str(item[1]) for item in ordered))
         confidence = min(float(item[2]) for item in ordered)
         if numeric:
@@ -562,7 +654,7 @@ def constrain_reading(reading: OcrValue, rule: ValueConstraints) -> OcrValue:
     return OcrValue(
         selected, reading.candidate_confidences.get(selected, reading.confidence if selected == reading.text else 0.0),
         " | ".join(v for v in candidates if v != selected), sorted(set(flags)),
-        reading.raw_text, candidates, reading.candidate_confidences, reading.candidate_scores,
+        reading.raw_text, candidates, reading.candidate_confidences, reading.candidate_scores, reading.ranking_scores,
     )
 
 
@@ -614,7 +706,7 @@ def cell_mark_kind(crop: np.ndarray) -> str:
         threshold = max(80, min(200, round(background - 32)))
         mask = gray < threshold
 
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(np.uint8(mask))
+    count, labels, stats, _ = connected_components(np.uint8(mask))
     minimum_component = max(3, round(gray.size * .00025))
     kept = np.zeros_like(mask, dtype=bool)
     strike_component = False
@@ -687,7 +779,7 @@ def detect_decimal_separator(crop: np.ndarray, expected_fraction_digits: int | N
     if crop.size == 0:
         return None
     gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
-    _, _, stats, _ = cv2.connectedComponentsWithStats(np.uint8(gray < 170) * 255)
+    _, _, stats, _ = connected_components(np.uint8(gray < 170) * 255)
     items = [s for s in stats[1:] if 3 <= int(s[cv2.CC_STAT_AREA]) <= gray.size * .12]
     if not items:
         return None

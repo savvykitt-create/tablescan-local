@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
+from .components import connected_components
+
 import cv2
 import numpy as np
 from PIL import Image
@@ -263,7 +265,7 @@ def crop_cell_owned_context(
 
     core_left, core_right = x1 - ex1, x2 - ex1
     core_top, core_bottom = y1 - ey1, y2 - ey1
-    count, labels, stats, _ = cv2.connectedComponentsWithStats(np.uint8(ink))
+    count, labels, stats, _ = connected_components(np.uint8(ink))
     owned = np.zeros_like(ink, dtype=bool)
     found_spill = False
     minimum = max(3, round(ink.size * .0002))
@@ -324,20 +326,27 @@ def detect_crossed_rows(image: np.ndarray, template: TableTemplate) -> list[int]
         return []
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     blue = cv2.inRange(hsv, np.array([85, 35, 25]), np.array([150, 255, 255]))
+    dark = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 0, 110)
+    cancellation_ink = cv2.bitwise_or(blue, dark)
     image_height, image_width = image.shape[:2]
     x, _, table_width, _ = template.table_rect.to_pixels(image.shape)
     excluded: list[int] = []
     for row in range(template.header_rows, template.rows):
         y1 = round(template.row_guides[row] * image_height)
         y2 = round(template.row_guides[row + 1] * image_height)
-        roi = blue[max(0, y1 + 2) : max(y1 + 3, y2 - 2), x : x + table_width]
+        roi = cancellation_ink[max(0, y1 + 2) : max(y1 + 3, y2 - 2), x : x + table_width]
         if roi.size == 0:
             continue
         # A strike-through joins handwriting from many adjacent cells into one
         # exceptionally wide ink component. Detecting that component is more
         # reliable than Hough lines here: digits in separate cells often share
         # a baseline and can otherwise look like a false horizontal line.
-        component_count, _, stats, _ = cv2.connectedComponentsWithStats(roi)
+        # A printed border can acquire a blue tint in a scan and connect
+        # otherwise separate handwritten digits. It is not a cancellation.
+        # Require a connected stroke within the interior of the row itself.
+        margin = max(2, round(roi.shape[0] * .18))
+        interior = roi[margin:-margin]
+        component_count, _, stats, _ = connected_components(interior)
         has_crossing = any(
             int(component[cv2.CC_STAT_WIDTH]) >= table_width * 0.30
             and int(component[cv2.CC_STAT_AREA]) >= int(component[cv2.CC_STAT_WIDTH]) * 1.5

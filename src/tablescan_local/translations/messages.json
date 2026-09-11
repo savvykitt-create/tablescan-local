@@ -2143,5 +2143,160 @@
     "en": "Template match: {p0}%",
     "cs": "Shoda šablony: {p0}%",
     "ru": "Совпадение шаблона: {p0}%"
+  },
+  "Selected another OCR candidate using balanced model evidence; verify against the original": {
+    "en": "Selected another OCR candidate using balanced model evidence; verify against the original",
+    "ru": "Выбран другой OCR-вариант по сбалансированным оценкам моделей; сверьте с оригиналом",
+    "cs": "Podle vyvážených výsledků modelů byla vybrána jiná varianta OCR; ověřte ji podle originálu"
+  },
+  "Original-layout readings disagree with the cascade; verify the ambiguous digit": {
+    "en": "Original-layout readings disagree with the cascade; verify the ambiguous digit",
+    "ru": "Прочтения с исходной геометрией противоречат каскаду; проверьте спорную цифру",
+    "cs": "Čtení s původním rozložením se liší od kaskády; ověřte nejednoznačnou číslici"
+  },
+  "All numeric readings have weak image evidence; verify the whole value": {
+    "en": "All numeric readings have weak image evidence; verify the whole value",
+    "ru": "Все числовые варианты слабо подтверждены изображением; проверьте всё значение",
+    "cs": "Všechny číselné varianty mají slabou oporu v obrázku; ověřte celou hodnotu"
+  },
+  "Several readings have similar support; verify the ambiguous digit": {
+    "en": "Several readings have similar support; verify the ambiguous digit",
+    "ru": "Несколько вариантов получили близкие оценки; проверьте спорную цифру",
+    "cs": "Několik variant má podobnou podporu; ověřte nejednoznačnou číslici"
+  },
+  "Independent models agree when reading the number in parts": {
+    "en": "Independent models agree when reading the number in parts",
+    "ru": "Независимые модели согласны при чтении числа по частям",
+    "cs": "Nezávislé modely se shodují při čtení čísla po částech"
+  },
+  "All three models agree on the separately read disputed digit": {
+    "en": "All three models agree on the separately read disputed digit",
+    "ru": "Все три модели согласны при отдельном чтении спорной цифры",
+    "cs": "Všechny tři modely se shodují při samostatném čtení sporné číslice"
+  },
+  "Separate reading of the disputed digit remains uncertain": {
+    "en": "Separate reading of the disputed digit remains uncertain",
+    "ru": "Отдельное чтение спорной цифры не дало уверенного согласия",
+    "cs": "Samostatné čtení sporné číslice zůstává nejisté"
+  },
+  "Распознавание использует текущие настройки. Сохранённый шаблон — только основа.": {
+    "en": "Recognition uses the current settings. The saved template is a starting point.",
+    "cs": "Rozpoznávání používá aktuální nastavení. Uložená šablona je výchozím bodem.",
+    "ru": "Распознавание использует текущие настройки. Сохранённый шаблон — только основа."
+  },
+  "Изменения правил применяются сразу к выбранной области.": {
+    "en": "Rule changes apply immediately to the selected area.",
+    "cs": "Změny pravidel se ihned použijí na vybranou oblast.",
+    "ru": "Изменения правил применяются сразу к выбранной области."
+  },
+  "Правило не применено: {p0}": {
+    "en": "Rule not applied: {p0}",
+    "cs": "Pravidlo nebylo použito: {p0}",
+    "ru": "Правило не применено: {p0}"
+  },
+  "Текущие правила применены к документу.": {
+    "en": "Current rules have been applied to the document.",
+    "cs": "Aktuální pravidla byla použita na dokument.",
+    "ru": "Текущие правила применены к документу."
+  },
+  "Восстановлены настройки последнего запуска. Проверьте их и продолжите.": {
+    "en": "Settings from the last run have been restored. Check them and continue.",
+    "cs": "Nastavení posledního spuštění bylo obnoveno. Zkontrolujte je a pokračujte.",
+    "ru": "Восстановлены настройки последнего запуска. Проверьте их и продолжите."
+  },
+  "Диапазоны правил обновлены: {p0}": {
+    "ru": "Диапазоны правил обновлены: {p0}",
+    "en": "Rule ranges updated: {p0}",
+    "cs": "Rozsahy pravidel byly aktualizovány: {p0}"
+  },
+  "Slow mode — дополнительная перепроверка": {
+    "ru": "Slow mode — дополнительная перепроверка",
+    "en": "Slow mode — additional verification",
+    "cs": "Pomalý režim — dodatečná kontrola"
+  },
+  "Две дополнительные модели перепроверяют спорные измерения. Обычно добавляет несколько минут на таблицу. Всё работает локально; исправления остаются доступными для проверки.": {
+    "ru": "Две дополнительные модели перепроверяют спорные измерения. Обычно добавляет несколько минут на таблицу. Всё работает локально; исправления остаются доступными для проверки.",
+    "en": "Two additional models recheck disputed measurements. Usually adds several minutes per table. Everything runs locally; corrections remain available for review.",
+    "cs": "Dva další modely znovu kontrolují sporná měření. Obvykle přidá několik minut na tabulku. Vše běží lokálně; opravy zůstávají ke kontrole."
+  },
+  "Slow mode доступен на Mac с Apple Silicon.": {
+    "ru": "Slow mode доступен на Mac с Apple Silicon.",
+    "en": "Slow mode requires an Apple Silicon Mac.",
+    "cs": "Pomalý režim vyžaduje Mac s Apple Silicon."
+  },
+  "Модуль slow mode не установлен или его файлы недоступны. Обычное распознавание доступно.": {
+    "ru": "Модуль slow mode не установлен или его файлы недоступны. Обычное распознавание доступно.",
+    "en": "The slow-mode module is not installed or its files are unavailable. Standard recognition is available.",
+    "cs": "Modul pomalého režimu není nainstalován nebo jeho soubory nejsou dostupné. Běžné rozpoznávání je dostupné."
+  },
+  "В таблице нет столбцов измерений для slow mode.": {
+    "ru": "В таблице нет столбцов измерений для slow mode.",
+    "en": "There are no measurement columns for slow mode.",
+    "cs": "Tabulka nemá sloupce měření pro pomalý režim."
+  },
+  "Область таблицы пуста.": {
+    "ru": "Область таблицы пуста.",
+    "en": "The table area is empty.",
+    "cs": "Oblast tabulky je prázdná."
+  },
+  "Slow mode: {p0}, выполнено {p1} из {p2}": {
+    "ru": "Slow mode: {p0}, выполнено {p1} из {p2}",
+    "en": "Slow mode: {p0}, completed {p1} of {p2}",
+    "cs": "Pomalý režim: {p0}, dokončeno {p1} z {p2}"
+  },
+  "Slow mode: превышено время ожидания модели.": {
+    "ru": "Slow mode: превышено время ожидания модели.",
+    "en": "Slow mode: the model timed out.",
+    "cs": "Pomalý režim: vypršel časový limit modelu."
+  },
+  "Slow mode: модель {p0} завершилась с ошибкой.": {
+    "ru": "Slow mode: модель {p0} завершилась с ошибкой.",
+    "en": "Slow mode: model {p0} failed.",
+    "cs": "Pomalý režim: model {p0} skončil chybou."
+  },
+  "Slow mode: не удалось сопоставить ответ модели со строками таблицы.": {
+    "ru": "Slow mode: не удалось сопоставить ответ модели со строками таблицы.",
+    "en": "Slow mode: the model response could not be matched to table rows.",
+    "cs": "Pomalý režim: odpověď modelu nelze přiřadit k řádkům tabulky."
+  },
+  "Slow mode: проверка согласия моделей": {
+    "ru": "Slow mode: проверка согласия моделей",
+    "en": "Slow mode: checking model agreement",
+    "cs": "Pomalý režim: kontrola shody modelů"
+  },
+  "Qwen и GLM согласовали другое число. Сравните исправление с оригиналом.": {
+    "ru": "Qwen и GLM согласовали другое число. Сравните исправление с оригиналом.",
+    "en": "Qwen and GLM agreed on a different number. Compare the correction with the original.",
+    "cs": "Qwen a GLM se shodly na jiném čísle. Porovnejte opravu s originálem."
+  },
+  "Перепроверка slow mode": {
+    "ru": "Перепроверка slow mode",
+    "en": "Slow-mode verification",
+    "cs": "Kontrola pomalého režimu"
+  },
+  "До перепроверки: {p0}": {
+    "ru": "До перепроверки: {p0}",
+    "en": "Before verification: {p0}",
+    "cs": "Před kontrolou: {p0}"
+  },
+  "Slow mode недоступен": {
+    "ru": "Slow mode недоступен",
+    "en": "Slow mode unavailable",
+    "cs": "Pomalý režim není dostupný"
+  },
+  "Перепроверка завершена не полностью": {
+    "ru": "Перепроверка завершена не полностью",
+    "en": "Verification incomplete",
+    "cs": "Kontrola není úplná"
+  },
+  "Для части ячеек slow mode не завершён. Основные результаты сохранены; спорные значения требуют проверки.": {
+    "ru": "Для части ячеек slow mode не завершён. Основные результаты сохранены; спорные значения требуют проверки.",
+    "en": "Slow mode did not finish for some cells. Primary results are preserved; disputed values need review.",
+    "cs": "Pomalý režim nebyl dokončen pro některé buňky. Základní výsledky jsou zachovány; sporné hodnoty vyžadují kontrolu."
+  },
+  "Slow mode завершён. Исправлено измерений: {p0}. Проверьте спорные значения.": {
+    "ru": "Slow mode завершён. Исправлено измерений: {p0}. Проверьте спорные значения.",
+    "en": "Slow mode completed. Measurements corrected: {p0}. Review disputed values.",
+    "cs": "Pomalý režim dokončen. Opravená měření: {p0}. Zkontrolujte sporné hodnoty."
   }
 }

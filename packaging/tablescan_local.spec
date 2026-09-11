@@ -16,6 +16,7 @@ a = Analysis(
         (str(project_root / "src/tablescan_local/translations"), "tablescan_local/translations"),
         (str(project_root / "src/tablescan_local/assets"), "tablescan_local/assets"),
         (str(project_root / "src/tablescan_local/models"), "tablescan_local/models"),
+        (str(project_root / "src/tablescan_local/slow_runner.py"), "tablescan_local"),
         (str(project_root / "LICENSE"), "."),
         (str(project_root / "THIRD_PARTY_NOTICES.md"), "."),
     ],
@@ -53,7 +54,7 @@ if sys.platform == "darwin":
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "0.7.6",
-            "CFBundleVersion": "0.7.6",
+            "CFBundleShortVersionString": "0.7.11",
+            "CFBundleVersion": "0.7.11",
         },
     )

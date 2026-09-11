@@ -81,6 +81,31 @@ def test_export_creates_normalized_data_and_audit(tmp_path) -> None:
         assert b"<autoFilter" not in sheet_xml
 
 
+def test_explicit_numeric_region_preserves_measurements_inside_header_rows(tmp_path):
+    from tablescan_local.domain import CellRuleRegion
+    from tablescan_local.constraints import ValueConstraints
+    job = make_job()
+    job.template.cell_rules = [CellRuleRegion("values", "Measurements", 0, 0, 1, 2,
+                                              ValueConstraints("numeric", 0, 100, 1))]
+    for column, value in [(1, "57.3"), (2, "2.8")]:
+        job.pages[0].cell(0, column).final_text = value
+        job.template.column_rules[column].name = f"Column {column + 1}"
+    workbook = load_workbook(export_job(job, tmp_path / "first-row.xlsx"), data_only=True)
+    rows = list(workbook["Data"].values)
+    assert [rows[1][6], rows[2][6]] == [57.3, 2.8]
+    assert [rows[1][5], rows[2][5]] == ["2", "3"]
+    assert workbook["Original table"]["B1"].value == 57.3
+    assert job.template.header_rows == 1  # Export never mutates the saved template.
+    workbook.close()
+
+
+def test_numeric_headers_without_explicit_regions_remain_headers(tmp_path):
+    workbook = load_workbook(export_job(make_job(), tmp_path / "headers.xlsx"), data_only=True)
+    assert workbook["Data"].max_row == 4
+    assert [row[6] for row in list(workbook["Data"].values)[1:]] == [12.5, "8.2 ± 0.4", "15%"]
+    workbook.close()
+
+
 def test_layout_sheet_keeps_excluded_measurements_empty(tmp_path):
     job = make_job()
     job.pages[0].excluded_rows = [2]

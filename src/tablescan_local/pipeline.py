@@ -175,6 +175,7 @@ def process_page(
                     suggested_text=recognized.text if crossed_data_cell else "",
                     candidate_confidences=dict(recognized.candidate_confidences),
                     candidate_scores=dict(recognized.candidate_scores),
+                    ranking_scores=dict(recognized.ranking_scores),
                     preview_crop_path=preview_crop_path,
                 )
             cells.append(result)
@@ -213,13 +214,24 @@ def process_document(
     progress: ProgressCallback | None = None,
     crop_root: Path | None = None,
     high_accuracy: bool = True,
+    slow_mode: bool = False,
 ) -> JobResult:
-    engine = LocalOcrEngine(high_accuracy=high_accuracy)
+    slow_config = None
+    if slow_mode:
+        from .slow_mode import runtime_config
+        slow_config = runtime_config()
+    engine = LocalOcrEngine(high_accuracy=high_accuracy or slow_mode)
     pages = []
     for index, image in enumerate(images):
         page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
-        pages.append(process_page(image, source_path, index, template, engine, progress, page_crop_root))
-    return JobResult(source_path, template, pages, engine.model_version)
+        page = process_page(image, source_path, index, template, engine, progress, page_crop_root)
+        if slow_mode:
+            from .slow_mode import refine_page
+            directory = (page_crop_root or Path(tempfile.mkdtemp(prefix='tablescan-slow-'))) / 'slow-mode'
+            refine_page(image, page, template, directory, slow_config, progress)
+            flag_table_outliers(page, template)
+        pages.append(page)
+    return JobResult(source_path, template, pages, engine.model_version + ('+slow-qwen-glm-v1' if slow_mode else ''))
 
 
 def suggest_standard_fields(image: np.ndarray, template: TableTemplate, engine: LocalOcrEngine | None = None) -> list[FieldRegion]:

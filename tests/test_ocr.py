@@ -140,3 +140,46 @@ def test_visual_empty_cell_bypasses_ocr_but_required_rule_is_flagged():
 
     assert optional.text == "" and optional.flags == []
     assert required.text == "" and "required_cell_empty" in required.flags
+
+
+def test_region_reading_keeps_handwriting_after_label_and_disables_flipping():
+    import numpy as np
+    from tablescan_local.ocr import LocalOcrEngine
+    engine = object.__new__(LocalOcrEngine)
+    def box(x, y, w, h):
+        return [[x,y],[x+w,y],[x+w,y+h],[x,y+h]]
+    def recognize(crop, **kwargs):
+        assert kwargs["use_cls"] is False
+        return [(box(170,4,40,32), "W6", .93),
+                (box(10,15,140,18), "Testing week", .99),
+                (box(10,58,90,20), "Next line", .98)], None
+    engine._engine = recognize
+    crop = np.full((90,250,3), 100, np.uint8)
+    assert engine.recognize_region(crop).text == "Testing week W6 Next line"
+
+
+def test_disputed_glyph_requires_three_matching_models_and_only_existing_candidates(monkeypatch):
+    import numpy as np
+    import tablescan_local.ocr as ocr
+    engine = object.__new__(ocr.LocalOcrEngine)
+    engine._engine, engine._numeric_check, engine._precision_engine = object(), object(), object()
+    monkeypatch.setattr(ocr, "segment_digits", lambda *_: [np.zeros((28, 28), np.uint8)] * 3)
+    source = np.full((60, 180, 3), 255, np.uint8)
+    scores = {"47.6": .61, "41.6": .60}
+    readings = iter([("1", .31), ("1", .57), ("1", .91)])
+    engine._recognize_direct = lambda *_: next(readings)
+    selected, flags = engine._resolve_ambiguous_digit("47.6", scores, source, 100, 2)
+    assert selected == "41.6" and "isolated_digit_consensus" in flags
+    readings = iter([("1", .99), ("7", .99), ("1", .99)])
+    assert engine._resolve_ambiguous_digit("47.6", scores, source, 100, 2)[0] == "47.6"
+    readings = iter([("4", .99)] * 3)
+    assert engine._resolve_ambiguous_digit("47.6", scores, source, 100, 2)[0] == "47.6"
+
+
+def test_stable_reading_does_not_run_extra_glyph_models():
+    import numpy as np
+    from tablescan_local.ocr import LocalOcrEngine
+    engine = object.__new__(LocalOcrEngine)
+    engine._recognize_direct = lambda *_: pytest.fail("Stable cells must not trigger extra OCR")
+    assert engine._resolve_ambiguous_digit("47.6", {"47.6": .9, "41.6": .3},
+                                           np.zeros((60, 180, 3), np.uint8), 100, 2)[0] == "47.6"

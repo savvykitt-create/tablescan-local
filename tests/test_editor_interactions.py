@@ -99,3 +99,18 @@ def test_generated_names_are_english_in_every_locale(qtbot, tmp_path, locale):
         assert TableTemplate.from_dict(t.to_dict()).name == "Мой образец"
     finally:
         set_language("en")
+
+
+def test_switching_from_fields_to_rules_clears_field_highlight(qtbot):
+    page = TablePage(); qtbot.addWidget(page)
+    page.set_document(np.full((1000,1000,3),255,np.uint8), sample())
+    page._region_created("field", QRectF(100,100,200,100))
+    page.tabs.setCurrentIndex(1)
+    page.canvas.set_active_field(0)
+    assert page.canvas._active_overlay is not None
+    page.tabs.setCurrentIndex(2)
+    assert page.canvas.active_field == -1
+    assert page.canvas._active_overlay is None
+    assert page.canvas.selection_enabled
+    page.tabs.setCurrentIndex(1)
+    assert page.canvas.active_field == page.field_list.currentRow()
