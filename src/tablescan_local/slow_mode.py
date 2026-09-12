@@ -26,6 +26,8 @@ def runtime_config() -> dict:
     path = runtime_root() / 'runtime.json'
     try:
         config = json.loads(path.read_text(encoding='utf-8'))
+        if not isinstance(config, dict) or config.get('schema', 1) not in {1, 2}:
+            raise ValueError('runtime schema')
         backend = config.setdefault('backend', 'mlx')
         if backend not in MODEL_SETS or config.get('device', 'auto') not in {'auto', 'cpu', 'cuda'}:
             raise ValueError('backend/device')
@@ -46,7 +48,7 @@ def runtime_config() -> dict:
             if not weights or not all((folder / name).is_file() and (folder / name).stat().st_size > 0 for name in weights):
                 raise ValueError('weights')
         return config
-    except (OSError, ValueError, KeyError, TypeError) as exc:
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
         raise RuntimeError(tr('Модуль slow mode не установлен или его файлы недоступны. Обычное распознавание доступно.')) from exc
 
 
@@ -182,14 +184,21 @@ def run_model(kind, records, directory, config, progress=None):
                     except (OSError, ValueError):
                         pass
                     label = 'Qwen' if kind == 'qwen' else 'GLM'
+                    tokens = 0
                     try:
-                        device = json.loads(status.read_text(encoding='utf-8')).get('device')
+                        state = json.loads(status.read_text(encoding='utf-8'))
+                        device = state.get('device')
+                        if isinstance(state.get('tokens'), int):
+                            tokens = state['tokens']
                         if device in {'cpu', 'cuda', 'metal'}:
                             label += f' ({device.upper()})'
                     except (OSError, ValueError, AttributeError):
                         pass
-                    progress(count, len(records), tr('Slow mode: {p0}, выполнено {p1} из {p2}',
-                             p0=label, p1=count, p2=len(records)))
+                    message = tr('Slow mode: {p0}, выполнено {p1} из {p2}',
+                                 p0=label, p1=count, p2=len(records))
+                    if tokens:
+                        message += ' · ' + tr('Сгенерировано токенов: {p0}', p0=tokens)
+                    progress(count, len(records), message)
                 if time.monotonic() - started > timeout:
                     raise TimeoutError(tr('Slow mode: превышено время ожидания модели.'))
                 time.sleep(.2)

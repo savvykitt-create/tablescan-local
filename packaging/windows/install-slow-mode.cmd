@@ -38,7 +38,7 @@ echo Testing both models locally. This may take several minutes on CPU.
 start "" /wait "%~dp0..\TableScanLocal.exe" --slow-mode-self-test
 if errorlevel 1 (
   echo Models installed, but the test failed. Diagnostics:
-  echo %LOCALAPPDATA%\TableScan Local\slow-mode\self-test\result.json
+  echo "%LOCALAPPDATA%\TableScan Local\slow-mode\self-test\result.json"
   pause
   exit /b 1
 )

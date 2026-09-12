@@ -18,12 +18,13 @@ templates, review and Excel export share the existing implementation.
 
 ## Validation scope
 
-The cross-platform test suite includes runtime repair, Unicode paths, subprocess
-cancellation, DLL isolation and GPU-to-CPU fallback regressions. A dedicated
-Windows CI job exercises both real multimodal architectures on CPU with tiny
-random weights and pinned processors. These tests prove integration, not OCR
-accuracy. Full-weight CPU and existing MLX self-tests are tracked during this
-change's validation; benchmark evidence will be recorded after they complete.
+Native Windows CI passed all 213 desktop tests and compiled the x64 installer.
+The dedicated Windows CPU job passed real multimodal generation with both
+architectures, pinned processors and tiny random weights. The full existing MLX
+self-test passed on Apple Silicon and preserved its two correct control values.
+Additional configuration-corruption regressions and repeated CPU probes are
+included in the final CI run. Test logs and the final validation scope are linked
+from the GitHub release. These checks prove integration, not handwriting accuracy.
 
 The Windows Qwen weights are BF16, whereas the existing MLX Qwen is 4-bit.
 The Mac handwriting accuracy figures must not be advertised as Windows results

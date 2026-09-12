@@ -178,3 +178,11 @@ def test_cuda_oom_retries_only_in_auto(tmp_path, monkeypatch, device, should_ret
         with pytest.raises(OOM):
             slow_runner.main()
         assert execute.call_count == 1
+
+
+@pytest.mark.parametrize('contents', [[], None, {'schema': 99}, {'backend': ['invalid']}])
+def test_corrupt_config_is_reported_as_runtime_error(tmp_path, monkeypatch, contents):
+    monkeypatch.setenv('TABLESCAN_SLOW_ROOT', str(tmp_path))
+    (tmp_path / 'runtime.json').write_text(json.dumps(contents), encoding='utf-8')
+    with pytest.raises(RuntimeError):
+        slow_mode.runtime_config()

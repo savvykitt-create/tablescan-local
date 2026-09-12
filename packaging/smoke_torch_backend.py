@@ -80,4 +80,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    for attempt in range(3):
+        print(f'CPU smoke attempt {attempt + 1}/3', flush=True)
+        main()

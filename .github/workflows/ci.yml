@@ -66,12 +66,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging\windows\TableScanLocal.iss'
-      - name: Retain installable packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: TableScan-${{ matrix.os }}
-          path: release/*
-          retention-days: 14
       - name: Upload packages to release
         if: github.event_name == 'workflow_dispatch'
         shell: bash
@@ -87,7 +81,7 @@ jobs:
 
   windows-cpu-backend:
     runs-on: windows-2022
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -101,3 +95,5 @@ jobs:
           python -m pip install transformers==5.17.0 huggingface_hub==1.31.0 pillow==12.3.0
       - name: Exercise both multimodal architectures on Windows CPU
         run: python -X faulthandler packaging/smoke_torch_backend.py
+      - name: Check full models when host memory and disk permit
+        run: python -X faulthandler packaging/smoke_full_cpu.py

@@ -41,11 +41,11 @@ def choose_device(torch, requested, kind):
     return 'cpu'
 
 
-def write_status(request, device, phase):
+def write_status(request, device, phase, tokens=0):
     if request.get('status'):
         path = Path(request['status'])
         temporary = path.with_suffix('.tmp')
-        temporary.write_text(json.dumps({'device': device, 'phase': phase}), encoding='utf-8')
+        temporary.write_text(json.dumps({'device': device, 'phase': phase, 'tokens': tokens}), encoding='utf-8')
         temporary.replace(path)
 
 
@@ -54,6 +54,7 @@ class TransformersEngine:
         import torch
         from transformers import AutoProcessor, AutoModelForImageTextToText
         self.torch = torch
+        self.request = request
         self.device = device or choose_device(torch, request.get('device', 'auto'), request['kind'])
         # BF16 retains the published weights and halves RAM use. Float32 is an explicit compatibility option.
         self.dtype = (getattr(torch, request.get('cpu_dtype', 'bfloat16')) if self.device == 'cpu' else
@@ -82,8 +83,26 @@ class TransformersEngine:
             if self.torch.is_floating_point(value):
                 inputs[key] = value.to(self.dtype)
         print('Generating tokens', flush=True)
+        from transformers.generation.streamers import BaseStreamer
+        request = self.request
+        device = self.device
+        class ProgressStreamer(BaseStreamer):
+            def __init__(self):
+                self.prompt = True
+                self.tokens = 0
+            def put(self, value):
+                if self.prompt:
+                    self.prompt = False
+                    return
+                self.tokens += value.numel()
+                if self.tokens % 16 == 0:
+                    print(f'Generated {self.tokens} tokens', flush=True)
+                    write_status(request, device, 'inference', self.tokens)
+            def end(self):
+                write_status(request, device, 'inference', self.tokens)
         with self.torch.inference_mode():
-            output = self.model.generate(**inputs, max_new_tokens=limit, do_sample=False, use_cache=True)
+            output = self.model.generate(**inputs, max_new_tokens=limit, do_sample=False,
+                                         use_cache=True, streamer=ProgressStreamer())
         if self.device == 'cuda':
             self.torch.cuda.synchronize()
         return self.processor.decode(output[0, inputs['input_ids'].shape[-1]:], skip_special_tokens=True)
@@ -113,6 +132,8 @@ def execute(request, output_path, device=None):
     records = []
     for record in request['records']:
         image, task, limit = prepare_record(record, request['kind'])
+        if request.get('backend') == 'transformers' and request['kind'] == 'qwen':
+            limit = min(limit, max(256, record['rows'] * (record['columns'] * 12 + 24) + 128))
         start = time.monotonic()
         raw = engine.generate(image, task, limit)
         records.append({'id': record['id'], 'raw': raw, 'seconds': time.monotonic() - start,
