@@ -19,7 +19,7 @@ Python and Qt codebase.
 - Normalize decimal commas and points to a single numeric Excel value.
 - Run a multi-stage offline OCR cascade with bundled ONNX models.
 - Optionally recheck disputed numeric cells with Qwen and GLM in Slow mode
-  on Apple Silicon Macs; changed values remain available for review.
+  on Windows and macOS; changed values remain available for review.
 - Use stable cells on the current page as temporary writer-style evidence for
   ambiguous OCR candidates, without retaining handwriting samples or learning
   from user corrections.
@@ -54,32 +54,49 @@ origins and checksums are documented in
 - Approximately 3 GB of free space for dependencies and a native application build
 - CPU inference; a discrete GPU is not required
 
-## Slow mode (optional, Apple Silicon)
+## Slow mode (optional)
 
-Version **0.7.11** adds **Alignment → Grid → Slow mode — additional verification**.
-This runs after Maximum accuracy and only changes disputed numeric cells when
-Qwen and GLM agree on a rule-compatible reading. Excluded rows remain excluded.
+**Alignment → Grid → Slow mode — additional verification** runs after Maximum
+accuracy. It only changes disputed numeric cells when Qwen and GLM agree on a
+rule-compatible reading. Excluded rows and manual corrections are preserved.
 
-Install the optional module once from the repository root:
+On **Windows**, install 64-bit Python 3.12 including its launcher, then open
+**Start → TableScan Local → Install or repair slow mode**. Choose Auto, CPU only,
+or NVIDIA CUDA. The shortcut installs dependencies, downloads models, and tests
+both models. No terminal commands or administrator rights are needed.
+
+From a source checkout, the equivalent Windows PowerShell command is:
+
+```powershell
+py -3.12 packaging/install_slow_mode.py --device auto
+```
+
+On **Apple Silicon macOS**, the existing MLX installation is still supported:
 
 ```bash
 python3.12 packaging/install_slow_mode.py
 ```
 
-Installation needs internet access, an Apple Silicon Mac, and about 5 GB for
-model weights plus the Python runtime. Models are stored separately from the app
-and survive application updates. Windows, Linux, and Intel Macs continue to use
-the standard OCR modes. The distributed app packages do not include this module.
+The Windows CPU backend uses the original BF16 weights. Plan for at least 16 GB
+RAM (24 GB or more recommended for large tables), about 15 GB free disk space,
+and potentially long processing times. NVIDIA acceleration needs a compatible
+updated driver and enough free VRAM. Auto falls back to CPU when unavailable or
+out of GPU memory. These are planning estimates, not guarantees for every table.
+The Mac MLX backend uses approximately 5 GB of weights plus dependencies.
+
+Internet is needed only to install the optional module. Documents stay local.
+Models survive application updates. The normal installer includes the setup
+shortcut but does not include these large models.
 
 See [Slow mode setup and behavior](docs/slow-mode.md) and
-[0.7.11 release notes](docs/release-0.7.11.md).
+[0.7.13 changes and validation](docs/release-0.7.13.md).
 
 ## Run from source
 
 macOS or Linux:
 
 ```bash
-git clone https://github.com/CoolMage/tablescan-local.git
+git clone https://github.com/savvykitt-create/tablescan-local.git
 cd tablescan-local
 python3.12 -m venv .venv
 source .venv/bin/activate
@@ -91,7 +108,7 @@ tablescan-local
 Windows PowerShell (activation is not required):
 
 ```powershell
-git clone https://github.com/CoolMage/tablescan-local.git
+git clone https://github.com/savvykitt-create/tablescan-local.git
 cd tablescan-local
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install --upgrade pip

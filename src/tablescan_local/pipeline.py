@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 
 from .domain import CellResult, FieldRegion, FieldResult, JobResult, NormalizedRect, PageResult, TableTemplate
-from .imaging import cell_crop_bundle, crop_normalized, detect_crossed_rows
+from .imaging import cell_crop_bundle, crop_normalized, detect_crossed_rows, write_image
 from .ocr import LocalOcrEngine, is_complex_number, is_simple_number
 from .table_checks import flag_table_outliers
 from .writer_adapter import apply_writer_adaptation
@@ -79,7 +79,7 @@ def _check_rule(value: str, template: TableTemplate, column: int) -> list[str]:
 def _write_crop(crop: np.ndarray, directory: Path, name: str) -> str:
     directory.mkdir(parents=True, exist_ok=True)
     target = directory / name
-    cv2.imwrite(str(target), crop)
+    write_image(target, crop)
     return str(target)
 
 

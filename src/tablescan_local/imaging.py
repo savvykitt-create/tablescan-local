@@ -17,6 +17,23 @@ from .domain import NormalizedRect, TableTemplate
 SUPPORTED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
 
 
+def write_image(path: str | Path, image: np.ndarray) -> None:
+    """OpenCV's filename APIs do not reliably support Unicode on Windows."""
+    target = Path(path)
+    ok, encoded = cv2.imencode(target.suffix, image)
+    if not ok:
+        raise OSError(f"Could not encode image: {target}")
+    target.write_bytes(encoded.tobytes())
+
+
+def read_image(path: str | Path) -> np.ndarray | None:
+    try:
+        data = np.frombuffer(Path(path).read_bytes(), dtype=np.uint8)
+        return cv2.imdecode(data, cv2.IMREAD_COLOR) if data.size else None
+    except OSError:
+        return None
+
+
 @dataclass(slots=True)
 class GridDetection:
     table_rect: NormalizedRect

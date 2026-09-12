@@ -2298,5 +2298,15 @@
     "ru": "Slow mode завершён. Исправлено измерений: {p0}. Проверьте спорные значения.",
     "en": "Slow mode completed. Measurements corrected: {p0}. Review disputed values.",
     "cs": "Pomalý režim dokončen. Opravená měření: {p0}. Zkontrolujte sporné hodnoty."
+  },
+  "Две дополнительные модели перепроверяют спорные измерения. Время зависит от компьютера и размера таблицы; на CPU проверка может быть длительной. Всё работает локально; исправления остаются доступными для проверки.": {
+    "ru": "Две дополнительные модели перепроверяют спорные измерения. Время зависит от компьютера и размера таблицы; на CPU проверка может быть длительной. Всё работает локально; исправления остаются доступными для проверки.",
+    "en": "Two additional models recheck disputed measurements. Time depends on your computer and table size; CPU verification can take a long time. Everything runs locally; changes remain available for review.",
+    "cs": "Dva další modely znovu kontrolují sporná měření. Doba závisí na počítači a velikosti tabulky; kontrola na CPU může trvat dlouho. Vše běží lokálně a změny zůstávají dostupné ke kontrole."
+  },
+  "Сгенерировано токенов: {p0}": {
+    "ru": "Сгенерировано токенов: {p0}",
+    "en": "Generated tokens: {p0}",
+    "cs": "Vygenerované tokeny: {p0}"
   }
 }

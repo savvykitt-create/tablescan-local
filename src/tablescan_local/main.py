@@ -37,10 +37,13 @@ def slow_mode_self_test() -> int:
     """Exercise both external models and packaged IPC without a GUI or user data."""
     import json
     import tempfile
+    import shutil
+    from datetime import datetime, timezone
     from pathlib import Path
     from .domain import CellResult, PageResult, TableTemplate, NormalizedRect, CellRuleRegion
     from .constraints import ValueConstraints
     from .slow_mode import runtime_config, refine_page
+    from .slow_runtime import runtime_root
     image = np.full((100, 600, 3), 255, np.uint8)
     for x, value in [(20, '12.3'), (320, '45.6')]:
         cv2.putText(image, value, (x, 70), cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0, 0, 0), 3, cv2.LINE_AA)
@@ -50,11 +53,23 @@ def slow_mode_self_test() -> int:
     template.cell_rules = [CellRuleRegion('values', 'Values', 0, 0, 0, 1,
         ValueConstraints('numeric', minimum=0, maximum=70, decimal_places=1))]
     page = PageResult(0, 'synthetic', [CellResult(0, c, '99.9', '99.9', .5, flags=['model_disagreement']) for c in range(2)], [])
+    report = runtime_root() / 'self-test'
+    report.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='tablescan-slow-selftest-') as directory:
-        refine_page(image, page, template, Path(directory), runtime_config())
-        if page.slow_mode.get('status') != 'complete' or [c.final_text for c in page.cells] != ['12.3', '45.6']:
-            raise RuntimeError(f'Slow-mode self-test failed: {page.to_dict()}')
-        print(json.dumps(page.slow_mode))
+        try:
+            refine_page(image, page, template, Path(directory), runtime_config())
+            if page.slow_mode.get('status') != 'complete' or [c.final_text for c in page.cells] != ['12.3', '45.6']:
+                raise RuntimeError(f'Slow-mode self-test failed: {page.slow_mode}')
+            summary = {'status': 'passed', 'slow_mode': page.slow_mode}
+        except Exception as exc:
+            summary = {'status': 'failed', 'error': str(exc), 'slow_mode': page.slow_mode}
+        finally:
+            shutil.copytree(directory, report, dirs_exist_ok=True)
+        summary['timestamp'] = datetime.now(timezone.utc).isoformat()
+        (report / 'result.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+        print(json.dumps(summary))
+        if summary['status'] != 'passed':
+            return 1
     return 0
 
 

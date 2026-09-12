@@ -27,9 +27,15 @@ project on NIST EMNIST Digits. Dataset provenance and the exact model checksum
 are recorded in `tablescan_local/models/README.md`. Training and validation
 datasets are not included in the repository or release package.
 
-Version 0.7.11 provides an optional, separately installed Apple Silicon module.
+The optional, separately installed slow-mode module supports MLX on Apple Silicon
+and PyTorch/Transformers on Windows and other CPU platforms.
 Its pinned Qwen3.5-4B MLX model card declares Apache-2.0; its GLM-OCR model card
 declares MIT. The installer retains downloaded model cards and any upstream
 LICENSE/NOTICE files. MLX and mlx-vlm use MIT licensing. Optional weights and
 dependencies are not bundled in the standard application packages. See
 `docs/slow-mode.md` and `packaging/install_slow_mode.py` for repositories and pins.
+
+The Transformers backend downloads Qwen/Qwen3.5-4B (Apache-2.0) and
+zai-org/GLM-OCR (MIT), at the revisions in `slow_runtime.py`. Its optional
+PyTorch/torchvision dependencies use BSD-style licenses. Their distributions
+and downloaded model directories contain the respective license notices.

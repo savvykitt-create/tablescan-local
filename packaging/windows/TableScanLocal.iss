@@ -1,5 +1,5 @@
 #define MyAppName "TableScan Local"
-#define MyAppVersion "0.7.11"
+#define MyAppVersion "0.7.13"
 #define MyAppPublisher "TableScan Local contributors"
 #define MyAppExeName "TableScanLocal.exe"
 
@@ -21,9 +21,15 @@ PrivilegesRequired=lowest
 [Files]
 Source: "..\..\dist\TableScanLocal\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+Source: "..\install_slow_mode.py"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "..\..\src\tablescan_local\slow_runtime.py"; DestDir: "{app}\tools"; Flags: ignoreversion
+Source: "install-slow-mode.cmd"; DestDir: "{app}\tools"; Flags: ignoreversion
+
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+Name: "{group}\Install or repair slow mode"; Filename: "{app}\tools\install-slow-mode.cmd"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:"

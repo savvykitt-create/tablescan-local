@@ -18,48 +18,99 @@ value in place. A failed or incomplete verification is reported explicitly; base
 OCR results are retained. Cancellation terminates the active model process.
 
 Qwen and GLM run sequentially in separate processes. The main Qt/ONNX application
-does not load Metal libraries. Full requests, model responses, and crops remain
+does not load Metal, PyTorch or CUDA libraries. Full requests, model responses, and crops remain
 inside the local job's `slow-mode` directory.
 
 ## Install once
 
-Requires an Apple Silicon Mac and Python 3.12. From the repository root:
+Python 3.12 is required. On Windows use the installed Start-menu shortcut
+**Install or repair slow mode** or run from a checkout:
+
+```powershell
+py -3.12 packaging/install_slow_mode.py --device auto
+```
+
+Use `--device cpu` to install the smaller CPU-only PyTorch build, or `--device
+cuda` to explicitly require NVIDIA. Auto installs CUDA wheels if `nvidia-smi` is
+available, otherwise CPU wheels. During recognition it checks CUDA availability
+and free VRAM separately for each model (12 GiB for Qwen, 4 GiB for GLM), and can
+retry on CPU after CUDA out-of-memory. Explicit CUDA reports failure instead of
+silently changing devices. AMD/Intel graphics currently use the CPU path.
+
+CPU defaults to BF16 to limit RAM use; budget at least 16 GB RAM and preferably
+24 GB or more. `--cpu-dtype float32` is a compatibility option requiring roughly
+32 GB RAM. CPU time varies greatly with processor instructions and image size;
+there is no promised per-table time. Workers allow up to two hours for Qwen and
+at least two hours for GLM (ten minutes per requested row for larger batches).
+Cancellation remains available throughout inference and stops the worker.
+
+Apple Silicon Macs retain the validated MLX backend:
 
 ```bash
 python3.12 packaging/install_slow_mode.py
 ```
 
-The installer downloads the optional dependencies and pinned model revisions.
-Allow about 5 GB for weights plus dependency storage. No account is required.
-Do not pass `--download` manually; it is the installer's internal second stage.
-`--copy-runtime` is a maintainer option for copying an already validated MLX
-virtual environment rather than installing its dependencies again.
+Intel Macs and Linux default to the same Transformers backend as Windows.
+These additional platforms require their own performance validation. You can
+explicitly choose `--backend transformers` for development on Apple Silicon.
 
-The default installation is `~/Library/Application Support/TableScan Local/slow-mode`.
-The application discovers the completed installation through `runtime.json`.
-Keep this directory when updating the app. Source checkouts and packaged apps
-use the same installation. A missing module is reported before recognition starts.
-The module is not bundled in the normal downloadable installers.
+The installer pins dependencies and model revisions in
+`src/tablescan_local/slow_runtime.py` and `packaging/install_slow_mode.py`.
+PyTorch 2.10.0 / torchvision 0.25.0 and Transformers 5.17.0 implement the Windows
+path without requiring Flash Attention, custom CUDA extensions or model code
+from the network. GPU wheels use CUDA 12.8; no separate CUDA toolkit is required.
+CPU uses published BF16 weights; CUDA uses BF16 when supported, otherwise FP16.
 
-- Qwen: `mlx-community/Qwen3.5-4B-MLX-4bit`, revision `32f3e8ecf65426fc3306969496342d504bfa13f3`.
-- GLM: `mlx-community/GLM-OCR-bf16`, revision `24f15402e83baa0a80eeeaecf5480e172abc6f2e`.
-- MLX 0.32.2, mlx-vlm 0.7.0; dependency pins are in the installer.
+Runtime locations:
 
-Recognition forces offline model loading. Internet is needed only for installation.
-Other platforms support standard recognition; this MLX module is Apple Silicon only.
+- Windows: `%LOCALAPPDATA%\TableScan Local\slow-mode`
+- macOS: `~/Library/Application Support/TableScan Local/slow-mode`
+- Linux: `$XDG_DATA_HOME/tablescan-local/slow-mode` (default `~/.local/share`)
+
+`TABLESCAN_SLOW_ROOT` overrides the location for both setup and recognition;
+`--root` changes only the install destination, so set the environment variable
+as well when using a custom location. No administrator rights are required.
+Existing Mac runtime.json files remain compatible. Re-running setup repairs
+partial installations; runtime.json is published only after downloads complete.
+If an installer was forcibly killed, remove its `install.lock` only after
+checking that the installer has stopped. Close the application before repair.
+The maintainer-only `--copy-runtime` option remains restricted to MLX.
+
+Offline loading is forced during recognition. Model identities, actual backend,
+device and dtype are recorded with job evidence. Windows Unicode filenames are
+supported for crops and worker requests. An inference failure preserves the
+primary OCR result and is explicitly reported.
 
 ## Verification
 
-The release passed 199 synthetic automated tests, standard packaged OCR self-test,
-and an additional packaged self-test that exercises both external models and IPC:
-
 ```bash
+tablescan-local --self-test
 tablescan-local --slow-mode-self-test
 ```
 
-The latter requires the installed optional module and Metal access. Normal CI does
-not download these models. Tests cover active rules, multiple pages, exclusions,
-manual edits, response structure, cancellation, failure recovery, and mode toggles.
-Private validation inputs and OCR run records are not distributed in the repository.
-Accuracy and processing time depend on table layout, handwriting, and hardware;
-allow several additional minutes for wide tables and keep reviewing disputed values.
+The second command exercises both full models on a synthetic image. The Windows
+setup shortcut invokes it automatically. Results, model logs and synthetic crops
+are kept under the runtime's `self-test` directory, including failures. No user
+document is used. A successful synthetic test proves operation, not handwriting
+accuracy. Windows uses unquantized Qwen weights whereas Mac uses MLX 4-bit Qwen;
+identical accuracy across the two formats has not been assumed.
+
+CI runs the desktop tests and packages on Windows/macOS/Linux. A separate Windows
+job runs `packaging/smoke_torch_backend.py`: real multimodal CPU generation for
+both architectures using tiny random weights and pinned real processors. This
+checks CPU operations and integration without claiming OCR accuracy or downloading
+full production models. Full model and hardware measurements are reported in the
+release notes. Private validation documents are never uploaded to CI.
+
+
+### Windows CPU instruction compatibility
+
+The worker limits oneDNN to `AVX512_CORE_BF16` before loading PyTorch. This is
+an upper limit, so processors with older instruction sets still use their
+supported kernels. It avoids the AMX path that can crash on Windows virtual
+machines advertising unavailable AMX instructions. BF16 weights and the models
+are unchanged. A manually supplied stricter oneDNN ISA limit is preserved.
+
+The related upstream investigation is [oneDNN #5689](https://github.com/uxlfoundation/oneDNN/issues/5689).
+This mitigation is tested with native Windows CPU generation; full handwriting
+accuracy and performance remain separate validation tasks.
