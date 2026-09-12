@@ -29,6 +29,7 @@ def main():
     runtime, runner = module('slow_runtime'), module('slow_runner')
     torch.set_num_threads(2)
     torch.manual_seed(7)
+    print('CPU capability: ' + torch.backends.cpu.get_cpu_capability(), flush=True)
     with tempfile.TemporaryDirectory(prefix='tablescan-cpu-kernels-') as directory:
         root = Path(directory)
         for kind, (repo, revision) in runtime.MODEL_SETS['transformers'].items():

@@ -41,6 +41,14 @@ def choose_device(torch, requested, kind):
     return 'cpu'
 
 
+def write_status(request, device, phase):
+    if request.get('status'):
+        path = Path(request['status'])
+        temporary = path.with_suffix('.tmp')
+        temporary.write_text(json.dumps({'device': device, 'phase': phase}), encoding='utf-8')
+        temporary.replace(path)
+
+
 class TransformersEngine:
     def __init__(self, request, device=None):
         import torch
@@ -52,6 +60,7 @@ class TransformersEngine:
                       torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16)
         if self.device == 'cpu':
             torch.set_num_threads(max(1, min(8, (os.cpu_count() or 2) // 2)))
+        write_status(request, self.device, 'loading')
         self.processor = AutoProcessor.from_pretrained(request['model'], local_files_only=True, trust_remote_code=False)
         self.model = AutoModelForImageTextToText.from_pretrained(
             request['model'], local_files_only=True, trust_remote_code=False,
@@ -63,13 +72,16 @@ class TransformersEngine:
     def generate(self, image, task, limit):
         messages = [{'role': 'user', 'content': [{'type': 'image', 'image': image},
                                                  {'type': 'text', 'text': task}]}]
+        print('Preparing image and prompt', flush=True)
         inputs = self.processor.apply_chat_template(messages, tokenize=True, add_generation_prompt=True,
             return_dict=True, return_tensors='pt', enable_thinking=False)
+        print('Moving input tensors to ' + self.device, flush=True)
         inputs = inputs.to(self.device)
         # Token IDs and grid dimensions must remain integers.
         for key, value in inputs.items():
             if self.torch.is_floating_point(value):
                 inputs[key] = value.to(self.dtype)
+        print('Generating tokens', flush=True)
         with self.torch.inference_mode():
             output = self.model.generate(**inputs, max_new_tokens=limit, do_sample=False, use_cache=True)
         if self.device == 'cuda':
@@ -82,6 +94,7 @@ class MlxEngine:
         import mlx.core as mx
         from mlx_vlm import load
         self.mx = mx
+        write_status(request, 'metal', 'loading')
         self.model, self.processor = load(request['model'])
         self.execution = {'backend': 'mlx', 'device': 'metal'}
 
@@ -96,6 +109,7 @@ class MlxEngine:
 
 def execute(request, output_path, device=None):
     engine = MlxEngine(request) if request.get('backend', 'mlx') == 'mlx' else TransformersEngine(request, device)
+    write_status(request, engine.execution['device'], 'inference')
     records = []
     for record in request['records']:
         image, task, limit = prepare_record(record, request['kind'])

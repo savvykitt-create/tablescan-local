@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8
 set PIP_NO_CACHE_DIR=1
@@ -21,8 +22,8 @@ if errorlevel 1 (
   exit /b 1
 )
 echo 1. Auto: NVIDIA if available, otherwise CPU
- echo 2. CPU only: smaller dependency download
- echo 3. NVIDIA CUDA only
+echo 2. CPU only: smaller dependency download
+echo 3. NVIDIA CUDA only
 choice /c 123 /n /m "Choose mode [1-3]: "
 set "DEVICE=auto"
 if errorlevel 3 (set "DEVICE=cuda") else if errorlevel 2 (set "DEVICE=cpu")

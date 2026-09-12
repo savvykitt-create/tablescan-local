@@ -100,4 +100,4 @@ jobs:
           python -m pip install torch==2.10.0 torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu
           python -m pip install transformers==5.17.0 huggingface_hub==1.31.0 pillow==12.3.0
       - name: Exercise both multimodal architectures on Windows CPU
-        run: python packaging/smoke_torch_backend.py
+        run: python -X faulthandler packaging/smoke_torch_backend.py

@@ -150,10 +150,12 @@ def run_model(kind, records, directory, config, progress=None):
     request = directory / f'{kind}-request.json'
     output = directory / f'{kind}-response.json'
     output.unlink(missing_ok=True)
+    status = directory / f'{kind}-status.json'
+    status.unlink(missing_ok=True)
     request.write_text(json.dumps({'kind': kind, 'model': config[kind], 'records': records,
                                    'backend': config.get('backend', 'mlx'),
                                    'device': config.get('device', 'auto'),
-                                   'cpu_dtype': config.get('cpu_dtype', 'bfloat16')}), encoding='utf-8')
+                                   'cpu_dtype': config.get('cpu_dtype', 'bfloat16'), 'status': str(status)}), encoding='utf-8')
     env = os.environ.copy()
     for name in list(env):
         if name.startswith(('_PYI', 'DYLD_', 'QT_')) or name in {'PYTHONHOME', 'PYTHONPATH'}:
@@ -179,8 +181,15 @@ def run_model(kind, records, directory, config, progress=None):
                         count = len(json.loads(output.read_text(encoding='utf-8')))
                     except (OSError, ValueError):
                         pass
+                    label = 'Qwen' if kind == 'qwen' else 'GLM'
+                    try:
+                        device = json.loads(status.read_text(encoding='utf-8')).get('device')
+                        if device in {'cpu', 'cuda', 'metal'}:
+                            label += f' ({device.upper()})'
+                    except (OSError, ValueError, AttributeError):
+                        pass
                     progress(count, len(records), tr('Slow mode: {p0}, выполнено {p1} из {p2}',
-                             p0='Qwen' if kind == 'qwen' else 'GLM', p1=count, p2=len(records)))
+                             p0=label, p1=count, p2=len(records)))
                 if time.monotonic() - started > timeout:
                     raise TimeoutError(tr('Slow mode: превышено время ожидания модели.'))
                 time.sleep(.2)
