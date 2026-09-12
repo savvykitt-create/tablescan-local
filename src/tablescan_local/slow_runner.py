@@ -9,6 +9,15 @@ import time
 from pathlib import Path
 
 
+def configure_cpu_environment():
+    # Windows VMs can advertise AMX without a usable tile palette (oneDNN #5689).
+    # Cap dispatch before torch/oneDNN initialization; retain native BF16 and AVX2
+    # fallback on older CPUs without doubling the model's RAM requirements.
+    if sys.platform == 'win32':
+        os.environ.setdefault('ONEDNN_MAX_CPU_ISA', 'AVX512_CORE_BF16')
+        os.environ.setdefault('DNNL_MAX_CPU_ISA', 'AVX512_CORE_BF16')
+
+
 def prepare_record(record, kind):
     from PIL import Image, ImageOps
     with Image.open(record['image']) as source:
@@ -51,6 +60,7 @@ def write_status(request, device, phase, tokens=0):
 
 class TransformersEngine:
     def __init__(self, request, device=None):
+        configure_cpu_environment()
         import torch
         from transformers import AutoProcessor, AutoModelForImageTextToText
         self.torch = torch
@@ -67,7 +77,7 @@ class TransformersEngine:
             request['model'], local_files_only=True, trust_remote_code=False,
             dtype=self.dtype, attn_implementation='sdpa').to(self.device).eval()
         self.execution = {'backend': 'transformers', 'device': self.device, 'dtype': str(self.dtype),
-                          'torch': torch.__version__}
+                          'torch': torch.__version__, 'cpu_isa_limit': os.environ.get('ONEDNN_MAX_CPU_ISA')}
         print(json.dumps(self.execution), flush=True)
 
     def generate(self, image, task, limit):

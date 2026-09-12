@@ -186,3 +186,24 @@ def test_corrupt_config_is_reported_as_runtime_error(tmp_path, monkeypatch, cont
     (tmp_path / 'runtime.json').write_text(json.dumps(contents), encoding='utf-8')
     with pytest.raises(RuntimeError):
         slow_mode.runtime_config()
+
+
+@pytest.mark.parametrize('platform', ['win32', 'darwin', 'linux'])
+def test_cpu_dispatch_limit_precedes_library_loading(monkeypatch, platform):
+    from tablescan_local.slow_runner import configure_cpu_environment
+    monkeypatch.setattr(sys, 'platform', platform)
+    for name in ('ONEDNN_MAX_CPU_ISA', 'DNNL_MAX_CPU_ISA'):
+        monkeypatch.delenv(name, raising=False)
+    configure_cpu_environment()
+    for name in ('ONEDNN_MAX_CPU_ISA', 'DNNL_MAX_CPU_ISA'):
+        assert os.environ.get(name) == ('AVX512_CORE_BF16' if platform == 'win32' else None)
+
+
+def test_cpu_dispatch_preserves_explicit_compatibility_setting(monkeypatch):
+    from tablescan_local.slow_runner import configure_cpu_environment
+    monkeypatch.setattr(sys, 'platform', 'win32')
+    monkeypatch.setenv('ONEDNN_MAX_CPU_ISA', 'AVX2')
+    monkeypatch.setenv('DNNL_MAX_CPU_ISA', 'AVX2')
+    configure_cpu_environment()
+    assert os.environ['ONEDNN_MAX_CPU_ISA'] == 'AVX2'
+    assert os.environ['DNNL_MAX_CPU_ISA'] == 'AVX2'

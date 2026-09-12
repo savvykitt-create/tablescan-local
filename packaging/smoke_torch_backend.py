@@ -10,10 +10,6 @@ import os
 import tempfile
 from pathlib import Path
 
-import torch
-from huggingface_hub import snapshot_download
-from PIL import Image, ImageDraw
-from transformers import AutoConfig, AutoModelForImageTextToText
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,6 +23,11 @@ def module(name):
 
 def main():
     runtime, runner = module('slow_runtime'), module('slow_runner')
+    runner.configure_cpu_environment()
+    import torch
+    from huggingface_hub import snapshot_download
+    from PIL import Image, ImageDraw
+    from transformers import AutoConfig, AutoModelForImageTextToText
     torch.set_num_threads(2)
     torch.manual_seed(7)
     print('CPU capability: ' + torch.backends.cpu.get_cpu_capability(), flush=True)
