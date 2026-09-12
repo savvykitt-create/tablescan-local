@@ -81,6 +81,58 @@ device and dtype are recorded with job evidence. Windows Unicode filenames are
 supported for crops and worker requests. An inference failure preserves the
 primary OCR result and is explicitly reported.
 
+## Terminal installation
+
+The standard application installer includes the ONNX models and, on Windows,
+the optional setup scripts. It does **not** include Qwen, GLM or their separate
+runtime. Python 3.12 and internet access are needed for this one-time setup.
+Close TableScan first.
+
+### Installed Windows application — PowerShell
+
+The default per-user installation can be set up interactively with:
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\TableScan Local\tools\install-slow-mode.cmd"
+```
+
+This is the same script as the Start-menu shortcut and includes the model
+self-test. If you chose another installation folder, substitute that path.
+
+For an explicit device choice without the selection menu:
+
+```powershell
+$app = "$env:LOCALAPPDATA\Programs\TableScan Local"
+py -3.12 "$app\tools\install_slow_mode.py" --backend transformers --device cpu
+if ($LASTEXITCODE -ne 0) { throw "Slow mode installation failed" }
+$check = Start-Process -FilePath "$app\TableScanLocal.exe" -ArgumentList "--slow-mode-self-test" -Wait -PassThru
+if ($check.ExitCode -ne 0) { throw "Slow mode self-test failed; inspect the runtime self-test folder" }
+```
+
+Replace `cpu` with `auto` or `cuda` when needed. An explicit CUDA installation
+requires a compatible NVIDIA GPU and driver; Auto can use CPU instead.
+
+### Source checkout
+
+Run from the repository root. Windows PowerShell:
+
+```powershell
+py -3.12 packaging/install_slow_mode.py --device cpu
+if ($LASTEXITCODE -ne 0) { throw "Slow mode installation failed" }
+.venv\Scripts\tablescan-local.exe --slow-mode-self-test
+```
+
+macOS or Linux:
+
+```bash
+python3.12 packaging/install_slow_mode.py && .venv/bin/tablescan-local --slow-mode-self-test
+```
+
+The main application must already be installed in `.venv` as described in the
+[developer guide](development.md). The standalone Python installer downloads and
+configures the runtime; the second command verifies both full models. Setup is
+repeatable for repair, and does not enable Slow mode automatically in the UI.
+
 ## Verification
 
 ```bash

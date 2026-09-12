@@ -56,33 +56,88 @@ next disputed value without confirming it. Set the interface language under
 
 ## How recognition works
 
-The diagram describes processing for each page. A template defines **where to
-read** and **which values are allowed**; it does not supply the correct answers.
+The current grid and rules determine the image crops and permitted value formats.
+Processing runs locally, page by page. The diagrams below separate the bundled
+OCR pipeline from the optional Slow mode verification.
+
+### 1. Bundled OCR and candidate selection
+
+This diagram follows **numeric cells**. Blank cells are handled before numeric
+recognition; row exclusions are checked both geometrically and after OCR.
 
 ```mermaid
-%%{init: {"flowchart": {"rankSpacing": 24}}}%%
+%%{init: {"flowchart": {"rankSpacing": 20, "nodeSpacing": 28, "wrappingWidth": 320}, "themeVariables": {"fontSize": "14px"}}}%%
 flowchart TD
-    A["Import a PDF or image"] --> B["Align the grid and fields<br/>Set the current rules"]
-    B --> C["Read and compare values<br/>Check rows and the page"]
-    C --> D{"Slow mode?"}
-    D -- No --> F["Review the original image<br/>Confirm or correct"]
-    D -- Yes --> E["Qwen + targeted GLM checks<br/>Apply only valid agreement"]
-    E --> F
-    F --> G["Export to Excel"]
+    A["OpenCV: grid-aware cell crops<br/>Blank-cell and cancellation checks"] --> B{"Maximum accuracy?"}
+    B -- No --> C["PP-OCRv5 Server + English Mobile<br/>Read cleaned and ink-focused crops"]
+    C --> D["Weighted candidate scores<br/>Normalize values and apply current rules"]
+    B -- Yes --> E["Alternative crops, contrast,<br/>thresholds and small rotations"]
+    E --> F["PP-OCRv5 Server + English Mobile<br/>+ PP-OCRv6 Medium"]
+    F --> G["CTC beam search constrained by rules<br/>Collect candidate readings"]
+    G --> H["Visible digit count and decimal evidence<br/>EMNIST digit CNN: supporting check"]
+    H --> I["Rescore candidates on preserved-layout crops<br/>Average per model, then combine models"]
+    I --> J["Only for a close one-digit tie:<br/>Reread the glyph with all three OCR models"]
+    D --> K["Page-local handwriting suggestions<br/>Row exclusions and outlier flags"]
+    J --> K
+    K --> L["Provisional values + alternatives + review flags<br/>Continue to Slow mode if enabled, then review"]
 ```
 
-Blank-cell and row-mark checks distinguish missing or cancelled measurements
-from numbers. The program also uses clearer digits on the same page as handwriting
-evidence and flags unusual values.
+All OCR calls use **RapidOCR / ONNX Runtime on CPU**. The branches show logical
+data flow; model calls and page processing are sequential, not parallel.
+Maximum accuracy retains multiple CTC readings rather than only each model's
+first answer. Final ranking averages distinct layout-preserving views within
+each model, then combines model scores using a geometric mean. Geometry,
+decimal splits and isolated-digit checks provide additional evidence.
 
-In Slow mode, Qwen reads the numeric table; GLM checks rows where Qwen proposes
-an eligible change to a disputed value. Disagreement or a failed check keeps the
-existing reading. Changed proposals still require review. This step preserves
-text fields, identifiers, excluded measurements and manually confirmed values.
+| Component | Role |
+| --- | --- |
+| **PP-OCRv5 Server** (`ch_PP-OCRv5_rec_server.onnx`) | Main recognizer for text and numbers. |
+| **PP-OCRv5 English Mobile** (`en_PP-OCRv5_rec_mobile.onnx`) | Additional numeric reading in both OCR modes. |
+| **PP-OCRv6 Medium** (`PP-OCRv6_medium_rec.onnx`) | Third numeric recognizer in Maximum accuracy. |
+| **EMNIST digit CNN** (`emnist_digit_cnn.onnx`) | Checks safely segmented digits; cannot independently overrule strong OCR evidence. |
+| **Page-local writer profile** | Compares clearer digits on the same page with existing alternatives. Produces suggestions for human confirmation; does not train or replace a model. |
 
-Recognition can still confuse similar digits or miss faint strokes. A value
-fitting the rules—or agreement between models—is not proof that it matches the
-source. Use the original-image preview to verify important measurements.
+Text cells use PP-OCRv5 Server. Free-text fields also use RapidOCR's bundled
+PP-OCRv4 text detector to locate text within the marked region; orientation
+classification is disabled for field reading. Numeric fields reuse the numeric
+recognition path. Fixed fields take their template value directly.
+
+### 2. Optional Slow mode: Qwen → GLM → agreement
+
+Slow mode enables Maximum accuracy first. It considers only disputed numeric
+or integer measurements, excluding headers, identifier columns and excluded
+rows. If no eligible cells remain, this stage is skipped.
+
+```mermaid
+%%{init: {"flowchart": {"rankSpacing": 20, "nodeSpacing": 28, "wrappingWidth": 320}, "themeVariables": {"fontSize": "14px"}}}%%
+flowchart TD
+    A["Maximum accuracy result<br/>Eligible disputed measurements"] --> B["Qwen3.5-4B reads the table image<br/>Synthetic row positions; no identifier columns"]
+    B --> C{"Different proposal<br/>allowed by current rules?"}
+    C -- No --> H["Keep the baseline value"]
+    C -- Yes --> D["GLM-OCR reads only the affected rows<br/>Original row images, not Qwen's answers"]
+    D --> E{"Qwen and GLM agree<br/>after rule normalization?"}
+    E -- No --> H
+    E -- Yes --> F["Update the proposed value<br/>Preserve baseline and model evidence"]
+    F --> G["Recheck outliers and review against the original<br/>Changes still require human confirmation"]
+    H --> G
+    G --> I["Export XLSX when review and rule checks pass"]
+```
+
+Qwen and GLM run **sequentially in separate worker processes**. Invalid responses
+or failed checks preserve the baseline. Confirmed values and exclusions are
+preserved. An agreement changes a proposal; it does not automatically confirm it.
+
+| Slow mode runtime | Models | Execution |
+| --- | --- | --- |
+| Apple Silicon | `mlx-community/Qwen3.5-4B-MLX-4bit` + `mlx-community/GLM-OCR-bf16` | MLX / Metal |
+| Windows; also the default on Intel Mac and Linux | `Qwen/Qwen3.5-4B` + `zai-org/GLM-OCR` | Transformers / PyTorch; CPU or NVIDIA CUDA |
+
+Model scores are not calibrated accuracy probabilities. Similar digits, faint
+strokes and mistaken agreement can still produce errors. Verify important
+measurements against the source.
+
+For decoding parameters, ranking safeguards, worker boundaries and source-code
+references, see the [technical algorithm guide](docs/recognition.md).
 
 ## Recognition options
 
@@ -96,10 +151,31 @@ These controls are in **Alignment → Grid**.
 
 ### Set up Slow mode
 
+The standard installer includes the four bundled OCR/verifier models and the
+Slow mode controls, **but not the large Qwen and GLM models**. Install the optional
+runtime once to enable those checks.
+
 On **Windows**, install 64-bit Python 3.12 with its launcher, then open
 **Start → TableScan Local → Install or repair slow mode**. Choose **Auto**,
 **CPU only** or **NVIDIA CUDA**. The setup downloads the models and runs a
 self-test. Auto uses a suitable NVIDIA GPU when available and falls back to CPU.
+
+To install through **PowerShell** after installing the Windows application,
+run its setup script (adjust the path if you chose another installation folder):
+
+```powershell
+& "$env:LOCALAPPDATA\Programs\TableScan Local\tools\install-slow-mode.cmd"
+```
+
+From a **source checkout**, install with an explicit device choice:
+
+```powershell
+py -3.12 packaging/install_slow_mode.py --device cpu
+```
+
+Use `--device auto` or `--device cuda` instead when appropriate. Unlike the
+Windows setup shortcut/script, the Python installer alone does not run the
+full-model self-test; see [terminal setup and verification](docs/slow-mode.md#terminal-installation).
 
 For CPU use, plan for at least **16 GB RAM** (24 GB or more recommended) and
 about **15 GB free disk space**. Processing can take substantially longer than
