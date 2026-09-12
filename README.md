@@ -96,7 +96,7 @@ See [Slow mode setup and behavior](docs/slow-mode.md) and
 macOS or Linux:
 
 ```bash
-git clone https://github.com/CoolMage/tablescan-local.git
+git clone https://github.com/savvykitt-create/tablescan-local.git
 cd tablescan-local
 python3.12 -m venv .venv
 source .venv/bin/activate
@@ -108,7 +108,7 @@ tablescan-local
 Windows PowerShell (activation is not required):
 
 ```powershell
-git clone https://github.com/CoolMage/tablescan-local.git
+git clone https://github.com/savvykitt-create/tablescan-local.git
 cd tablescan-local
 py -3.12 -m venv .venv
 .venv\Scripts\python.exe -m pip install --upgrade pip
