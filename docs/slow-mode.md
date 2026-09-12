@@ -101,3 +101,16 @@ both architectures using tiny random weights and pinned real processors. This
 checks CPU operations and integration without claiming OCR accuracy or downloading
 full production models. Full model and hardware measurements are reported in the
 release notes. Private validation documents are never uploaded to CI.
+
+
+### Windows CPU instruction compatibility
+
+The worker limits oneDNN to `AVX512_CORE_BF16` before loading PyTorch. This is
+an upper limit, so processors with older instruction sets still use their
+supported kernels. It avoids the AMX path that can crash on Windows virtual
+machines advertising unavailable AMX instructions. BF16 weights and the models
+are unchanged. A manually supplied stricter oneDNN ISA limit is preserved.
+
+The related upstream investigation is [oneDNN #5689](https://github.com/uxlfoundation/oneDNN/issues/5689).
+This mitigation is tested with native Windows CPU generation; full handwriting
+accuracy and performance remain separate validation tasks.

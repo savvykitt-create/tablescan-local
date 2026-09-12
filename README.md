@@ -89,7 +89,7 @@ Models survive application updates. The normal installer includes the setup
 shortcut but does not include these large models.
 
 See [Slow mode setup and behavior](docs/slow-mode.md) and
-[0.7.12 changes and validation](docs/release-0.7.12.md).
+[0.7.13 changes and validation](docs/release-0.7.13.md).
 
 ## Run from source
 
