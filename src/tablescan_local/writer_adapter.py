@@ -15,6 +15,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from .imaging import read_image
 from .digit_verifier import DigitVerifier, hog_features, infer_numeric_geometry, segment_digits
 from .domain import CellResult, PageResult, TableTemplate
 from .ocr import canonical_numeric, is_simple_number, isolate_blue_ink, remove_edge_rules
@@ -200,7 +201,7 @@ def _candidate_values(cell: CellResult, template: TableTemplate) -> list[str]:
 def _prepared_crop(cell: CellResult) -> np.ndarray | None:
     if not cell.crop_path:
         return None
-    crop = cv2.imread(str(Path(cell.crop_path)))
+    crop = read_image(cell.crop_path)
     if crop is None or crop.size == 0:
         return None
     return isolate_blue_ink(remove_edge_rules(crop))

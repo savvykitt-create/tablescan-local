@@ -929,7 +929,7 @@ class TablePage(QWidget):
         layout.addWidget(self.crossed)
         layout.addWidget(self.high_accuracy)
         self.slow_mode = QCheckBox(tr('Slow mode — дополнительная перепроверка'))
-        self.slow_mode.setToolTip(tr('Две дополнительные модели перепроверяют спорные измерения. Обычно добавляет несколько минут на таблицу. Всё работает локально; исправления остаются доступными для проверки.'))
+        self.slow_mode.setToolTip(tr('Две дополнительные модели перепроверяют спорные измерения. Время зависит от компьютера и размера таблицы; на CPU проверка может быть длительной. Всё работает локально; исправления остаются доступными для проверки.'))
         self.slow_mode.toggled.connect(lambda checked: self.high_accuracy.setChecked(True) if checked else None)
         self.high_accuracy.toggled.connect(lambda checked: self.slow_mode.setChecked(False) if not checked else None)
         layout.addWidget(self.slow_mode)
