@@ -35,6 +35,9 @@ exact downloaded release artifact.
 - Windows export uses a writable descriptor when flushing the temporary workbook.
   Upstream license snapshots retain their exact bytes across Git checkouts on all
   platforms, so Windows line-ending conversion cannot invalidate their hashes.
+- Linux package names and Debian metadata take their version from the application.
+  Release publication rejects mismatched filenames and supplies portable checksums
+  covering installers for every platform.
 
 Regression tests cover the audit scenarios, invalid saved state, failed writes,
 all eight EXIF orientations and access to the oldest of 101 jobs. macOS source and

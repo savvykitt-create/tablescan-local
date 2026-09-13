@@ -117,6 +117,19 @@ jobs:
         run: |
           git fetch --no-tags origin "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "FETCH_HEAD^{commit}")"
+          VERSION="${RELEASE_TAG#v}"
+          for FILE in release/*; do
+            NAME="${FILE##*/}"
+            if [[ "$NAME" != SHA256SUMS && "$NAME" != *"$VERSION"* ]]; then
+              echo "Package version does not match $RELEASE_TAG: $NAME" >&2
+              exit 1
+            fi
+          done
+          (
+            cd release
+            shopt -s nullglob
+            sha256sum -- *.dmg *.exe *.deb *.tar.gz *.AppImage > SHA256SUMS
+          )
           gh release view "$RELEASE_TAG"
           gh release upload "$RELEASE_TAG" release/* --clobber
 

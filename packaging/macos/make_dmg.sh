@@ -16,4 +16,7 @@ if [[ "${TABLESCAN_REQUIRE_SIGNED:-0}" == "1" ]]; then
   codesign --sign "$TABLESCAN_CODESIGN_IDENTITY" --timestamp "$OUTPUT_DIR/$OUTPUT_NAME"
   python "$PROJECT_DIR/packaging/macos/notarize.py" "$OUTPUT_DIR/$OUTPUT_NAME"
 fi
-shasum -a 256 "$OUTPUT_DIR/$OUTPUT_NAME" > "$OUTPUT_DIR/$OUTPUT_NAME.sha256"
+(
+  cd "$OUTPUT_DIR"
+  shasum -a 256 "$OUTPUT_NAME" > "$OUTPUT_NAME.sha256"
+)

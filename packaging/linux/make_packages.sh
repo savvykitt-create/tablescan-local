@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-VERSION="0.7.13"
+VERSION="$(python -c 'from tablescan_local import __version__; print(__version__)')"
 STAGE="$PROJECT_DIR/build/linux-package"
 APPDIR="$PROJECT_DIR/build/TableScanLocal.AppDir"
 RELEASE="$PROJECT_DIR/release"
@@ -26,6 +26,7 @@ Description: Offline table OCR and Excel export
 EOF
 
 dpkg-deb --build "$STAGE" "$RELEASE/TableScan-Local_${VERSION}_amd64.deb"
+test "$(dpkg-deb --field "$RELEASE/TableScan-Local_${VERSION}_amd64.deb" Version)" = "$VERSION"
 tar -C "$PROJECT_DIR/dist" -czf "$RELEASE/TableScan-Local_${VERSION}_linux-x64.tar.gz" TableScanLocal
 
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/scalable/apps"
@@ -45,4 +46,7 @@ if command -v appimagetool >/dev/null 2>&1; then
 else
     tar -C "$(dirname "$APPDIR")" -czf "$RELEASE/TableScan-Local_${VERSION}_AppDir.tar.gz" "$(basename "$APPDIR")"
 fi
-sha256sum "$RELEASE"/* > "$RELEASE/SHA256SUMS"
+(
+    cd "$RELEASE"
+    sha256sum -- TableScan-Local_"${VERSION}"_* > SHA256SUMS
+)
