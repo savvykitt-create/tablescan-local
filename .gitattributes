@@ -6,3 +6,6 @@
 *.yaml text eol=lf
 *.toml text eol=lf
 *.onnx binary
+
+# Preserve upstream license bytes so recorded SHA-256 hashes also match on Windows.
+packaging/licenses/** -text

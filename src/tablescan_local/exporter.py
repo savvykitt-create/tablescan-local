@@ -300,7 +300,8 @@ def _save_workbook(workbook: Workbook, target_path: Path) -> Path:
             broken_member = archive.testzip()
             if broken_member:
                 raise ValueError(tr('Повреждён внутренний файл Excel: {p0}', p0=broken_member))
-        with pending.open("rb") as handle:
+        # Windows requires a writable descriptor for fsync/_commit.
+        with pending.open("r+b") as handle:
             os.fsync(handle.fileno())
         os.replace(pending, target_path)
     finally:

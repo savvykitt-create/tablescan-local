@@ -30,6 +30,11 @@ exact downloaded release artifact.
   credentials. Opting into `sign_macos` requires credentials and successful signing,
   notarization, stapling and Gatekeeper assessment; failures do not silently downgrade
   that requested signed release to ad hoc signing.
+- Intel macOS uses ONNX Runtime 1.23.2, the latest published Python 3.12 wheel for
+  that architecture; the other release platforms use 1.30.0.
+- Windows export uses a writable descriptor when flushing the temporary workbook.
+  Upstream license snapshots retain their exact bytes across Git checkouts on all
+  platforms, so Windows line-ending conversion cannot invalidate their hashes.
 
 Regression tests cover the audit scenarios, invalid saved state, failed writes,
 all eight EXIF orientations and access to the oldest of 101 jobs. macOS source and

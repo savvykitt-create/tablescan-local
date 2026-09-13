@@ -222,7 +222,7 @@ def test_fields_are_validated_on_single_bulk_and_export(qtbot, tmp_path, monkeyp
     assert export_job(job, tmp_path / "valid.xlsx").exists()
 
 
-@pytest.mark.parametrize("failure", ["write", "validation"])
+@pytest.mark.parametrize("failure", ["write", "validation", "sync"])
 def test_failed_export_preserves_existing_file_and_removes_temporary_file(tmp_path, monkeypatch, failure):
     output = export_job(table_job(), tmp_path / "existing.xlsx")
     before = output.read_bytes()
@@ -231,6 +231,10 @@ def test_failed_export_preserves_existing_file_and_removes_temporary_file(tmp_pa
             path.write_bytes(b"partial output")
             raise OSError(errno.ENOSPC, "No space left on device")
         monkeypatch.setattr(Workbook, "save", failed_save)
+    elif failure == "sync":
+        def failed_sync(_descriptor):
+            raise OSError(errno.EIO, "Could not flush output")
+        monkeypatch.setattr("tablescan_local.exporter.os.fsync", failed_sync)
     else:
         monkeypatch.setattr("tablescan_local.exporter.load_workbook", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid workbook")))
     with pytest.raises((OSError, ValueError)):
