@@ -104,6 +104,13 @@ class FieldRegion:
     column_end: int | None = None
     color: str = "#2563EB"
 
+    def constraints(self) -> ValueConstraints:
+        return ValueConstraints(value_format=self.kind, allow_empty=not self.required)
+
+    def hard_errors(self, text: str) -> list[str]:
+        return ["required_field_empty" if error == "required_cell_empty" else error
+                for error in self.constraints().hard_errors(text)]
+
 
 @dataclass(slots=True)
 class TableTemplate:
@@ -199,6 +206,29 @@ class TableTemplate:
             return region.constraints, f"{region.name} · {region.address()}"
         rule = self.column_rules[column]
         return rule.constraints(), rule.name
+
+    def is_header_cell(self, row: int, column: int) -> bool:
+        if row >= self.header_rows and self.column_rules[column].role != "header":
+            return False
+        explicit = any(region.contains(row, column) for region in self.cell_rules)
+        rule, _ = self.value_constraints(row, column)
+        return not (explicit and rule.value_format in {"numeric", "integer", "complex_numeric"})
+
+    def is_label_cell(self, column: int) -> bool:
+        return column < self.row_label_columns or self.column_rules[column].role == "row_label"
+
+    def cell_constraints(self, row: int, column: int) -> tuple[ValueConstraints | None, str]:
+        """Shared OCR/review/export semantics; explicit regions also cover labels.
+
+        Generic headers and row identifiers are text, not measurements governed
+        by the default numeric column format.
+        """
+        rule, name = self.value_constraints(row, column)
+        if any(region.contains(row, column) for region in self.cell_rules):
+            return rule, name
+        if self.is_header_cell(row, column) or self.is_label_cell(column) or self.column_rules[column].role == "ignored":
+            return None, name
+        return rule, name
 
     def validate_value_rules(self) -> None:
         self.ensure_column_rules()

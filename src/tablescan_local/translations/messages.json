@@ -2308,5 +2308,50 @@
     "ru": "Сгенерировано токенов: {p0}",
     "en": "Generated tokens: {p0}",
     "cs": "Vygenerované tokeny: {p0}"
+  },
+  "Поле «{p0}» не соответствует правилу: {p1}": {
+    "en": "Field “{p0}” does not match the rule: {p1}",
+    "cs": "Pole „{p0}“ neodpovídá pravidlu: {p1}",
+    "ru": "Поле «{p0}» не соответствует правилу: {p1}"
+  },
+  "Поле отсутствует в шаблоне.": {
+    "en": "The field is missing from the template.",
+    "cs": "Pole v šabloně chybí.",
+    "ru": "Поле отсутствует в шаблоне."
+  },
+  "Изменения сохранены": {
+    "en": "Changes saved",
+    "cs": "Změny uloženy",
+    "ru": "Изменения сохранены"
+  },
+  "Сохранение изменений…": {
+    "en": "Saving changes…",
+    "cs": "Ukládání změn…",
+    "ru": "Сохранение изменений…"
+  },
+  "Не удалось сохранить изменения": {
+    "en": "Could not save changes",
+    "cs": "Změny se nepodařilo uložit",
+    "ru": "Не удалось сохранить изменения"
+  },
+  "Поиск по всей истории файлов": {
+    "en": "Search all file history",
+    "cs": "Hledat v celé historii souborů",
+    "ru": "Поиск по всей истории файлов"
+  },
+  "Предыдущие": {
+    "en": "Previous",
+    "cs": "Předchozí",
+    "ru": "Предыдущие"
+  },
+  "Следующие": {
+    "en": "Next",
+    "cs": "Další",
+    "ru": "Следующие"
+  },
+  "{p0}–{p1} из {p2}": {
+    "en": "{p0}–{p1} of {p2}",
+    "cs": "{p0}–{p1} z {p2}",
+    "ru": "{p0}–{p1} из {p2}"
   }
 }

@@ -74,7 +74,7 @@ def test_language_switch_preserves_review_input_selection_image_and_result(qtbot
     monkeypatch.setenv('TABLESCAN_DATA_DIR', str(tmp_path / 'review'))
     _, window = create_application()
     qtbot.addWidget(window)
-    template = TableTemplate('t', 'Мой шаблон', NormalizedRect(0, 0, 1, 1), [0, .5, 1], [0, .5, 1])
+    template = TableTemplate('t', 'Мой шаблон', NormalizedRect(0, 0, 1, 1), [0, .5, 1], [0, .5, 1], row_label_columns=0)
     template.ensure_column_rules()
     template.fields = [FieldRegion('f', 'Моё поле', NormalizedRect(0, 0, .5, .5))]
     cell = CellResult(0, 0, '12.1', '12.1', .8, flags=['model_disagreement'], writer_suggestion='12.7', applied_rule='Старый аудит: Число')
@@ -148,7 +148,7 @@ def test_numeric_rules_and_export_values_are_locale_independent(code, tmp_path):
     assert optional_number('12,5') == 12.5
     assert rule.hard_errors('12,5') == []
     assert rule.hard_errors('101.5') == ['above_maximum']
-    template = TableTemplate('t', 'Text stays unchanged', NormalizedRect(0, 0, 1, 1), [0, 1], [0, 1])
+    template = TableTemplate('t', 'Text stays unchanged', NormalizedRect(0, 0, 1, 1), [0, 1], [0, 1], row_label_columns=0)
     template.ensure_column_rules()
     cell = CellResult(0, 0, '12,5', '12.5', .99, status='confirmed')
     job = JobResult('input.png', template, [PageResult(0, 'input.png', [cell], [])])

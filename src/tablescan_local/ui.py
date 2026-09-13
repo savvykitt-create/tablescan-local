@@ -7,6 +7,7 @@ from .i18n import escape_text as escape
 from .i18n import language, set_language, SUPPORTED_LANGUAGES, bind
 from bisect import bisect_right
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -633,9 +634,12 @@ class FilesPage(QWidget):
     chooseRequested = Signal()
     filesDropped = Signal(list)
     recentOpened = Signal(str)
+    historyRequested = Signal()
 
     def __init__(self) -> None:
         super().__init__()
+        self.history_offset = 0
+        self.history_page_size = 20
         layout = QVBoxLayout(self)
         layout.setContentsMargins(36, 30, 36, 30)
         layout.setSpacing(24)
@@ -668,6 +672,11 @@ class FilesPage(QWidget):
         recent_heading = QLabel(tr('Недавние файлы'))
         set_theme_style(recent_heading, "font-size: 17px; font-weight: 700;")
         layout.addWidget(recent_heading)
+        self.history_search = QLineEdit()
+        self.history_search.setPlaceholderText(tr('Поиск по всей истории файлов'))
+        self.history_search.setAccessibleName(tr('Поиск по всей истории файлов'))
+        self.history_search.textChanged.connect(self._search_history)
+        layout.addWidget(self.history_search)
         self.recent = QTableWidget(0, 3)
         self.recent.setHorizontalHeaderLabels([tr('Файл'), tr('Изменён'), tr('Состояние')])
         self.recent.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
@@ -675,17 +684,46 @@ class FilesPage(QWidget):
         self.recent.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.recent.verticalHeader().hide()
         self.recent.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.recent.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.recent.doubleClicked.connect(lambda index: self.recentOpened.emit(self.recent.item(index.row(), 0).data(Qt.ItemDataRole.UserRole)))
         layout.addWidget(self.recent, 2)
+        paging = QHBoxLayout()
+        self.history_previous = QPushButton(tr('Предыдущие'))
+        self.history_next = QPushButton(tr('Следующие'))
+        self.history_count = QLabel("")
+        self.history_previous.clicked.connect(lambda: self._move_history(-1))
+        self.history_next.clicked.connect(lambda: self._move_history(1))
+        paging.addWidget(self.history_previous)
+        paging.addWidget(self.history_count)
+        paging.addStretch()
+        paging.addWidget(self.history_next)
+        layout.addLayout(paging)
 
-    def set_recent(self, rows: list[dict[str, str]]) -> None:
+    def _search_history(self, _text: str) -> None:
+        self.history_offset = 0
+        self.historyRequested.emit()
+
+    def _move_history(self, direction: int) -> None:
+        self.history_offset = max(0, self.history_offset + direction * self.history_page_size)
+        self.historyRequested.emit()
+
+    def set_recent(self, rows: list[dict[str, str]], total: int | None = None) -> None:
+        total = len(rows) if total is None else total
+        self.history_previous.setEnabled(self.history_offset > 0)
+        self.history_next.setEnabled(self.history_offset + len(rows) < total)
+        self.history_count.setText(tr('{p0}–{p1} из {p2}', p0=self.history_offset + 1 if rows else 0,
+                                     p1=self.history_offset + len(rows), p2=total))
         self.recent.setRowCount(len(rows))
         labels = {"imported": tr('Импортирован'), "review": tr('Нужна сверка'), "ready": tr('Готов к экспорту')}
         for row_index, row in enumerate(rows):
             name = QTableWidgetItem(row["source_name"])
             name.setData(Qt.ItemDataRole.UserRole, row["id"])
             self.recent.setItem(row_index, 0, name)
-            self.recent.setItem(row_index, 1, QTableWidgetItem(row["updated_at"].replace("T", " ")[:16]))
+            try:
+                modified = datetime.fromisoformat(row["updated_at"]).astimezone().strftime("%Y-%m-%d %H:%M %Z")
+            except ValueError:
+                modified = row["updated_at"]
+            self.recent.setItem(row_index, 1, QTableWidgetItem(modified))
             self.recent.setItem(row_index, 2, QTableWidgetItem(labels.get(row["status"], row["status"])))
 
 
@@ -975,6 +1013,7 @@ class TablePage(QWidget):
         self.rows_spin.valueChanged.connect(self._grid_count_changed)
         self.columns_spin.valueChanged.connect(self._grid_count_changed)
         self.template_name.editingFinished.connect(self._save_common)
+        self.template_name.textEdited.connect(self._save_common)
         self.header_rows_spin.valueChanged.connect(self._save_common)
         self.row_labels_spin.valueChanged.connect(self._save_common)
         self.crossed.toggled.connect(self._save_common)
@@ -1385,11 +1424,13 @@ class TablePage(QWidget):
             rectangles.append((start, end, run[0], run[1]))
         return rectangles
 
-    def _append_rule_regions(self, name: str, rule: ValueConstraints, color: str) -> None:
+    def _append_rule_regions(self, name: str, rule: ValueConstraints, color: str,
+                             *, selection: tuple[int, int, int, int] | None = None) -> None:
         if not self.template or not self._selected_cells:
             QMessageBox.information(self, tr('Выделение'), tr('Сначала выберите ячейку или диапазон на таблице.'))
             return
-        for row_start, row_end, column_start, column_end in self._selection_rectangles(self._selected_cells):
+        rectangles = [selection] if selection is not None else self._selection_rectangles(self._selected_cells)
+        for row_start, row_end, column_start, column_end in rectangles:
             self.template.cell_rules = [
                 existing for existing in self.template.cell_rules
                 if (existing.row_start, existing.row_end, existing.column_start, existing.column_end)
@@ -1430,7 +1471,8 @@ class TablePage(QWidget):
         dialog = ValueRuleDialog(initial, self, title=tr('Расширенное правило'), region=region, rows=self.template.rows, columns=self.template.columns)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.quick_rule_name.setText(dialog.region_name.text().strip() or "Values")
-            self._append_rule_regions(self.quick_rule_name.text(), dialog.rule, str(self.quick_color.currentData()))
+            self._append_rule_regions(self.quick_rule_name.text(), dialog.rule, str(self.quick_color.currentData()),
+                                      selection=dialog.selection)
 
     def _refresh_cell_rules(self) -> None:
         self.rule_list.blockSignals(True); self.rule_list.clear()
@@ -2405,20 +2447,24 @@ class ReviewPage(QWidget):
         if item.status == "excluded":
             return
         corrected = self.correct_value.text().strip()
-        if self.current_kind == "field" and "required_field_empty" in item.flags and not corrected:
-            QMessageBox.warning(self, tr('Заполните поле'), tr('Это обязательное поле. Введите значение по оригиналу.'))
-            return
         if self.current_kind == "cell" and item.status != "excluded":
-            rule, name = self.result.template.value_constraints(item.row, item.column)
-            if rule.value_format in {"numeric", "integer", "complex_numeric"}:
+            rule, name = self.result.template.cell_constraints(item.row, item.column)
+            if rule and rule.value_format in {"numeric", "integer", "complex_numeric"}:
                 corrected = canonical_numeric(corrected)
-            if rule.hard_errors(corrected):
+            if rule and rule.hard_errors(corrected):
                 QMessageBox.warning(self, tr('Значение не соответствует правилу'), tr('{p0}: {p1}\n\nИсправьте значение или измените правило и повторите распознавание.', p0=name, p1=rule.summary()))
                 return
         elif self.current_kind == "field":
             region = next((region for region in self.result.template.fields if region.id == item.region_id), None)
-            if region and region.kind in {"numeric", "integer", "complex_numeric"}:
+            if region is None:
+                QMessageBox.warning(self, tr('Проверьте правила'), tr('Поле отсутствует в шаблоне.'))
+                return
+            if region.kind in {"numeric", "integer", "complex_numeric"}:
                 corrected = canonical_numeric(corrected)
+            if region.hard_errors(corrected):
+                QMessageBox.warning(self, tr('Значение не соответствует правилу'),
+                                    tr('Поле «{p0}» не соответствует правилу: {p1}', p0=region.name, p1=region.constraints().summary()))
+                return
         item.final_text = corrected
         if getattr(item, "status", "automatic") != "excluded":
             item.status = "confirmed" if corrected == item.raw_text else "corrected"
@@ -2436,15 +2482,16 @@ class ReviewPage(QWidget):
             for field in page.fields:
                 if not field.needs_review:
                     continue
-                if "required_field_empty" in field.flags and not field.final_text.strip():
+                region = next((region for region in self.result.template.fields if region.id == field.region_id), None)
+                if region is None or region.hard_errors(field.final_text):
                     blocked += 1
                 else:
                     confirmable.append(field)
             for cell in page.cells:
                 if not cell.needs_review:
                     continue
-                constraints, _ = self.result.template.value_constraints(cell.row, cell.column)
-                if cell.applied_rule and constraints.hard_errors(cell.final_text):
+                constraints, _ = self.result.template.cell_constraints(cell.row, cell.column)
+                if constraints and constraints.hard_errors(cell.final_text):
                     blocked += 1
                 else:
                     confirmable.append(cell)
@@ -2639,7 +2686,13 @@ class MainWindow(QMainWindow):
         self.pending_sources: list[str] = []
         self.template_editor_working: TableTemplate | None = None
         self.template_editor_reference = ""
+        self._pending_draft: tuple[str, dict] | None = None
+        self._draft_timer = QTimer(self)
+        self._draft_timer.setSingleShot(True)
+        self._draft_timer.setInterval(250)
+        self._draft_timer.timeout.connect(lambda: self._flush_draft(warn=False))
         self._build_ui()
+        self.files_page.historyRequested.connect(self.refresh_recent)
         self.refresh_recent()
         self.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "savvykit.png")))
 
@@ -2662,6 +2715,8 @@ class MainWindow(QMainWindow):
         local.hide()
         top_layout.addStretch()
         top_layout.addWidget(self.file_title)
+        self.save_status = QLabel("")
+        top_layout.addWidget(self.save_status)
         self.theme_select = QComboBox()
         self.theme_select.addItem(tr('Светлая тема'), "light")
         self.theme_select.addItem(tr('Тёмная тема'), "dark")
@@ -2848,7 +2903,11 @@ class MainWindow(QMainWindow):
             button.setChecked(button_index == index)
 
     def refresh_recent(self) -> None:
-        self.files_page.set_recent(self.store.recent_jobs())
+        page = self.files_page
+        search = page.history_search.text().strip()
+        total = self.store.job_count(search=search)
+        page.history_offset = min(page.history_offset, max(0, (total - 1) // page.history_page_size * page.history_page_size))
+        page.set_recent(self.store.recent_jobs(page.history_page_size, offset=page.history_offset, search=search), total)
 
     def _refresh_templates(self) -> None:
         templates = self.store.load_templates()
@@ -2981,54 +3040,75 @@ class MainWindow(QMainWindow):
         self.open_source(paths[0])
 
     def open_source(self, path: str, reused_template: TableTemplate | None = None) -> None:
+        if any(worker.isRunning() for worker in self._workers) or not self._flush_draft():
+            return
         selected_match: TemplateMatch | None = None
+        new_job_id = ""
         try:
-            self.job_id, copied = self.store.import_source(path)
-            self.stored_source_path = str(copied)
-            self.source_path = path
-            self.images = load_document(copied)
-            if not self.images:
+            new_job_id, copied = self.store.import_source(path)
+            images = load_document(copied)
+            if not images:
                 raise ValueError(tr('The document contains no pages.'))
-            detection: GridDetection | None = None if reused_template else self._detect_or_manual(self.images[0])
+            detection: GridDetection | None = None if reused_template else self._detect_or_manual(images[0])
             chosen_template = reused_template
             if reused_template is None:
-                matches = rank_templates(self.images[0].shape, detection, self.store.load_templates())
+                matches = rank_templates(images[0].shape, detection, self.store.load_templates())
                 if matches:
                     chooser = TemplateChoiceDialog(matches, self)
                     if chooser.exec() != QDialog.DialogCode.Accepted:
-                        self.store.delete_job(self.job_id)
-                        self.job_id = ""; self.source_path = ""; self.stored_source_path = ""; self.images = []
-                        self.refresh_recent()
+                        self.store.delete_job(new_job_id)
                         return
                     if chooser.selected_template_id:
                         selected_match = next((item for item in matches if item.template.id == chooser.selected_template_id), None)
                         chosen_template = selected_match.template if selected_match else None
+            if chosen_template:
+                template = TableTemplate.from_dict(chosen_template.to_dict())
+                images = rotate_document(images, template.rotation_degrees)
+            else:
+                template = self._new_template(path, str(copied), images, detection)
+            template.resize_grid(template.rows, template.columns)
+            template.validate_value_rules()
+            self.store.save_draft(new_job_id, template)
         except Exception as exc:
+            if new_job_id:
+                self.store.delete_job(new_job_id)
             QMessageBox.critical(self, tr('Не удалось открыть документ'), str(exc))
             return
-        if chosen_template:
-            self.images = rotate_document(self.images, chosen_template.rotation_degrees)
-            self.template = TableTemplate.from_dict(chosen_template.to_dict())
-        else:
-            identifier = str(uuid4())
-            self.template = TableTemplate(
-                id=identifier, name=f"{Path(path).stem} — template", table_rect=detection.table_rect,
-                row_guides=detection.row_guides, column_guides=detection.column_guides,
-                template_version=0, family_id=identifier, reference_source_path=str(copied),
-                reference_page_aspect=self.images[0].shape[1] / max(1, self.images[0].shape[0]),
-            )
-        self.template.ensure_column_rules()
-        self.result = None
-        self.file_title.setText(Path(path).name)
-        self.table_page.set_document(self.images[0], self.template)
+        self._activate_document(new_job_id, path, str(copied), images, template)
         if selected_match:
             self.table_page.grid_warning.setText(
                 tr('Template match: {p0}%', p0=round(selected_match.score * 100))
             )
         else:
             self.table_page.grid_warning.setText(join_text(' ', detection.warnings) if detection else tr('Проверьте наложение сохранённого шаблона и число строк заголовка.'))
-        self._navigate(1)
         self.refresh_recent()
+
+    def _new_template(self, path: str, copied: str, images: list[np.ndarray],
+                      detection: GridDetection | None = None) -> TableTemplate:
+        detection = detection or self._detect_or_manual(images[0])
+        identifier = str(uuid4())
+        template = TableTemplate(
+            id=identifier, name=f"{Path(path).stem} — template", table_rect=detection.table_rect,
+            row_guides=detection.row_guides, column_guides=detection.column_guides,
+            template_version=0, family_id=identifier, reference_source_path=copied,
+            reference_page_aspect=images[0].shape[1] / max(1, images[0].shape[0]),
+        )
+        template.ensure_column_rules()
+        return template
+
+    def _activate_document(self, job_id: str, path: str, copied: str, images: list[np.ndarray],
+                           template: TableTemplate, result: JobResult | None = None) -> None:
+        """Install one fully prepared context; failed reads never get this far."""
+        self.job_id, self.source_path, self.stored_source_path = job_id, path, copied
+        self.images, self.template, self.result = images, template, result
+        self.review_page.result = result
+        self.file_title.setText(Path(path).name)
+        self.save_status.setText(tr('Изменения сохранены'))
+        self.save_status.setToolTip("")
+        self.table_page.set_document(images[0], template)
+        if result is not None:
+            self.review_page.set_result(images, result)
+        self._navigate(2 if result is not None else 1)
 
     @staticmethod
     def _detect_or_manual(image: np.ndarray) -> GridDetection:
@@ -3076,46 +3156,39 @@ class MainWindow(QMainWindow):
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
         self.table_page.grid_warning.setText(join_text(' ', detection.warnings))
-        self._update_steps()
+        self._template_changed(self.template)
         notify(self, tr("Document rotated"))
 
     def open_recent(self, job_id: str) -> None:
-        loaded = self.store.load_job(job_id)
-        if not loaded:
-            QMessageBox.warning(self, tr('Задание недоступно'), tr('Не удалось открыть сохранённое задание.'))
+        if any(worker.isRunning() for worker in self._workers) or not self._flush_draft():
             return
-        metadata, result = loaded
         try:
-            self.images = load_document(metadata["stored_source_path"])
+            loaded = self.store.load_job(job_id)
+            if not loaded:
+                raise ValueError(tr('Не удалось открыть сохранённое задание.'))
+            metadata, result = loaded
+            images = load_document(metadata["stored_source_path"])
+            if not images:
+                raise ValueError(tr('The document contains no pages.'))
+            draft = self.store.load_draft(job_id)
+            if draft and result and draft.to_dict() == result.template.to_dict():
+                draft = None  # Saving unchanged controls must not hide reviewed data.
+            if draft:
+                template, result = draft, None
+            elif result:
+                template = TableTemplate.from_dict(result.template.to_dict())
+            else:
+                # Recover legacy imported jobs which predate automatic drafts.
+                template = self._new_template(metadata["source_path"], metadata["stored_source_path"], images)
+                self.store.save_draft(job_id, template)
+            template.resize_grid(template.rows, template.columns)
+            images = rotate_document(images, template.rotation_degrees)
         except Exception as exc:
             QMessageBox.warning(self, tr('Исходник недоступен'), str(exc))
             return
-        self.job_id = job_id
-        self.source_path = metadata["source_path"]
-        self.stored_source_path = metadata["stored_source_path"]
-        self.file_title.setText(metadata["source_name"])
-        try:
-            draft = self.store.load_draft(job_id)
-        except (OSError, ValueError, TypeError) as exc:
-            QMessageBox.warning(self, tr('Проверьте правила'), str(exc))
-            return
+        self._activate_document(job_id, metadata["source_path"], metadata["stored_source_path"], images, template, result)
         if draft:
-            self.result = None
-            self.template = draft
-            self.images = rotate_document(self.images, draft.rotation_degrees)
-            self.table_page.set_document(self.images[0], draft)
-            self._navigate(1)
             notify(self, tr('Восстановлены настройки последнего запуска. Проверьте их и продолжите.'))
-            return
-        if result:
-            self.result = result
-            self.template = TableTemplate.from_dict(result.template.to_dict())
-            self.images = rotate_document(self.images, self.template.rotation_degrees)
-            self.table_page.set_document(self.images[0], self.template)
-            self.review_page.set_result(self.images, result)
-            self._navigate(2)
-        else:
-            QMessageBox.information(self, tr('Импортированный файл'), tr('Для этого файла ещё нет шаблона. Импортируйте его снова, чтобы настроить таблицу.'))
 
     def _template_changed(self, template: TableTemplate) -> None:
         self.template = template
@@ -3123,7 +3196,30 @@ class MainWindow(QMainWindow):
             # Keep the saved job intact; a changed template must not reinterpret
             # old confirmed results as if recognition had been rerun.
             self.result = None
+        self.review_page.result = self.result
+        if self.job_id:
+            self._pending_draft = (self.job_id, template.to_dict())
+            self.save_status.setText(tr('Сохранение изменений…'))
+            self._draft_timer.start()
         self._update_steps()
+
+    def _flush_draft(self, *, warn: bool = True) -> bool:
+        self._draft_timer.stop()
+        if self._pending_draft is None:
+            return True
+        job_id, data = self._pending_draft
+        try:
+            self.store.save_draft(job_id, TableTemplate.from_dict(data))
+        except OSError as exc:
+            self.save_status.setText(tr('Не удалось сохранить изменения'))
+            self.save_status.setToolTip(str(exc))
+            if warn:
+                QMessageBox.warning(self, tr('Не удалось сохранить изменения'), str(exc))
+            return False
+        self._pending_draft = None
+        self.save_status.setText(tr('Изменения сохранены'))
+        self.save_status.setToolTip("")
+        return True
 
     def _load_saved_template(self, template_id: str) -> None:
         if not self.images:
@@ -3137,6 +3233,7 @@ class MainWindow(QMainWindow):
         self.template = TableTemplate.from_dict(template.to_dict())
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
+        self._template_changed(self.template)
 
     def start_recognition(self, template: TableTemplate) -> None:
         if not self.images or not self.job_id:
@@ -3168,6 +3265,8 @@ class MainWindow(QMainWindow):
         except ValueError as exc:
             QMessageBox.warning(self, tr('Проверьте правила'), str(exc)); return
         try:
+            if not self._flush_draft():
+                return
             self.store.save_draft(self.job_id, template)
         except OSError as exc:
             QMessageBox.warning(self, tr('Проверьте правила'), str(exc))
@@ -3215,6 +3314,7 @@ class MainWindow(QMainWindow):
     def _recognition_done(self, result: JobResult) -> None:
         if self.progress_dialog:
             self.progress_dialog.close()
+        self._flush_draft()
         self.result = result
         self.template = TableTemplate.from_dict(result.template.to_dict())
         self.table_page.set_document(self.images[0], self.template)
@@ -3251,10 +3351,17 @@ class MainWindow(QMainWindow):
                 tr('Останавливаю локальный анализ. Закройте приложение ещё раз после завершения остановки.'),
             )
             return
+        if self.template and not self.table_page.prepare_current_settings():
+            event.ignore()
+            return
+        if not self._flush_draft():
+            event.ignore()
+            return
         super().closeEvent(event)
 
     def _result_changed(self, result: JobResult) -> None:
-        self.result = result
+        if result is not self.result:
+            return  # Ignore a queued edit emitted by a previously open document.
         if self.job_id:
             self.store.save_result(self.job_id, result)
         self.refresh_recent()

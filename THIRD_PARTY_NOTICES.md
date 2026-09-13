@@ -1,6 +1,6 @@
 # Third-party notices
 
-TableScan Local depends on the following open-source projects. Release builds must include the exact license files distributed by the installed package versions.
+TableScan Local depends on the following open-source projects. Release builds include a `licenses/` directory with complete license texts, an exact-version component manifest, source URLs and SHA-256 checksums. `packaging/collect_licenses.py` collects installed-wheel notices and verifies version-matched upstream snapshots where wheels omit them; missing or changed licenses fail the build.
 
 - Qt for Python / PySide6 — LGPL-3.0-only, GPL-3.0-only, or commercial terms depending on component.
 - RapidOCR ONNX Runtime — Apache-2.0.
@@ -8,10 +8,10 @@ TableScan Local depends on the following open-source projects. Release builds mu
 - OpenCV — Apache-2.0.
 - PDFium and pypdfium2 — BSD-3-Clause / Apache-2.0 components.
 - openpyxl — MIT.
-- Pillow — HPND.
+- Pillow — MIT-CMU (see the exact installed-version license).
 - NumPy — BSD-3-Clause.
 
-Model weights shipped by `rapidocr-onnxruntime` remain subject to their upstream notices. Before a public release, the exact license files from the dependency versions used for that release must be reviewed and included with the installer.
+Model weights shipped by `rapidocr-onnxruntime` remain subject to their upstream notices. The bundled upstream license snapshot includes the RapidOCR release license; model origins and hashes are included in the manifest. Unused Qt Virtual Keyboard and Qt PDF image plugins are excluded from the package.
 
 Version 0.2 additionally bundles PaddleOCR PP-OCRv5 server and English mobile
 recognizers distributed by RapidAI. Pinned download URLs and verified SHA-256

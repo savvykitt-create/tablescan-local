@@ -85,8 +85,15 @@ steps and Linux GUI libraries. Slow mode has [separate verification](slow-mode.m
 Install the development dependencies above, then build the application bundle:
 
 ```bash
+python -m pip install -c packaging/constraints.txt -e ".[dev]"
 pyinstaller --clean --noconfirm packaging/tablescan_local.spec
+python packaging/verify_bundle.py dist
 ```
+
+Public macOS packages use ad hoc signing by default. Developer ID signing and
+notarization are [optional](macos-release-signing.md); enable `sign_macos` in the
+release workflow only when Apple credentials are configured.
+The [0.7.14 candidate notes](release-0.7.14.md) describe the release-audit fixes.
 
 Platform packaging lives in [macOS](../packaging/macos),
 [Windows](../packaging/windows) and [Linux](../packaging/linux).

@@ -43,17 +43,21 @@ class LocalStore:
         job_dir = self.jobs_dir / job_id
         job_dir.mkdir(parents=True, exist_ok=True)
         copied = job_dir / source_path.name
-        shutil.copy2(source_path, copied)
-        now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-        self.connection.execute(
-            "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (job_id, source_path.name, str(source_path), str(copied), "imported", None, now, now),
-        )
-        self.connection.commit()
+        try:
+            shutil.copy2(source_path, copied)
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            with self.connection:
+                self.connection.execute(
+                    "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (job_id, source_path.name, str(source_path), str(copied), "imported", None, now, now),
+                )
+        except Exception:
+            shutil.rmtree(job_dir, ignore_errors=True)
+            raise
         return job_id, copied
 
     def save_draft(self, job_id: str, template: TableTemplate) -> None:
-        """Persist the exact run settings before entering native OCR code."""
+        """Atomically persist working settings, including edits before the first run."""
         folder = self.jobs_dir / job_id
         folder.mkdir(parents=True, exist_ok=True)
         target = folder / "working-template.json"
@@ -79,12 +83,19 @@ class LocalStore:
         if draft and draft.to_dict() == result.template.to_dict():
             (self.jobs_dir / job_id / "working-template.json").unlink(missing_ok=True)
 
-    def recent_jobs(self, limit: int = 20) -> list[dict[str, str]]:
+    def recent_jobs(self, limit: int = 20, *, offset: int = 0, search: str = "") -> list[dict[str, str]]:
         rows = self.connection.execute(
-            "SELECT id, source_name, stored_source_path, status, updated_at FROM jobs ORDER BY updated_at DESC LIMIT ?",
-            (limit,),
+            "SELECT id, source_name, stored_source_path, status, updated_at FROM jobs "
+            "WHERE instr(lower(source_name), lower(?)) > 0 "
+            "ORDER BY updated_at DESC, created_at DESC, id DESC LIMIT ? OFFSET ?",
+            (search, limit, offset),
         ).fetchall()
         return [dict(zip(("id", "source_name", "stored_source_path", "status", "updated_at"), row, strict=True)) for row in rows]
+
+    def job_count(self, *, search: str = "") -> int:
+        return self.connection.execute(
+            "SELECT count(*) FROM jobs WHERE instr(lower(source_name), lower(?)) > 0", (search,),
+        ).fetchone()[0]
 
     def load_job(self, job_id: str) -> tuple[dict[str, str], JobResult | None] | None:
         row = self.connection.execute(

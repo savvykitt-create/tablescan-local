@@ -1,0 +1,27 @@
+# Validated build environment for the 0.7.14 candidate.
+# Refresh together with packaging/licenses snapshots and the release tests.
+altgraph==0.17.5
+et-xmlfile==2.0.0
+flatbuffers==25.12.19
+numpy==2.5.3
+onnxruntime==1.30.0
+opencv-python==5.0.0.93
+openpyxl==3.1.5
+packaging==26.3
+pillow==12.3.0
+protobuf==7.36.1
+pyclipper==1.4.0
+pyinstaller==6.22.2
+pyinstaller-hooks-contrib==2026.7
+pypdfium2==5.13.0
+pyside6==6.11.2
+pyside6-addons==6.11.2
+pyside6-essentials==6.11.2
+pyyaml==6.0.3
+rapidocr-onnxruntime==1.4.4
+setuptools==84.0.0
+shapely==2.1.2
+shiboken6==6.11.2
+six==1.17.0
+tqdm==4.70.1
+macholib==1.16.4; sys_platform == "darwin"

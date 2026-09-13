@@ -30,6 +30,24 @@ The installers include Python and the standard recognition models. A separate
 Python installation and a graphics card are **not required for standard use**.
 For a source installation, follow the [developer guide](docs/development.md).
 
+### First launch on macOS
+
+The default GitHub macOS build has an ad hoc signature, but is **not signed with
+Apple Developer ID or notarized**. macOS may block its first launch because the
+developer cannot be verified. This is an expected installation limitation.
+
+If you trust the release downloaded from this repository:
+
+1. Copy **TableScan Local** from the DMG to **Applications**, then try opening it.
+2. If macOS blocks it, open **System Settings → Privacy & Security**.
+3. Scroll to **Security**, find the message about TableScan Local and select
+   **Open Anyway**. Authenticate and confirm opening when prompted.
+
+This creates an exception for this application. See
+[Apple's instructions](https://support.apple.com/en-ca/guide/mac-help/mh40616/mac).
+Managed computers may prevent this exception. Developer ID signing and notarization
+are an [optional release mode](docs/macos-release-signing.md).
+
 ## Your first table
 
 1. **Open a document.** Import a PDF or a PNG, JPEG or TIFF image. Multi-page

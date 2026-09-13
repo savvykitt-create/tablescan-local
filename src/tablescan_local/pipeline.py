@@ -115,10 +115,9 @@ def process_page(
             numeric = region.kind in {"integer", "numeric", "complex_numeric"}
             recognized = engine.recognize_region(crop, numeric=numeric)
             value, confidence, flags = recognized.text, recognized.confidence, list(recognized.flags or [])
-            if region.required and not value:
-                flags.append("required_field_empty")
-            elif not region.required and not value:
+            if not region.required and not value:
                 flags = [flag for flag in flags if flag != "empty_prediction"]
+        flags.extend(region.hard_errors(value))
         fields.append(FieldResult(
             region.id, region.name, value if region.source == "fixed" else recognized.raw_text,
             value, confidence, crop_path, sorted(set(flags)),
@@ -145,16 +144,19 @@ def process_page(
             if rule.role == "ignored":
                 result = CellResult(row, column, "", "", 1.0, crop_path, [], "excluded")
             else:
-                constraints, rule_name = template.value_constraints(row, column)
-                # Explicit rectangle rules can target header cells too. Column
-                # defaults otherwise apply only to data rows.
-                explicit = any(region.contains(row, column) for region in template.cell_rules)
-                active = row >= template.header_rows or explicit
-                numeric = active and constraints.value_format in {"numeric", "integer", "complex_numeric"}
+                constraints, rule_name = template.cell_constraints(row, column)
+                active = constraints is not None
+                recognition_rule = constraints
+                if recognition_rule is None and row >= template.header_rows and template.is_label_cell(column):
+                    # A numeric recognizer still helps read digit-only identifiers.
+                    # This is an OCR hint, not permission to coerce their stored
+                    # text or reject a reviewer entering an alphanumeric label.
+                    recognition_rule = rule.constraints()
+                numeric = recognition_rule is not None and recognition_rule.value_format in {"numeric", "integer", "complex_numeric"}
                 recognized = engine.recognize_cell(
                     crop,
                     numeric=numeric,
-                    constraints=constraints if active else None,
+                    constraints=recognition_rule,
                     retry_crops=crop_variants[1:] if numeric else None,
                 )
                 flags = list(recognized.flags or [])

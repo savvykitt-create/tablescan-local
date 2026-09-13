@@ -6,6 +6,12 @@ from PyInstaller.utils.hooks import collect_data_files
 
 
 project_root = Path(SPECPATH).parent
+sys.path.insert(0, str(project_root / "packaging"))
+from collect_licenses import collect
+license_directory = collect(project_root / "build" / "licenses")
+signing_identity = os.getenv("TABLESCAN_CODESIGN_IDENTITY")
+if sys.platform == "darwin" and os.getenv("TABLESCAN_REQUIRE_SIGNED") == "1" and not signing_identity:
+    raise RuntimeError("Signed macOS mode requires TABLESCAN_CODESIGN_IDENTITY (Developer ID Application)")
 rapid_data = collect_data_files("rapidocr_onnxruntime")
 
 a = Analysis(
@@ -19,7 +25,9 @@ a = Analysis(
         (str(project_root / "src/tablescan_local/slow_runner.py"), "tablescan_local"),
         (str(project_root / "LICENSE"), "."),
         (str(project_root / "THIRD_PARTY_NOTICES.md"), "."),
+        (str(license_directory), "licenses"),
     ],
+    hookspath=[str(project_root / "packaging" / "hooks")],
     hiddenimports=["rapidocr_onnxruntime", "onnxruntime", "pypdfium2", "cv2", "openpyxl"],
     excludes=["tkinter", "matplotlib", "pandas"],
     noarchive=False,
@@ -36,6 +44,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
+    codesign_identity=signing_identity,
     icon=str(project_root / "src/tablescan_local/assets/savvykit.ico") if sys.platform == "win32" else None,
 )
 coll = COLLECT(
@@ -54,7 +63,7 @@ if sys.platform == "darwin":
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "0.7.13",
-            "CFBundleVersion": "0.7.13",
+            "CFBundleShortVersionString": "0.7.14",
+            "CFBundleVersion": "0.7.14",
         },
     )

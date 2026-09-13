@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from .i18n import tr, fmt, join_text
 from datetime import datetime, timezone
+from decimal import Decimal
+import os
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Any
 from zipfile import ZipFile
 
@@ -15,11 +18,11 @@ from .domain import CellResult, FieldRegion, JobResult, PageResult, TableTemplat
 from .ocr import is_simple_number
 
 
-def _excel_value(text: str) -> Any:
+def _excel_value(text: str, *, numeric: bool = True) -> Any:
     value = text.strip()
     if not value:
         return None
-    if is_simple_number(value):
+    if numeric and is_simple_number(value):
         normalized = value.replace("−", "-").replace(",", ".")
         number = float(normalized)
         return int(number) if number.is_integer() and "." not in normalized else number
@@ -63,14 +66,22 @@ def _layout_sheet_title(page_index: int) -> str:
 
 
 def _is_header_cell(template: TableTemplate, row: int, column: int) -> bool:
-    if row >= template.header_rows:
-        return False
-    # The OCR pipeline already gives explicit numeric regions precedence over
-    # the generic header count. Export must use the same interpretation, or a
-    # reviewed measurement silently becomes a column name and disappears.
-    explicit = any(region.contains(row, column) for region in template.cell_rules)
-    rule, _ = template.value_constraints(row, column)
-    return not (explicit and rule.value_format in {"numeric", "integer", "complex_numeric"})
+    return template.is_header_cell(row, column)
+
+
+def _cell_value(result: CellResult, template: TableTemplate) -> tuple[Any, str]:
+    rule, _ = template.cell_constraints(result.row, result.column)
+    numeric = bool(rule and rule.value_format in {"numeric", "integer", "complex_numeric"}
+                   and not template.is_label_cell(result.column))
+    value = _excel_value(result.final_text, numeric=numeric)
+    number_format = "General"
+    if numeric and isinstance(value, (float, int)):
+        places = rule.decimal_places
+        if places is None:
+            normalized = result.final_text.strip().replace(",", ".").replace("−", "-")
+            places = max(0, -Decimal(normalized).as_tuple().exponent)
+        number_format = "0." + "0" * places if places else "0"
+    return value, number_format
 
 
 def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> None:
@@ -92,8 +103,9 @@ def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> N
             is_excluded_value = bool(
                 result and (result.status == "excluded" or (excluded and column >= job.template.row_label_columns))
             )
-            value = None if result is None or is_excluded_value else _excel_value(result.final_text)
+            value, number_format = (None, "General") if result is None or is_excluded_value else _cell_value(result, job.template)
             cell = sheet.cell(row=row + 1, column=column + 1, value=value)
+            cell.number_format = number_format
             cell.border = grid_border
             cell.alignment = Alignment(horizontal="center", vertical="center")
             if _is_header_cell(job.template, row, column):
@@ -104,8 +116,6 @@ def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> N
                 cell.font = Font(bold=True, color="1F2937")
             elif is_excluded_value:
                 cell.fill = excluded_fill
-            if isinstance(value, float):
-                cell.number_format = "0.0" if result and any(mark in result.final_text for mark in ".,") else "0.########"
 
     column_spans = [
         job.template.column_guides[index + 1] - job.template.column_guides[index]
@@ -140,10 +150,13 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
     if job.unresolved_count:
         raise ValueError(tr('{p0} values still need review', p0=job.unresolved_count))
     for page in job.pages:
+        for region in job.template.fields:
+            if region.hard_errors(_field_result(page, region)):
+                raise ValueError(tr('Поле «{p0}» не соответствует правилу: {p1}', p0=region.name, p1=region.constraints().summary()))
         for cell in page.cells:
-            if cell.applied_rule and cell.status != "excluded" and cell.row not in page.excluded_rows:
-                rule, name = job.template.value_constraints(cell.row, cell.column)
-                if rule.hard_errors(cell.final_text):
+            if cell.status != "excluded" and cell.row not in page.excluded_rows:
+                rule, name = job.template.cell_constraints(cell.row, cell.column)
+                if rule and rule.hard_errors(cell.final_text):
                     raise ValueError(tr('R{p0}C{p1}: значение не соответствует правилу «{p2}»', p0=cell.row + 1, p1=cell.column + 1, p2=name))
 
     target_path = Path(target)
@@ -213,8 +226,10 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
                 record = [job.source_name, page.page_index + 1, *[repeated_values[name] for name in repeated_names]]
                 if group_regions:
                     record.append(_group_value(page, group_regions, column))
-                record.extend([row_label, measurement, _excel_value(result.final_text), result.status, round(result.confidence, 4)])
+                value, number_format = _cell_value(result, job.template)
+                record.extend([row_label, measurement, value, result.status, round(result.confidence, 4)])
                 data_sheet.append(record)
+                data_sheet.cell(data_sheet.max_row, headers.index("Value") + 1).number_format = number_format
 
     for page in job.pages:
         _add_layout_sheet(workbook, page, job)
@@ -274,10 +289,20 @@ def _save_workbook(workbook: Workbook, target_path: Path) -> Path:
             for cell in row:
                 if isinstance(cell.value, str):
                     cell.data_type = "s"
-    workbook.save(target_path)
-    load_workbook(target_path, read_only=True, data_only=False).close()
-    with ZipFile(target_path) as archive:
-        broken_member = archive.testzip()
-        if broken_member:
-            raise ValueError(tr('Повреждён внутренний файл Excel: {p0}', p0=broken_member))
+    # Keep the previous export intact until the complete replacement is valid.
+    # Closing the temporary handle first also permits openpyxl to open it on Windows.
+    with NamedTemporaryFile(prefix=f".{target_path.stem}-", suffix=".xlsx", dir=target_path.parent, delete=False) as temporary:
+        pending = Path(temporary.name)
+    try:
+        workbook.save(pending)
+        load_workbook(pending, read_only=True, data_only=False).close()
+        with ZipFile(pending) as archive:
+            broken_member = archive.testzip()
+            if broken_member:
+                raise ValueError(tr('Повреждён внутренний файл Excel: {p0}', p0=broken_member))
+        with pending.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(pending, target_path)
+    finally:
+        pending.unlink(missing_ok=True)
     return target_path

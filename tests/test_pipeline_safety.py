@@ -39,8 +39,7 @@ def test_crossed_row_is_blank_by_default_but_ocr_proposal_is_retained(tmp_path, 
     cv2.putText(image, "34.4", (15, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
     class Engine:
         def recognize_cell(self, crop, numeric, constraints=None, retry_crops=None):
-            assert numeric
-            assert len(retry_crops) == 2
+            assert len(retry_crops) == 2 if numeric else retry_crops is None
             return OcrValue("34.4", .99, "344", ["numeric_verification_required"], "I34.4")
     monkeypatch.setattr("tablescan_local.pipeline.detect_crossed_rows", lambda *args: [1])
     result = process_page(image, "source.png", 0, template, Engine(), crop_directory=tmp_path)

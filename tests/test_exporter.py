@@ -203,6 +203,7 @@ def test_compact_still_enforces_review_and_preserves_text_and_exclusions(tmp_pat
         export_job(job, tmp_path / "blocked-compact.xlsx", mode="compact")
     item.status = "confirmed"
     item.final_text = "=1+1"
+    job.template.column_rules[1].value_format = "text"
     job.pages[0].excluded_rows = [2]
     for mode in ("compact", "extended"):
         wb = load_workbook(export_job(job, tmp_path / f"{mode}.xlsx", mode=mode), data_only=False)

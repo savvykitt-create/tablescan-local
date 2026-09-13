@@ -9,7 +9,7 @@ from .components import connected_components
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .domain import NormalizedRect, TableTemplate
 
@@ -62,7 +62,7 @@ def load_document(path: str | Path, scale: float = 3.0) -> list[np.ndarray]:
         frame_count = getattr(image, "n_frames", 1)
         for index in range(frame_count):
             image.seek(index)
-            rgb = np.asarray(image.convert("RGB"))
+            rgb = np.asarray(ImageOps.exif_transpose(image).convert("RGB"))
             frames.append(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
         return frames
 
