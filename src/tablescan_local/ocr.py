@@ -588,7 +588,19 @@ class LocalOcrEngine:
             constraints = ValueConstraints("numeric") if getattr(self, "_high_accuracy", False) else None
             return self.recognize_cell(crop, numeric=True, constraints=constraints)
         if self._ink_ratio(crop) < 0.008:
-            return OcrValue("", 1.0, flags=[])
+            # A short note or a single-character unit can occupy very little
+            # of a wide metadata field. Measure real components before calling
+            # it blank; global ink density alone silently discarded such text.
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+            _, _, stats, _ = connected_components(np.uint8(gray < 170) * 255)
+            ink = [s for s in stats[1:] if int(s[cv2.CC_STAT_AREA]) >= 12 and int(s[cv2.CC_STAT_HEIGHT]) >= 4]
+            if not ink:
+                return OcrValue("", 1.0, flags=[])
+            x1 = max(0, min(int(s[0]) for s in ink) - 8)
+            y1 = max(0, min(int(s[1]) for s in ink) - 8)
+            x2 = min(gray.shape[1], max(int(s[0]+s[2]) for s in ink) + 8)
+            y2 = min(gray.shape[0], max(int(s[1]+s[3]) for s in ink) + 8)
+            crop = crop[y1:y2, x1:x2]
         # Page orientation is set by the user. Short handwritten tokens such
         # as W6 can be incorrectly flipped to 6M by the angle classifier.
         result, _ = self._engine(crop, use_cls=False)

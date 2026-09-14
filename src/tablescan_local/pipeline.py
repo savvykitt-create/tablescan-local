@@ -218,6 +218,8 @@ def process_document(
     high_accuracy: bool = True,
     slow_mode: bool = False,
 ) -> JobResult:
+    from .template_fit import fit_document_template
+    template = fit_document_template(template, images)
     slow_config = None
     if slow_mode:
         from .slow_mode import runtime_config

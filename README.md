@@ -1,5 +1,21 @@
 # TableScan Local
 
+## Laboratory templates and printable Excel forms
+
+**Von Frey, Plantar and Staircase** are available automatically on first launch.
+Each has an editable Excel form with 20 numbered animals, blue L headers,
+peach R headers and a wide Notes column. Insert or delete whole data rows
+inside the Excel table; the same OCR template fits 5, 10, 15, 20, 30 or 40
+animals when the columns and uniform row heights are preserved.
+
+Download the forms ZIP from the [latest release](https://github.com/savvykitt-create/tablescan-local/releases/latest),
+or use the [XLSX files](examples/lab_forms_excel/xlsx),
+[JSON templates](examples/lab_forms_excel/templates) and
+[printing and export instructions](examples/lab_forms_excel/README_RU.md).
+Print landscape A4, fill by hand, scan the complete page, apply the matching
+template, review OCR and export the populated table to Excel. Handwriting
+still requires review. Different row counts within one PDF need separate jobs.
+
 **Turn scanned or photographed tables into editable Excel workbooks.**
 
 TableScan reads printed and handwritten values, lets you check them against the

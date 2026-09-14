@@ -131,6 +131,7 @@ class TableTemplate:
     family_id: str = ""
     reference_source_path: str = ""
     reference_page_aspect: float | None = None
+    auto_fit_rows: bool = False
 
     def __post_init__(self) -> None:
         if not self.family_id:
@@ -285,6 +286,7 @@ class TableTemplate:
             family_id=str(data.get("family_id") or data["id"]),
             reference_source_path=str(data.get("reference_source_path", "")),
             reference_page_aspect=(float(data["reference_page_aspect"]) if data.get("reference_page_aspect") is not None else None),
+            auto_fit_rows=bool(data.get("auto_fit_rows", False)),
         )
 
 

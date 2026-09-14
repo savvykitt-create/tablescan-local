@@ -1,4 +1,21 @@
 {
+"Сохранить шаблон": {"en":"Save template","cs":"Uložit šablonu","ru":"Сохранить шаблон"},
+"{p0} — совпадение {p1}%\n": {"en": "{p0} — match {p1}%\n", "cs": "{p0} — shoda {p1}%\n", "ru": "{p0} — совпадение {p1}%\n"},
+"{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}": {"en": "{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}", "cs": "{p0}\nMřížka: {p1} × {p2} · Oblasti: {p3} · Vzor: {p4}", "ru": "{p0}\nСетка: {p1} × {p2} · Области: {p3} · Образец: {p4}"},
+"Шаблон сохранён: {p0}": {"en": "Template saved: {p0}", "cs": "Šablona uložena: {p0}", "ru": "Шаблон сохранён: {p0}"},
+"Будет удалён шаблон «{p0}». Обработанные документы сохранятся.": {"en": "Template “{p0}” will be deleted. Processed documents will be kept.", "cs": "Šablona „{p0}“ bude smazána. Zpracované dokumenty zůstanou zachovány.", "ru": "Будет удалён шаблон «{p0}». Обработанные документы сохранятся."},
+
+"число строк будет подогнано": {"en":"row count will be fitted","cs":"počet řádků bude přizpůsoben","ru":"число строк будет подогнано"},
+"Импорт JSON": {"en":"Import JSON","cs":"Import JSON","ru":"Импорт JSON"},
+"Автоматически подгонять строки шаблона": {"en":"Automatically fit template rows","cs":"Automaticky přizpůsobit řádky šablony","ru":"Автоматически подгонять строки шаблона"},
+"Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.": {"en":"For regular grids: detects rows and aligns rules and fields. Columns must match.","cs":"Pro pravidelné tabulky: rozpozná řádky a přizpůsobí pravidla i pole. Sloupce se musí shodovat.","ru":"Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать."},
+"Подогнать шаблон к таблице": {"en":"Fit template to table","cs":"Přizpůsobit šablonu tabulce","ru":"Подогнать шаблон к таблице"},
+"Подгонка требует проверки": {"en":"Fit needs checking","cs":"Přizpůsobení vyžaduje kontrolu","ru":"Подгонка требует проверки"},
+"Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля.": {"en":"Fitted: {p0} data rows. Check grid and fields.","cs":"Přizpůsobeno: {p0} datových řádků. Zkontrolujte mřížku a pole.","ru":"Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля."},
+" · Автоподгонка: {p0} строк данных. Проверьте сетку и поля.": {"en":" · Auto-fit: {p0} data rows. Check grid and fields.","cs":" · Automaticky přizpůsobeno: {p0} datových řádků. Zkontrolujte mřížku a pole.","ru":" · Автоподгонка: {p0} строк данных. Проверьте сетку и поля."},
+"Импорт шаблона": {"en":"Import template","cs":"Importovat šablonu","ru":"Импорт шаблона"},
+"Шаблон не импортирован": {"en":"Template not imported","cs":"Šablona nebyla importována","ru":"Шаблон не импортирован"},
+"Шаблон импортирован: {p0}": {"en":"Template imported: {p0}","cs":"Šablona importována: {p0}","ru":"Шаблон импортирован: {p0}"},
   "Добавьте изображения таблиц": {
     "en": "Add table images",
     "cs": "Přidejte obrázky tabulek",

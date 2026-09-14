@@ -62,6 +62,14 @@ def rank_templates(
         column_score = _count_similarity(len(detection.column_guides) - 1, template.columns)
         rect_score = _rect_similarity(template, detection)
         row_shape = _guide_similarity(template.row_guides, detection.row_guides)
+        if template.auto_fit_rows:
+            from .template_fit import fit_template
+            try:
+                fit_template(template, detection, page_aspect)
+            except ValueError:
+                pass
+            else:
+                row_score = row_shape = 1.0
         column_shape = _guide_similarity(template.column_guides, detection.column_guides)
         if template.reference_page_aspect:
             aspect_score = max(0.0, 1.0 - abs(page_aspect - template.reference_page_aspect) / max(page_aspect, template.reference_page_aspect))
@@ -73,7 +81,8 @@ def rank_templates(
         )
         reasons = [
             tr('сетка {p0}×{p1}', p0=template.rows, p1=template.columns),
-            tr('число строк совпадает') if row_score == 1 else tr('число строк отличается'),
+            tr('число строк совпадает') if len(detection.row_guides) == len(template.row_guides) else
+            (tr('число строк будет подогнано') if template.auto_fit_rows and row_score == 1 else tr('число строк отличается')),
             tr('число столбцов совпадает') if column_score == 1 else tr('число столбцов отличается'),
         ]
         if aspect_score > .9:
@@ -82,4 +91,3 @@ def rank_templates(
             reasons.append(tr('положение таблицы похоже'))
         matches.append(TemplateMatch(template, round(max(0.0, min(1.0, score)), 4), tuple(reasons)))
     return sorted(matches, key=lambda item: item.score, reverse=True)
-

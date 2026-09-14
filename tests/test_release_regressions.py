@@ -32,6 +32,11 @@ def warnings(monkeypatch):
 
 @pytest.fixture
 def window(qtbot, monkeypatch, tmp_path, warnings):
+    from tablescan_local.ui import TemplateChoiceDialog
+    def choose_new(dialog):
+        dialog.list.setCurrentRow(0)
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(TemplateChoiceDialog, 'exec', choose_new)
     monkeypatch.setenv("TABLESCAN_DATA_DIR", str(tmp_path / "data"))
     _, window = create_application()
     qtbot.addWidget(window)

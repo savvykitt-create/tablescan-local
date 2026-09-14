@@ -62,7 +62,7 @@ def test_start_uses_current_form_not_stale_argument_and_snapshots_worker(qtbot,m
     assert w.store.load_draft(w.job_id).cell_rules[0].constraints.maximum==75
     w.table_page.quick_maximum.setText('80')
     assert captured[0].template.cell_rules[0].constraints.maximum==75
-    assert w.store.load_templates()[0].cell_rules[0].constraints.maximum==60
+    assert next(t for t in w.store.load_templates() if t.id == old.id).cell_rules[0].constraints.maximum==60
     w.progress_dialog.close();w._recognition_cancelled()
 
 

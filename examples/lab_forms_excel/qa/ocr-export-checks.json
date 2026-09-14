@@ -1,0 +1,47 @@
+[
+  {
+    "test": "plantar",
+    "data_cells": 60,
+    "correct": 60,
+    "errors": [],
+    "field_errors": [
+      {
+        "field": "Operator",
+        "expected": "SA",
+        "actual": "S −"
+      }
+    ],
+    "export_verified": true,
+    "reviewed_before_export": true
+  },
+  {
+    "test": "staircase",
+    "data_cells": 90,
+    "correct": 90,
+    "errors": [],
+    "field_errors": [
+      {
+        "field": "Operator",
+        "expected": "SA",
+        "actual": "S −"
+      }
+    ],
+    "export_verified": true,
+    "reviewed_before_export": true
+  },
+  {
+    "test": "von_frey",
+    "data_cells": 60,
+    "correct": 60,
+    "errors": [],
+    "field_errors": [
+      {
+        "field": "Operator",
+        "expected": "SA",
+        "actual": "S −"
+      }
+    ],
+    "export_verified": true,
+    "reviewed_before_export": true
+  }
+]

@@ -30,6 +30,7 @@ from .pipeline import process_document, suggest_standard_fields
 from .storage import LocalStore
 from .theme import apply_theme, colors, set_theme_style
 from .template_matcher import TemplateMatch, rank_templates
+from .template_fit import fit_document_template, fit_template
 
 
 BLUE = "#4F46E5"
@@ -750,7 +751,7 @@ class TemplateChoiceDialog(QDialog):
         for match in matches:
             percent = round(match.score * 100)
             item = QListWidgetItem(
-                tr('{p0} · v{p1} — совпадение {p2}%\n', p0=match.template.name, p1=match.template.template_version, p2=percent)
+                tr('{p0} — совпадение {p1}%\n', p0=match.template.name, p1=percent)
                 + join_text('; ', match.reasons)
             )
             item.setData(Qt.ItemDataRole.UserRole, match.template.id)
@@ -791,6 +792,7 @@ class TemplateChoiceDialog(QDialog):
 
 class TemplateLibraryPage(QWidget):
     createRequested = Signal()
+    importRequested = Signal()
     openRequested = Signal(str)
     duplicateRequested = Signal(str)
     deleteRequested = Signal(str)
@@ -807,6 +809,9 @@ class TemplateLibraryPage(QWidget):
         title_box.addWidget(title); title_box.addWidget(subtitle)
         create = QPushButton(tr('Создать из образца')); create.setProperty("primary", True); create.clicked.connect(self.createRequested)
         header.addLayout(title_box); header.addStretch(); header.addWidget(create)
+        import_button = QPushButton(tr('Импорт JSON'))
+        import_button.clicked.connect(self.importRequested)
+        header.addWidget(import_button)
         layout.addLayout(header)
         self.list = QListWidget()
         self.list.setSpacing(5)
@@ -826,7 +831,12 @@ class TemplateLibraryPage(QWidget):
             signal.emit(str(item.data(Qt.ItemDataRole.UserRole)))
 
     def set_templates(self, templates: list[TableTemplate]) -> None:
-        ordered = sorted(templates, key=lambda item: (item.name.casefold(), -item.template_version))
+        latest = {}
+        for template in templates:
+            key = template.family_id or template.id
+            if key not in latest or template.template_version > latest[key].template_version:
+                latest[key] = template
+        ordered = sorted(latest.values(), key=lambda item: item.name.casefold())
         signature = tuple((item.id, item.template_version, item.name, len(item.cell_rules)) for item in ordered)
         if signature == self._template_signature:
             return
@@ -837,7 +847,7 @@ class TemplateLibraryPage(QWidget):
         for template in ordered:
             sample = tr('есть') if template.reference_source_path and Path(template.reference_source_path).exists() else tr('нет')
             item = QListWidgetItem(
-                tr('{p0} · v{p1}\nGrid: {p2} × {p3} · Regions: {p4} · Sample: {p5}', p0=template.name, p1=template.template_version, p2=template.rows, p3=template.columns, p4=len(template.cell_rules), p5=sample)
+                tr('{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}', p0=template.name, p1=template.rows, p2=template.columns, p3=len(template.cell_rules), p4=sample)
             )
             item.setData(Qt.ItemDataRole.UserRole, template.id)
             self.list.addItem(item)
@@ -883,7 +893,7 @@ class TablePage(QWidget):
         if mode == "template":
             validate = QPushButton(tr('Проверить шаблон'))
             validate.clicked.connect(self._validate_template)
-            save_version = QPushButton(tr('Сохранить новую версию'))
+            save_version = QPushButton(tr('Сохранить шаблон'))
             save_version.setProperty("primary", True)
             save_version.clicked.connect(self._continue)
             header.addWidget(validate); header.addWidget(save_version)
@@ -965,6 +975,13 @@ class TablePage(QWidget):
                 label.hide()
         layout.addLayout(form)
         layout.addWidget(self.crossed)
+        self.auto_fit_rows = QCheckBox(tr('Автоматически подгонять строки шаблона'))
+        self.auto_fit_rows.setToolTip(tr('Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.'))
+        self.auto_fit_rows.toggled.connect(self._save_common)
+        layout.addWidget(self.auto_fit_rows)
+        fit_grid = QPushButton(tr('Подогнать шаблон к таблице'))
+        fit_grid.clicked.connect(self.fit_current_grid)
+        layout.addWidget(fit_grid)
         layout.addWidget(self.high_accuracy)
         self.slow_mode = QCheckBox(tr('Slow mode — дополнительная перепроверка'))
         self.slow_mode.setToolTip(tr('Две дополнительные модели перепроверяют спорные измерения. Время зависит от компьютера и размера таблицы; на CPU проверка может быть длительной. Всё работает локально; исправления остаются доступными для проверки.'))
@@ -1567,7 +1584,7 @@ class TablePage(QWidget):
         self.template = template
         resized_rules = template.resize_grid(template.rows, template.columns)
         self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(resized_rules)) if resized_rules else '')
-        self.version_label.setText(fmt('v{p0}', p0=template.template_version))
+        self.version_label.clear()
         saved_index = self.saved_template_select.findData(template.id)
         self.saved_template_select.setCurrentIndex(max(0, saved_index))
         template.ensure_column_rules()
@@ -1578,6 +1595,7 @@ class TablePage(QWidget):
         self.header_rows_spin.setValue(template.header_rows)
         self.row_labels_spin.setValue(template.row_label_columns)
         self.crossed.setChecked(template.detect_crossed_rows)
+        self.auto_fit_rows.setChecked(template.auto_fit_rows)
         self._loading_form = False
         self._refresh_fields()
         self._refresh_columns()
@@ -1607,6 +1625,7 @@ class TablePage(QWidget):
         self.template.header_rows = min(self.header_rows_spin.value(), max(0, self.template.rows - 1))
         self.template.row_label_columns = min(self.row_labels_spin.value(), max(0, self.template.columns - 1))
         self.template.detect_crossed_rows = self.crossed.isChecked()
+        self.template.auto_fit_rows = self.auto_fit_rows.isChecked()
         self.template.ensure_column_rules()
         for index in range(min(self.template.row_label_columns, len(self.template.column_rules))):
             self.template.column_rules[index].role = "row_label"
@@ -1636,6 +1655,18 @@ class TablePage(QWidget):
             self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(changes)))
         self.canvas.redraw()
         self.templateChanged.emit(self.template)
+
+    def fit_current_grid(self) -> None:
+        if self.image is None or self.template is None or not self.prepare_current_settings():
+            return
+        try:
+            fitted = fit_template(self.template, detect_grid(self.image), self.image.shape[1]/self.image.shape[0])
+        except ValueError as exc:
+            QMessageBox.warning(self, tr('Подгонка требует проверки'), str(exc))
+            return
+        self.set_document(self.image, fitted)
+        self.grid_warning.setText(tr('Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля.', p0=fitted.rows-fitted.header_rows))
+        self.templateChanged.emit(fitted)
 
     def detect_again(self) -> None:
         if self.image is None:
@@ -2671,6 +2702,7 @@ class MainWindow(QMainWindow):
             QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
         )
         self.store = LocalStore(app_root)
+        self.store.install_default_templates()
         self.preferences = QSettings(str(app_root / "preferences.ini"), QSettings.Format.IniFormat)
         set_language(str(self.preferences.value("appearance/language", "en")))
         apply_theme(QApplication.instance(), str(self.preferences.value("appearance/theme", "light")))
@@ -2796,6 +2828,7 @@ class MainWindow(QMainWindow):
         self.templates_stack = CurrentPageStack()
         self.template_library = TemplateLibraryPage()
         self.template_library.createRequested.connect(self.create_template_from_sample)
+        self.template_library.importRequested.connect(self.import_template_json)
         self.template_library.openRequested.connect(self.open_template_editor)
         self.template_library.duplicateRequested.connect(self.duplicate_template)
         self.template_library.deleteRequested.connect(self.delete_template)
@@ -2984,7 +3017,7 @@ class MainWindow(QMainWindow):
             self.template_editor.set_document(image, saved)
         except Exception:
             pass
-        notify(self, tr('Сохранена версия v{p0}. Предыдущие версии не изменены.', p0=saved.template_version))
+        notify(self, tr('Шаблон сохранён: {p0}', p0=saved.name))
 
     def _save_document_template_version(self, template: TableTemplate) -> None:
         if not self.images:
@@ -3002,7 +3035,7 @@ class MainWindow(QMainWindow):
         self.table_page.set_document(self.images[0], saved)
         self._refresh_templates()
         self.template_library.select_template(saved.id)
-        notify(self, tr('Создана версия v{p0}: {p1}', p0=saved.template_version, p1=saved.name))
+        notify(self, tr('Шаблон сохранён: {p0}', p0=saved.name))
 
     def duplicate_template(self, template_id: str) -> None:
         template = next((item for item in self.store.load_templates() if item.id == template_id), None)
@@ -3017,10 +3050,36 @@ class MainWindow(QMainWindow):
             return
         answer = QMessageBox.question(
             self, tr('Удалить шаблон?'),
-            tr('Будет удалена только версия v{p0} шаблона «{p1}». Обработанные документы сохранятся.', p0=template.template_version, p1=template.name),
+            tr('Будет удалён шаблон «{p0}». Обработанные документы сохранятся.', p0=template.name),
         )
         if answer == QMessageBox.StandardButton.Yes:
             self.store.delete_template(template_id); self._refresh_templates()
+
+    def import_template_json(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(self, tr('Импорт шаблона'), '', 'TableScan (*.json)')
+        if not path:
+            return
+        try:
+            template = TableTemplate.from_dict(json.loads(Path(path).read_text(encoding='utf-8')))
+            if not (1 <= template.rows <= 200 and 1 <= template.columns <= 100):
+                raise ValueError('Invalid grid size')
+            for axis in (template.row_guides, template.column_guides):
+                if not all(np.isfinite(v) and 0 <= v <= 1 for v in axis) or any(a >= b for a, b in zip(axis, axis[1:])):
+                    raise ValueError('Invalid grid coordinates')
+            template.validate_value_rules()
+            # Imported identifiers and local sample paths never become filesystem paths.
+            template.id = template.family_id = str(uuid4())
+            template.reference_source_path = ''
+            template.template_version = 1
+            for region in [*template.fields, *template.cell_rules]:
+                region.id = str(uuid4())
+            self.store.save_template(template)
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Шаблон не импортирован'), str(exc))
+            return
+        self._refresh_templates()
+        self.template_library.select_template(template.id)
+        notify(self, tr('Шаблон импортирован: {p0}', p0=template.name))
 
     def choose_files(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(self, tr('Открыть изображения таблиц'), "", tr('Документы (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)'))
@@ -3064,6 +3123,7 @@ class MainWindow(QMainWindow):
             if chosen_template:
                 template = TableTemplate.from_dict(chosen_template.to_dict())
                 images = rotate_document(images, template.rotation_degrees)
+                template = fit_document_template(template, images)
             else:
                 template = self._new_template(path, str(copied), images, detection)
             template.resize_grid(template.rows, template.columns)
@@ -3078,6 +3138,7 @@ class MainWindow(QMainWindow):
         if selected_match:
             self.table_page.grid_warning.setText(
                 tr('Template match: {p0}%', p0=round(selected_match.score * 100))
+                + (tr(' · Автоподгонка: {p0} строк данных. Проверьте сетку и поля.', p0=template.rows-template.header_rows) if template.auto_fit_rows else '')
             )
         else:
             self.table_page.grid_warning.setText(join_text(' ', detection.warnings) if detection else tr('Проверьте наложение сохранённого шаблона и число строк заголовка.'))
@@ -3229,8 +3290,14 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr('Шаблон недоступен'), tr('Не удалось загрузить сохранённый шаблон.'))
             return
         current_rotation = self.template.rotation_degrees if self.template else 0
-        self.images = rotate_document(self.images, template.rotation_degrees - current_rotation)
-        self.template = TableTemplate.from_dict(template.to_dict())
+        images = rotate_document(self.images, template.rotation_degrees - current_rotation)
+        try:
+            fitted = fit_document_template(template, images)
+        except ValueError as exc:
+            QMessageBox.warning(self, tr('Подгонка требует проверки'), str(exc))
+            return
+        self.images = images
+        self.template = fitted
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
         self._template_changed(self.template)

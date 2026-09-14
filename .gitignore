@@ -31,3 +31,9 @@ docs/design/
 :memory:*
 
 !src/tablescan_local/assets/*.png
+!src/tablescan_local/default_templates/*.pdf
+!src/tablescan_local/default_templates/*.xlsx
+!examples/lab_forms_excel/xlsx/*.xlsx
+!examples/lab_forms_excel/fixtures/*.pdf
+!examples/lab_forms_excel/qa/
+!examples/lab_forms_excel/qa/*.json

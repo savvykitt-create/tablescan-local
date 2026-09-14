@@ -12,6 +12,19 @@ from .domain import JobResult, TableTemplate
 
 
 class LocalStore:
+    def install_default_templates(self) -> None:
+        """Seed bundled forms once; retain user edits and intentional deletions."""
+        marker = self.root / '.default-templates-installed'
+        if marker.exists():
+            return
+        bundled = Path(__file__).parent / 'default_templates'
+        existing_families = {item.family_id for item in self.load_templates()}
+        for path in sorted(bundled.glob('*.json')):
+            template = TableTemplate.from_dict(json.loads(path.read_text(encoding='utf-8')))
+            if template.family_id not in existing_families:
+                self.save_template(template, bundled / f'{path.stem}.pdf')
+        marker.write_text('installed\n', encoding='utf-8')
+
     def __init__(self, root: Path) -> None:
         self.root = root
         self.jobs_dir = root / "jobs"
