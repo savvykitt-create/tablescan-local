@@ -1012,7 +1012,7 @@ class TablePage(QWidget):
         layout.addWidget(settings_note)
         layout.addWidget(detect)
         layout.addWidget(redraw)
-        save_as_template = QPushButton(tr('Сохранить как новую версию шаблона'))
+        save_as_template = QPushButton(tr('Сохранить шаблон'))
         save_as_template.clicked.connect(self._save_current_template)
         save_as_template.setVisible(self.mode != "template")
         layout.addWidget(save_as_template)
