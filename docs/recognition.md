@@ -1,6 +1,6 @@
 # Recognition implementation
 
-This describes the implementation shipped in 0.7.13. The
+This describes the current implementation. The
 [README diagrams](../README.md#how-recognition-works) show the model interactions.
 Model files and hashes are listed in the [model manifest](../src/tablescan_local/models/README.md).
 
@@ -15,8 +15,9 @@ OpenCV crops each cell with alternative grid-aware boundaries. Blank detection
 checks all available source crops so a clipped primary crop does not alone erase
 a digit. A numeric cell containing only empty/strike evidence returns an empty
 proposal before numeric decoding. Geometric cancellation detection precedes OCR;
-non-numeric mark consensus across a row is evaluated after OCR. Excluded
-measurements retain their OCR proposals for reversible review.
+non-numeric mark consensus across a row is evaluated after OCR. These checks flag
+suspected crossings without automatically excluding rows. Manual row and column
+exclusions retain values for reversible review.
 
 Text cells use PP-OCRv5 Server on normal and thresholded crops. Free-text fields
 use RapidOCR's bundled `ch_PP-OCRv4_det_infer.onnx` detector followed by the
