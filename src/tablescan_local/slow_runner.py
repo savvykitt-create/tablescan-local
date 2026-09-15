@@ -22,6 +22,9 @@ def prepare_record(record, kind):
     from PIL import Image, ImageOps
     with Image.open(record['image']) as source:
         image = ImageOps.expand(source.convert('RGB'), border=12, fill='white')
+    if kind == 'qwen' and record.get('cell'):
+        return image, ('Transcribe this single table cell exactly. Return only a JSON array containing '
+                       'one string, or null if blank or unreadable. Do not infer or correct digits.'), 128
     if kind == 'qwen':
         task = (f'Transcribe this table exactly. The left margin contains row positions 1 through {record["rows"]}. '
                 f'Return only a JSON array with one object for every row: {{"row": integer, "values": [{record["columns"]} strings or null]}}. '

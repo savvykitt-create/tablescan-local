@@ -2759,6 +2759,7 @@ class MainWindow(QMainWindow):
         self.queue_dialog = AnalysisQueueDialog(self.analysis_queue, self)
         self.queue_dialog.reviewRequested.connect(lambda job_id: self.open_recent(job_id, prefer_result=True))
         self.queue_dialog.prepareRequested.connect(self.prepare_batch)
+        self.queue_dialog.exportReadyRequested.connect(self.export_ready_files)
         self.analysis_queue.changed.connect(self._queue_changed)
         self.analysis_queue.resultSaved.connect(self._queue_result_saved)
         self._queue_changed()
@@ -3138,15 +3139,18 @@ class MainWindow(QMainWindow):
     def prepare_batch(self, paths: list[str]) -> None:
         from .template_matcher import latest_template_versions
         templates = latest_template_versions(self.store.load_templates())
-        if not templates:
-            QMessageBox.warning(self, tr('Analysis queue'), tr('Save a template before starting a batch.'))
-            return
         from .batch_dialog import BatchPreparationDialog
         dialog = BatchPreparationDialog(paths, templates,
-                                        lambda: TablePage(mode="template", private_copy=True), self)
+                                        lambda: TablePage(mode="template", private_copy=True), self,
+                                        save_template=self._save_batch_template)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.enqueue_prepared_files(dialog.jobs, *dialog.analysis_options, preparations=dialog.preparations)
         dialog.deleteLater()
+
+    def _save_batch_template(self, template, source):
+        saved = self.store.save_template_version(template, source)
+        self._refresh_templates()
+        return saved
 
     def enqueue_files(self, paths, template, high_accuracy=True, slow_mode=False):
         self.enqueue_prepared_files([(path, template) for path in paths], high_accuracy, slow_mode)
@@ -3531,6 +3535,44 @@ class MainWindow(QMainWindow):
             self.analysis_queue.review_updated(self.job_id, result)
         self.refresh_recent()
         self._update_steps()
+
+    def export_ready_files(self) -> None:
+        entries = [dict(entry) for entry in self.analysis_queue.entries if entry['status'] == 'ready']
+        if not entries:
+            return
+        options = ExportOptionsDialog(str(self.preferences.value("export/mode", "compact")), self)
+        if options.exec() != QDialog.DialogCode.Accepted:
+            return
+        folder = QFileDialog.getExistingDirectory(self, tr('Export all ready files…'), str(Path.home()))
+        if not folder:
+            return
+        saved_paths, errors = [], []
+        for entry in entries:
+            try:
+                saved_job = self.store.load_job(entry['job_id'])
+                if not saved_job or saved_job[1] is None:
+                    raise ValueError(tr('Saved result is unavailable.'))
+                result = saved_job[1]
+                if result.unresolved_count:
+                    self.analysis_queue.review_updated(entry['job_id'], result)
+                    continue
+                stem = Path(entry['source_path']).stem + '-recognized'
+                target = Path(folder) / (stem + '.xlsx')
+                suffix = 2
+                while target.exists():
+                    target = Path(folder) / f'{stem}-{suffix}.xlsx'
+                    suffix += 1
+                saved_paths.append(export_job(result, target, mode=options.mode))
+                self.analysis_queue.exported(entry['job_id'])
+            except Exception as exc:
+                errors.append(f"{Path(entry['source_path']).name}: {exc}")
+        self.preferences.setValue("export/mode", options.mode)
+        self._update_steps()
+        message = str(tr('Exported {p0} files to {p1}.', p0=len(saved_paths), p1=folder))
+        if errors:
+            QMessageBox.warning(self, tr('Ошибка экспорта'), message + '\n\n' + '\n'.join(errors))
+        else:
+            notify(self, message)
 
     def export_current(self) -> None:
         if not self.result:

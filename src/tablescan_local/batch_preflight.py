@@ -70,6 +70,28 @@ def assess_geometry(template, pages, *, auto_fit=True):
                          preview_template=first, fit_status='fitted' if auto_fit else 'manual')
 
 
+def assess_orientations(template, geometry):
+    candidates = []
+    for rotation, pages in geometry.items():
+        oriented = TableTemplate.from_dict(template.to_dict())
+        oriented.rotation_degrees = rotation
+        result = assess_geometry(oriented, pages)
+        result.rotation_degrees = rotation
+        result.preview_template = result.template or oriented
+        candidates.append(result)
+    candidates.sort(key=lambda c: (c.template is not None, c.score if c.score is not None else -1), reverse=True)
+    best = candidates[0]
+    valid = [c for c in candidates if c.template is not None]
+    if len(valid) > 1 and (valid[0].score or 0) - (valid[1].score or 0) < 4:
+        best.error = str(tr('Orientation is uncertain. Open the file and check which side is up.'))
+        best.template = None
+        best.fit_status = 'needs_review'
+    if best.template:
+        best.reasons.insert(0, str(tr('Auto-fit applied: {p0} rows × {p1} columns.', p0=best.template.rows, p1=best.template.columns)))
+    best.reasons.insert(0, str(tr('Rotation: {p0}° counterclockwise.', p0=best.rotation_degrees)))
+    return best
+
+
 def prepare_file(path, templates, interrupted=lambda: False, progress=lambda message: None):
     item = PreparedFile(str(path))
     try:
@@ -97,25 +119,7 @@ def prepare_file(path, templates, interrupted=lambda: False, progress=lambda mes
         for template in templates:
             if interrupted():
                 raise InterruptedError()
-            candidates = []
-            for rotation, pages in item.geometry.items():
-                oriented = TableTemplate.from_dict(template.to_dict())
-                oriented.rotation_degrees = rotation
-                result = assess_geometry(oriented, pages)
-                result.rotation_degrees = rotation
-                result.preview_template = result.template or oriented
-                candidates.append(result)
-            candidates.sort(key=lambda c: (c.template is not None, c.score if c.score is not None else -1), reverse=True)
-            best = candidates[0]
-            valid = [c for c in candidates if c.template is not None]
-            if len(valid) > 1 and (valid[0].score or 0) - (valid[1].score or 0) < 4:
-                best.error = str(tr('Orientation is uncertain. Open the file and check which side is up.'))
-                best.template = None
-                best.fit_status = 'needs_review'
-            if best.template:
-                best.reasons.insert(0, str(tr('Auto-fit applied: {p0} rows × {p1} columns.', p0=best.template.rows, p1=best.template.columns)))
-            best.reasons.insert(0, str(tr('Rotation: {p0}° counterclockwise.', p0=best.rotation_degrees)))
-            item.assessments[template.id] = best
+            item.assessments[template.id] = assess_orientations(template, item.geometry)
     except InterruptedError:
         raise
     except Exception as exc:

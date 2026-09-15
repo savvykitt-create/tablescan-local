@@ -1,4 +1,5 @@
 """Frozen expanded-audit numeric/structure parsing; no ground-truth access."""
+import ast
 import json
 from decimal import Decimal, InvalidOperation
 import re
@@ -63,7 +64,16 @@ def row_values(text,count):
     try:
         data=json.loads(text)
         if isinstance(data,list) and len(data)==count:return data
-    except ValueError:pass
+    except ValueError:
+        # Some models emit Python-style lists with single quotes. Literal-only
+        # parsing accepts their structure without executing model output.
+        try:
+            data = ast.literal_eval(text)
+            if isinstance(data, list) and len(data) == count and all(
+                    value is None or type(value) in (str, int, float) for value in data):
+                return data
+        except (ValueError, SyntaxError, TypeError, RecursionError):
+            pass
     for token in ['$','\\(','\\)','\\[','\\]','`']:text=text.replace(token,' ')
     tokens=text.split()
     if len(tokens)==count and all(num(t) is not None for t in tokens):return tokens

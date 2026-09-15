@@ -259,3 +259,53 @@ def test_batch_failure_does_not_block_next_file(qtbot,tmp_path,monkeypatch):
     qtbot.waitUntil(lambda:window.analysis_queue.worker is None)
     assert [e['status'] for e in window.analysis_queue.entries]==['failed','ready']
     assert window.job_id==''
+
+
+def test_prepare_selected_emits_only_selected_source(qtbot, tmp_path):
+    from tablescan_local.queue_dialog import AnalysisQueueDialog
+    store = LocalStore(tmp_path / 'store')
+    queue = AnalysisQueue(store, lambda _: FakeWorker())
+    a = add_job(store, tmp_path, 'a.png'); b = add_job(store, tmp_path, 'b.png')
+    queue.enqueue(*a, template()); queue.enqueue(*b, template())
+    dialog = AnalysisQueueDialog(queue); qtbot.addWidget(dialog)
+    calls = []
+    dialog.prepareRequested.connect(calls.append)
+    dialog.table.selectRow(1)
+    dialog.prepare_selected_button.click()
+    qtbot.waitUntil(lambda: bool(calls))
+    assert calls == [[b[2]]]
+    assert [e['status'] for e in queue.entries] == ['running', 'queued']
+
+
+def test_export_all_ready_rechecks_results_and_avoids_overwrite(qtbot, tmp_path, monkeypatch):
+    from tablescan_local import ui
+    from openpyxl import load_workbook
+    monkeypatch.setenv('TABLESCAN_DATA_DIR', str(tmp_path / 'app'))
+    _, window = ui.create_application(); qtbot.addWidget(window)
+    folder = tmp_path / 'exports'; folder.mkdir()
+    existing = folder / 'scan-recognized.xlsx'; existing.write_bytes(b'keep me')
+    states = ['ready', 'ready', 'review', 'exported', 'failed', 'ready']
+    for index, state in enumerate(states):
+        source = tmp_path / str(index); source.mkdir()
+        job_id, path, copied = add_job(window.store, source, 'scan.png')
+        result = JobResult(path, template(), [PageResult(0, path, [
+            CellResult(1, 1, str(index), str(index), .9,
+                       flags=['model_disagreement'] if index in (2, 5) else [])], [])])
+        window.store.save_result(job_id, result)
+        window.analysis_queue.entries.append(dict(job_id=job_id, source_path=path, stored_path=copied,
+                                                  status=state, progress=100, message=''))
+    window.analysis_queue.persist(); window.queue_dialog.refresh()
+    assert window.queue_dialog.export_ready_button.isEnabled()
+    monkeypatch.setattr(ui.ExportOptionsDialog, 'exec', lambda _: ui.QDialog.DialogCode.Accepted)
+    monkeypatch.setattr(ui.QFileDialog, 'getExistingDirectory', lambda *a: str(folder))
+    notices = []
+    monkeypatch.setattr(ui, 'notify', lambda *a: notices.append(a[-1]))
+    window.export_ready_files()
+    assert existing.read_bytes() == b'keep me'
+    assert len(list(folder.glob('*.xlsx'))) == 3
+    for index in (2, 3):
+        wb = load_workbook(folder / f'scan-recognized-{index}.xlsx')
+        assert wb.active['B2'].value == index - 2
+        wb.close()
+    assert [e['status'] for e in window.analysis_queue.entries] == ['exported', 'exported', 'review', 'exported', 'failed', 'review']
+    assert notices and window.result is None

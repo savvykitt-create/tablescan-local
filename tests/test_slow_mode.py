@@ -117,3 +117,90 @@ def test_document_pipeline_uses_current_rules_and_runs_slow_on_every_page(tmp_pa
     constructor.assert_called_once_with(high_accuracy=True)
     assert [x[:2] for x in seen] == [(0, 42), (1, 42)]
     assert all(p.slow_mode['status'] == 'complete' for p in result.pages)
+
+
+def test_bad_row_width_recovers_only_eligible_cells_without_shifting(tmp_path, monkeypatch):
+    t, p = fixture_page()
+    p.excluded_rows = [1]
+    p.cell(0, 2).status = 'corrected'
+    calls = []
+    def model(kind, records, directory, config, progress):
+        calls.append((kind, records))
+        if len(calls) == 1:
+            # The real failure: one extra value in every Qwen row.
+            return [{'id': 'table', 'raw': '[{"row":1,"values":["37.6","37.6",""]}]'}]
+        if kind == 'qwen':
+            return [{'id': r['id'], 'raw': '["37.6"]'} for r in records]
+        return [{'id': r['id'], 'raw': '37.6 31.6'} for r in records]
+    monkeypatch.setattr(slow, 'run_model', model)
+    slow.refine_page(np.full((100, 200, 3), 255, np.uint8), p, t, tmp_path, {})
+    assert p.slow_mode['status'] == 'complete'
+    assert p.cell(0, 1).final_text == '37.6'
+    assert p.cell(0, 2).final_text == p.cell(1, 1).final_text == '31.6'
+    assert [r['id'] for r in calls[1][1]] == ['0:1']
+    assert p.cell(0, 1).needs_review
+
+
+def test_missing_glm_value_retries_exact_disputed_cells(tmp_path, monkeypatch):
+    t, p = fixture_page()
+    p.excluded_rows = [1]
+    calls = []
+    def model(kind, records, directory, config, progress):
+        calls.append((kind, records))
+        if kind == 'qwen':
+            return [{'id': 'table', 'raw': '[{"row":1,"values":["37.6","31.6"]}]'}]
+        return [{'id': r['id'], 'raw': '37.6'} for r in records]
+    monkeypatch.setattr(slow, 'run_model', model)
+    slow.refine_page(np.full((100, 200, 3), 255, np.uint8), p, t, tmp_path, {})
+    assert p.slow_mode['status'] == 'complete'
+    assert [r['id'] for r in calls[-1][1]] == ['0:1']
+    assert p.cell(0, 1).final_text == '37.6'
+    assert p.cell(0, 2).final_text == '31.6'
+    assert p.slow_mode['recovery']['glm_requested_cells'] == 1
+
+
+@pytest.mark.parametrize('failure', ['unreadable', 'crash', 'cancel'])
+def test_cell_recovery_failure_retains_primary_ocr(tmp_path, monkeypatch, failure):
+    t, p = fixture_page()
+    original = p.to_dict()['cells']
+    calls = []
+    def model(kind, records, directory, config, progress):
+        calls.append(kind)
+        if len(calls) == 1:
+            return [{'id': 'table', 'raw': 'unmatched table'}]
+        if failure == 'crash':
+            raise RuntimeError('recovery failed')
+        if failure == 'cancel':
+            raise InterruptedError
+        return [{'id': r['id'], 'raw': 'ambiguous 31.6 or 37.6'} for r in records]
+    monkeypatch.setattr(slow, 'run_model', model)
+    if failure == 'cancel':
+        with pytest.raises(InterruptedError):
+            slow.refine_page(np.full((100, 200, 3), 255, np.uint8), p, t, tmp_path, {})
+    else:
+        slow.refine_page(np.full((100, 200, 3), 255, np.uint8), p, t, tmp_path, {})
+        assert p.slow_mode['status'] == 'partial'
+    assert p.to_dict()['cells'] == original
+
+
+@pytest.mark.parametrize('text, expected', [("['50.5']", ['50.5']), ('["50.5"]', ['50.5']),
+                                            ("['50.5', '59.2']", None),
+                                            ("[__import__('os').getcwd()]", None)])
+def test_single_cell_model_list_formats(text, expected):
+    assert row_values(text, 1) == expected
+
+
+def test_out_of_range_model_reading_is_reported_and_never_applied(tmp_path, monkeypatch):
+    t, p = fixture_page()
+    p.excluded_rows = [1]
+    p.cell(0, 2).status = 'confirmed'
+    def model(kind, records, directory, config, progress):
+        if records[0]['id'] == 'table':
+            return [{'id': 'table', 'raw': '[{"row":1,"values":["99.9","31.6"]}]'}]
+        return [{'id': r['id'], 'raw': '["99.9"]'} for r in records]
+    monkeypatch.setattr(slow, 'run_model', model)
+    slow.refine_page(np.full((100, 200, 3), 255, np.uint8), p, t, tmp_path, {})
+    assert p.cell(0, 1).final_text == '31.6'
+    assert p.slow_mode['status'] == 'partial'
+    assert p.slow_mode['rule_rejections'] == [{'row': 0, 'column': 1, 'model': 'qwen'}]
+    assert 'Protocol rules rejected 1' in str(slow.completion_details([p.slow_mode]))

@@ -3223,5 +3223,60 @@
     "en": "Auto-fit: detected {detected} columns; the protocol has {expected}. Choose another protocol or adjust its columns.",
     "ru": "Автоподгонка: найдено {detected} столбцов, в протоколе — {expected}. Выберите другой протокол или исправьте его столбцы.",
     "cs": "Automatické přizpůsobení: nalezeno {detected} sloupců, protokol má {expected}. Vyberte jiný protokol nebo upravte jeho sloupce."
+  },
+  "Save as new template": {
+    "en": "Save as new template",
+    "ru": "Сохранить как новый шаблон",
+    "cs": "Uložit jako novou šablonu"
+  },
+  "Template saved": {
+    "en": "Template saved",
+    "ru": "Шаблон сохранён",
+    "cs": "Šablona uložena"
+  },
+  "Не удалось сохранить шаблон": {
+    "en": "Could not save template",
+    "ru": "Не удалось сохранить шаблон",
+    "cs": "Šablonu se nepodařilo uložit"
+  },
+  "Open the file to create and check its protocol.": {
+    "en": "Open the file to create and check its protocol.",
+    "ru": "Откройте файл, чтобы создать и проверить протокол.",
+    "cs": "Otevřete soubor pro vytvoření a kontrolu protokolu."
+  },
+  "Prepare selected file…": {
+    "en": "Prepare selected file…",
+    "ru": "Подготовить выбранный файл…",
+    "cs": "Připravit vybraný soubor…"
+  },
+  "Export all ready files…": {
+    "en": "Export all ready files…",
+    "ru": "Экспортировать все готовые файлы…",
+    "cs": "Exportovat všechny připravené soubory…"
+  },
+  "Saved result is unavailable.": {
+    "en": "Saved result is unavailable.",
+    "ru": "Сохранённый результат недоступен.",
+    "cs": "Uložený výsledek není k dispozici."
+  },
+  "Exported {p0} files to {p1}.": {
+    "en": "Exported {p0} files to {p1}.",
+    "ru": "Экспортировано файлов: {p0}. Папка: {p1}.",
+    "cs": "Exportováno {p0} souborů do {p1}."
+  },
+  "Blank protocol": {
+    "en": "Blank protocol",
+    "ru": "Чистый протокол",
+    "cs": "Prázdný protokol"
+  },
+  "Page {page}: slow verification incomplete after cell retries; Qwen has unreadable or rule-rejected values in {qwen} rows, GLM in {glm} rows. Unverified values retain primary OCR.": {
+    "en": "Page {page}: slow verification incomplete after cell retries; Qwen has unreadable or rule-rejected values in {qwen} rows, GLM in {glm} rows. Unverified values retain primary OCR.",
+    "ru": "Страница {page}: slow mode не завершён после повторного чтения ячеек; есть непрочитанные или отклонённые правилами значения: Qwen — в {qwen} строках, GLM — в {glm}. Для непроверенных значений сохранено основное OCR.",
+    "cs": "Stránka {page}: pomalé ověření není dokončeno ani po opakovaném čtení buněk; nečitelné nebo pravidly odmítnuté hodnoty: Qwen v {qwen} řádcích, GLM v {glm}. Neověřené hodnoty zachovávají původní OCR."
+  },
+  "Protocol rules rejected {p0} model readings. Check the value ranges and formats for this file.": {
+    "en": "Protocol rules rejected {p0} model readings. Check the value ranges and formats for this file.",
+    "ru": "Правила протокола отклонили {p0} значений моделей. Проверьте диапазоны и форматы значений для этого файла.",
+    "cs": "Pravidla protokolu odmítla {p0} hodnot modelů. Zkontrolujte rozsahy a formáty hodnot tohoto souboru."
   }
 }

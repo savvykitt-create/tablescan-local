@@ -1,5 +1,6 @@
 """Preview and customize each document before submitting a batch to OCR."""
 from pathlib import Path
+from uuid import uuid4
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QImage, QPixmap, QPen, QBrush
@@ -7,7 +8,7 @@ from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QVBoxLayout, QMes
                               QGraphicsView, QGraphicsScene)
 import cv2
 
-from .batch_preflight import Compatibility, PreflightWorker, assess_geometry
+from .batch_preflight import Compatibility, PreflightWorker, assess_geometry, assess_orientations
 from .domain import TableTemplate
 from .i18n import tr
 from .imaging import load_document, rotate_document, detect_grid
@@ -64,12 +65,14 @@ class ProtocolPreview(QGraphicsView):
 
 
 class FileProtocolDialog(QDialog):
-    def __init__(self, item, template, editor_factory, parent=None):
+    def __init__(self, item, template, editor_factory, parent=None, *, save_template=None):
         super().__init__(parent)
         self.setWindowTitle(tr('Protocol for {p0}', p0=Path(item.path).name))
         self.resize(1240, 830)
         self.images = load_document(item.path)
         self.images = rotate_document(self.images, template.rotation_degrees)
+        self.source_path = item.path
+        self.save_template = save_template
         self.result_template = None
         self.result_geometry = None
         self.current_page = 0
@@ -87,11 +90,30 @@ class FileProtocolDialog(QDialog):
         self.editor.saveVersionRequested.connect(lambda _: self.save())
         self.editor.rotationRequested.connect(self.rotate)
         self.page_select.currentIndexChanged.connect(self.change_page)
+        self.save_template_button = QPushButton(tr('Save as new template'))
+        self.save_template_button.setEnabled(save_template is not None)
+        self.save_template_button.clicked.connect(self.save_to_library)
+        layout.addWidget(self.save_template_button)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
         buttons.button(QDialogButtonBox.StandardButton.Save).setText(tr('Use for this file'))
         buttons.accepted.connect(self.save)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def save_to_library(self):
+        if self.save_template is None or not self.editor.prepare_current_settings():
+            return
+        template = TableTemplate.from_dict(self.editor.template.to_dict())
+        template.id = template.family_id = str(uuid4())
+        template.template_version = 0
+        template.reference_page_aspect = self.images[0].shape[1] / self.images[0].shape[0]
+        try:
+            template.validate_value_rules()
+            self.save_template(template, self.source_path)
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Не удалось сохранить шаблон'), str(exc))
+            return
+        self.save_template_button.setText(tr('Template saved'))
 
     def change_page(self, index):
         if self.editor.prepare_current_settings():
@@ -133,12 +155,13 @@ class FileProtocolDialog(QDialog):
 
 
 class BatchPreparationDialog(QDialog):
-    def __init__(self, paths, templates, editor_factory, parent=None):
+    def __init__(self, paths, templates, editor_factory, parent=None, *, save_template=None):
         super().__init__(parent)
         self.setWindowTitle(tr('Prepare batch'))
         self.resize(1260, 840)
-        self.paths, self.templates = list(paths), templates
+        self.paths, self.templates = list(paths), list(templates)
         self.editor_factory = editor_factory
+        self.save_template = save_template
         self.items = [None] * len(paths)
         self.custom = {}
         self.rows = []
@@ -155,6 +178,7 @@ class BatchPreparationDialog(QDialog):
         self.common_template.addItem(tr('Automatic — highest compatibility'), '__auto__')
         for template in templates:
             self.common_template.addItem(template.name, template.id)
+        self.common_template.addItem(tr('Blank protocol'), '__blank__')
         common.addWidget(self.common_template, 1)
         apply = QPushButton(tr('Apply to all'))
         apply.clicked.connect(self.apply_all)
@@ -165,7 +189,7 @@ class BatchPreparationDialog(QDialog):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
-        for column, width in enumerate((55, 145, 245, 110, 85, 130)):
+        for column, width in enumerate((75, 145, 245, 110, 85, 130)):
             self.table.setColumnWidth(column, width)
         self.table.itemDoubleClicked.connect(lambda cell: self.edit_file(cell.row()))
         self.table.itemSelectionChanged.connect(self.selected_file_changed)
@@ -251,6 +275,10 @@ class BatchPreparationDialog(QDialog):
     def prepared(self, index, item):
         self.items[index] = item
         include, select = self.rows[index]
+        if not item.error:
+            for template in self.templates:
+                if template.id not in item.assessments:
+                    item.assessments[template.id] = assess_orientations(template, item.geometry)
         select.blockSignals(True)
         select.clear()
         for template in sorted(self.templates, key=lambda t: -(item.assessments[t.id].score or 0) if t.id in item.assessments else 0):
@@ -259,6 +287,7 @@ class BatchPreparationDialog(QDialog):
             select.addItem(f'{template.name} · {score}', template.id)
             if result:
                 select.setItemData(select.count() - 1, '\n'.join(result.reasons + ([result.error] if result.error else [])), Qt.ItemDataRole.ToolTipRole)
+        select.addItem(tr('Blank protocol'), '__blank__')
         select.setCurrentIndex(0 if self.common_template.currentData() == '__auto__' else max(0, select.findData(self.common_template.currentData())))
         select.blockSignals(False)
         select.setEnabled(not item.error)
@@ -291,6 +320,11 @@ class BatchPreparationDialog(QDialog):
         item = self.items[row] if row >= 0 else None
         result = self.assessment(row) if item else None
         page = max(0, self.preview_page.currentIndex())
+        if item and item.thumbnails and result is None:
+            geometry = item.geometry.get(0, [])
+            self.preview.display(item.thumbnails[page], None, geometry[page][1] if geometry else None)
+            self.preview_detail.setText(tr('Open the file to create and check its protocol.'))
+            return
         if not item or not result or not item.thumbnails:
             self.preview.display(None, None)
             self.preview_detail.setText(tr('Select a checked file to see its alignment.'))
@@ -321,7 +355,7 @@ class BatchPreparationDialog(QDialog):
             if self.rows[index][1].currentData() == '__custom__':
                 detail = str(tr('Individual settings; geometry fixed for this file.')) + ' ' + detail
         else:
-            detail = str(tr('Checking compatibility…'))
+            detail = str(tr('Open the file to create and check its protocol.')) if item else str(tr('Checking compatibility…'))
         self.table.item(index, 3).setText(score)
         self.table.item(index, 4).setText(f'{result.rotation_degrees}°' if result else '—')
         status = tr('Fitted') if result and result.fit_status == 'fitted' else tr('Manually checked') if result and result.fit_status == 'manual' else tr('Needs alignment')
@@ -360,10 +394,27 @@ class BatchPreparationDialog(QDialog):
         if index < 0 or self.items[index] is None or self.items[index].error:
             return
         result = self.assessment(index)
-        template = (result.template or result.preview_template) if result and (result.template or result.preview_template) else next(
-            t for t in self.templates if t.id == self.rows[index][1].currentData())
         try:
-            dialog = FileProtocolDialog(self.items[index], template, self.editor_factory, self)
+            if self.rows[index][1].currentData() == '__blank__':
+                from .domain import NormalizedRect
+                from .imaging import evenly_spaced_guides
+                geometry = self.items[index].geometry[0]
+                shape, detection = geometry[0]
+                if detection is None:
+                    rect = NormalizedRect(.1, .1, .8, .8)
+                    rows, columns = evenly_spaced_guides(rect, 10, 6)
+                else:
+                    rect, rows, columns = detection.table_rect, detection.row_guides, detection.column_guides
+                identifier = str(uuid4())
+                template = TableTemplate(identifier, f'{Path(self.paths[index]).stem} — template', rect, rows, columns,
+                                         family_id=identifier, template_version=0,
+                                         reference_page_aspect=shape[1] / shape[0])
+                template.ensure_column_rules()
+            else:
+                template = (result.template or result.preview_template) if result and (result.template or result.preview_template) else next(
+                    t for t in self.templates if t.id == self.rows[index][1].currentData())
+            dialog = FileProtocolDialog(self.items[index], template, self.editor_factory, self,
+                                        save_template=self.save_to_library if self.save_template else None)
         except Exception as exc:
             QMessageBox.warning(self, tr('Не удалось открыть документ'), str(exc))
             return
@@ -392,6 +443,23 @@ class BatchPreparationDialog(QDialog):
             select.blockSignals(False)
             self.refresh_row(index)
         dialog.deleteLater()
+
+    def save_to_library(self, template, source):
+        saved = self.save_template(template, source)
+        self.templates.append(saved)
+        self.common_template.addItem(saved.name, saved.id)
+        for index, item in enumerate(self.items):
+            if item is None or item.error:
+                continue
+            item.assessments[saved.id] = assess_orientations(saved, item.geometry)
+            select = self.rows[index][1]
+            ranked = sorted(self.templates, key=lambda t: -(item.assessments[t.id].score or 0))
+            position = next(i for i, template in enumerate(ranked) if template.id == saved.id)
+            score = item.assessments[saved.id].score
+            select.blockSignals(True)
+            select.insertItem(position, f'{saved.name} · {score}%' if score is not None else saved.name, saved.id)
+            select.blockSignals(False)
+        return saved
 
     def preflight_finished(self):
         worker, self.worker = self.worker, None

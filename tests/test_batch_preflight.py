@@ -239,3 +239,55 @@ def test_missing_slow_runtime_does_not_queue_or_downgrade(qtbot, tmp_path, monke
     _, window = create_application(); qtbot.addWidget(window)
     window.enqueue_files([fixture(5), fixture(10)], builtin('plantar'), slow_mode=True)
     assert not window.analysis_queue.entries and warnings == ['missing models']
+
+
+def test_batch_can_start_from_scratch_and_save_template_for_other_files(qtbot, tmp_path, monkeypatch):
+    from tablescan_local.storage import LocalStore
+    store = LocalStore(tmp_path / 'store')
+    dialog = BatchPreparationDialog([fixture(5), fixture(5)], [],
+                                    lambda: TablePage(mode='template', private_copy=True),
+                                    save_template=store.save_template_version)
+    qtbot.addWidget(dialog)
+    qtbot.waitUntil(lambda: dialog.worker is None, timeout=15000)
+    assert dialog.rows[0][1].currentData() == '__blank__'
+    assert not dialog.start_button.isEnabled()
+    def edit_and_save(editor_dialog):
+        editor_dialog.editor.header_rows_spin.setValue(0)
+        editor_dialog.save_to_library()
+        assert editor_dialog.result_template is None  # Saving does not close the editor.
+        editor_dialog.save()
+        return editor_dialog.DialogCode.Accepted
+    monkeypatch.setattr(FileProtocolDialog, 'exec', edit_and_save)
+    dialog.edit_file(0)
+    saved = store.load_templates()
+    assert len(saved) == 1 and saved[0].template_version == 1
+    assert saved[0].header_rows == 0
+    assert dialog.assessment(0).template.header_rows == 0
+    assert dialog.rows[1][1].findData(saved[0].id) >= 0
+    assert dialog.rows[1][1].currentData() == '__blank__'
+    dialog.common_template.setCurrentIndex(0)
+    dialog.apply_all()
+    assert all(select.currentData() == saved[0].id for _, select in dialog.rows)
+    assert dialog.start_button.isEnabled()
+    dialog.submit()
+    assert len(dialog.jobs) == 2
+
+
+def test_saving_individual_protocol_creates_new_family(qtbot, tmp_path):
+    from tablescan_local.storage import LocalStore
+    store = LocalStore(tmp_path / 'store')
+    original = builtin('plantar')
+    store.save_template(original)
+    prepared = prepare_file(fixture(5), [original])
+    dialog = FileProtocolDialog(prepared, prepared.assessments[original.id].template,
+                                lambda: TablePage(mode='template', private_copy=True),
+                                save_template=store.save_template_version)
+    qtbot.addWidget(dialog)
+    dialog.editor.header_rows_spin.setValue(0)
+    dialog.save_to_library()
+    saved = store.load_templates()
+    assert len(saved) == 2
+    new = next(t for t in saved if t.id != original.id)
+    assert new.family_id != original.family_id and new.header_rows == 0
+    assert next(t for t in saved if t.id == original.id).header_rows == 1
+    assert Path(new.reference_source_path).is_file()

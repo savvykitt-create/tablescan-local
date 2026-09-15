@@ -10,6 +10,7 @@ from .i18n import tr
 class AnalysisQueueDialog(QDialog):
     reviewRequested = Signal(str)
     prepareRequested = Signal(list)
+    exportReadyRequested = Signal()
 
     def __init__(self, queue, parent=None):
         super().__init__(parent)
@@ -51,13 +52,24 @@ class AnalysisQueueDialog(QDialog):
         self.resume_all_button.clicked.connect(lambda: self._bulk_action(queue.resume_all))
         actions.addWidget(self.cancel_all_button)
         actions.addWidget(self.resume_all_button)
+        actions.addStretch()
+        layout.addLayout(actions)
+        actions = QHBoxLayout()
         self.prepare_button = QPushButton(tr('Prepare files again…'))
         self.prepare_button.setToolTip(tr('Check rotation, fit and protocols again. New analyses keep the previous results.'))
         self.prepare_button.clicked.connect(self.prepare_again)
         actions.addWidget(self.prepare_button)
-        actions.addStretch()
-        actions.addWidget(self.review_button)
+        self.prepare_selected_button = QPushButton(tr('Prepare selected file…'))
+        self.prepare_selected_button.clicked.connect(self.prepare_selected)
+        actions.addWidget(self.prepare_selected_button)
+        self.export_ready_button = QPushButton(tr('Export all ready files…'))
+        self.export_ready_button.clicked.connect(lambda: QTimer.singleShot(0, self.exportReadyRequested.emit))
+        actions.addWidget(self.export_ready_button)
         layout.addLayout(actions)
+        review_actions = QHBoxLayout()
+        review_actions.addStretch()
+        review_actions.addWidget(self.review_button)
+        layout.addLayout(review_actions)
         queue.changed.connect(self.refresh)
         self.refresh()
 
@@ -135,7 +147,15 @@ class AnalysisQueueDialog(QDialog):
             resumable = sum(e['status'] in ('cancelled', 'interrupted', 'failed', 'cancelling') for e in self.queue.entries)
             self.resume_all_button.setEnabled(not self.queue.closing and resumable > 0)
             self.resume_all_button.setText(tr('Resume all ({p0})', p0=resumable) if resumable else tr('Resume all'))
+            self.prepare_selected_button.setEnabled(not self.queue.closing and entry is not None)
+            self.export_ready_button.setEnabled(any(e['status'] == 'ready' for e in self.queue.entries))
             self.prepare_button.setEnabled(not self.queue.closing and any(e['status'] != 'cancelled' for e in self.queue.entries))
+
+    def prepare_selected(self):
+        entry = next((e for e in self.queue.entries if e['job_id'] == self.selected_id()), None)
+        if entry and not self.queue.closing:
+            paths = [entry['stored_path']]
+            QTimer.singleShot(0, lambda: self.prepareRequested.emit(paths))
 
     def prepare_again(self):
         paths = list(dict.fromkeys(e['stored_path'] for e in self.queue.entries if e['status'] != 'cancelled'))

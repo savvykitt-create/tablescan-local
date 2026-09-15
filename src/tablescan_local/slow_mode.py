@@ -19,7 +19,7 @@ from .slow_parsing import num, parse_table, row_values, unwrap
 from .i18n import tr
 
 MODELS = MODEL_SETS['mlx']  # Compatibility for earlier audit consumers.
-POLICY = 'disputed-qwen-glm-original-v1-exclusion-guard'
+POLICY = 'disputed-qwen-glm-v2-cell-recovery-exclusion-guard'
 
 
 def runtime_config() -> dict:
@@ -60,12 +60,12 @@ def eligible_cells(page: PageResult, template: TableTemplate):
             and template.value_constraints(cell.row, cell.column)[0].value_format in {'numeric', 'integer'}]
 
 
-def reading(value, rule):
+def reading(value, rule, *, check_rules=True):
     if isinstance(value, (dict, list, bool)):
         return None
     raw = '' if value is None else unwrap(str(value))
     result = constrain_reading(OcrValue(raw, 0.0), rule).text
-    return result if num(result) is not None and not rule.hard_errors(result) else None
+    return result if num(result) is not None and (not check_rules or not rule.hard_errors(result)) else None
 
 
 def disputed_rows(page, template, qwen):
@@ -131,6 +131,22 @@ def row_record(image, template, row, directory):
     path = directory / f'row-{row+1}.png'
     write_image(path, image[y:yy+h, x:xx+w])
     return {'id': row, 'image': str(path)}
+
+
+def recover_cells(kind, image, template, cells, directory, config, progress=None):
+    """Read exact cell crops once; never pad, truncate or shift a model's row."""
+    if not cells:
+        return {}, {}
+    directory.mkdir(parents=True, exist_ok=True)
+    records = []
+    for cell in cells:
+        x, y, w, h = cell_rect(template, image.shape, cell.row, cell.column, 0)
+        identifier = f'{cell.row}:{cell.column}'
+        path = directory / f'cell-{cell.row}-{cell.column}.png'
+        write_image(path, image[y:y+h, x:x+w])
+        records.append({'id': identifier, 'image': str(path), 'rows': 1, 'columns': 1, 'cell': True})
+    results = run_model(kind, records, directory, config, progress)
+    return {r['id']: row_values(r['raw'], 1) for r in results}, {r['id']: r.get('execution', {}) for r in results}
 
 
 def start_worker(command, log, env):
@@ -229,8 +245,23 @@ def refine_page(image, page, template, directory, config, progress=None):
         result = run_model('qwen', [table], directory, config, progress)
         page.slow_mode['execution'] = {'qwen': result[0].get('execution', {})}
         qwen = parse_table(result[0]['raw'], template.rows, table['columns'])
-        if not qwen:
-            raise ValueError(tr('Slow mode: не удалось сопоставить ответ модели со строками таблицы.'))
+        first = template.row_label_columns
+        eligible = eligible_cells(page, template)
+        missing = [cell for cell in eligible if cell.row + 1 not in qwen or
+                   reading(qwen[cell.row + 1][cell.column - first], template.value_constraints(cell.row, cell.column)[0]) is None]
+        page.slow_mode['recovery'] = {'qwen_requested_cells': len(missing), 'glm_requested_cells': 0}
+        recovery_errors = []
+        try:
+            recovered, execution = recover_cells('qwen', image, template, missing, directory / 'qwen-cells', config, progress)
+            page.slow_mode['execution']['qwen_cells'] = execution
+            for cell in missing:
+                values = recovered.get(f'{cell.row}:{cell.column}')
+                if values is not None:
+                    qwen.setdefault(cell.row + 1, [None] * table['columns'])[cell.column - first] = values[0]
+        except InterruptedError:
+            raise
+        except Exception as exc:
+            recovery_errors.append(str(exc))
         rows = disputed_rows(page, template, qwen)
         glm = {}
         if rows:
@@ -238,12 +269,51 @@ def refine_page(image, page, template, directory, config, progress=None):
             results = run_model('glm', records, directory, config, progress)
             page.slow_mode['execution']['glm'] = [r.get('execution', {}) for r in results]
             glm = {r['id']: row_values(r['raw'], table['columns']) for r in results}
+        # A failed row has no trustworthy positions. Retry only cells whose
+        # Qwen reading needs an independent GLM check.
+        missing = [cell for cell in eligible if cell.row in rows
+                   and (glm.get(cell.row) is None or reading(glm[cell.row][cell.column - first], template.value_constraints(cell.row, cell.column)[0]) is None)
+                   and (proposed := reading(qwen[cell.row + 1][cell.column - first], template.value_constraints(cell.row, cell.column)[0])) is not None
+                   and num(proposed) != num(cell.final_text)]
+        page.slow_mode['recovery']['glm_requested_cells'] = len(missing)
+        try:
+            recovered, execution = recover_cells('glm', image, template, missing, directory / 'glm-cells', config, progress)
+            page.slow_mode['execution']['glm_cells'] = execution
+            for cell in missing:
+                values = recovered.get(f'{cell.row}:{cell.column}')
+                if values is not None:
+                    if glm.get(cell.row) is None:
+                        glm[cell.row] = [None] * table['columns']
+                    glm[cell.row][cell.column - first] = values[0]
+        except InterruptedError:
+            raise
+        except Exception as exc:
+            recovery_errors.append(str(exc))
         if progress:
             progress(1, 1, tr('Slow mode: проверка согласия моделей'))
+        rule_rejections = []
+        missing_qwen = set()
+        missing_glm = set()
+        for cell in eligible:
+            rule, _ = template.value_constraints(cell.row, cell.column)
+            values = qwen.get(cell.row + 1)
+            q = reading(values[cell.column - first], rule) if values is not None else None
+            if q is None:
+                missing_qwen.add(cell.row)
+                if values is not None and reading(values[cell.column - first], rule, check_rules=False) is not None:
+                    rule_rejections.append({'row': cell.row, 'column': cell.column, 'model': 'qwen'})
+            elif num(q) != num(cell.final_text):
+                values = glm.get(cell.row)
+                if values is None or reading(values[cell.column - first], rule) is None:
+                    missing_glm.add(cell.row)
+                    if values is not None and reading(values[cell.column - first], rule, check_rules=False) is not None:
+                        rule_rejections.append({'row': cell.row, 'column': cell.column, 'model': 'glm'})
+        partial = bool(missing_qwen or missing_glm)
+        page.slow_mode.update(missing_qwen_rows=sorted(missing_qwen), missing_glm_rows=sorted(missing_glm),
+                              recovery_errors=recovery_errors, rule_rejections=rule_rejections)
         changed = apply_agreement(page, template, qwen, glm)
-        partial = any(cell.row + 1 not in qwen for cell in eligible_cells(page, template)) or any(v is None for v in glm.values())
         page.slow_mode.update(status='partial' if partial else 'complete', changed=changed, rows=len(rows),
-                              parsed_qwen_rows=len(qwen), parsed_glm_rows=sum(v is not None for v in glm.values()))
+                              parsed_qwen_rows=len(qwen), parsed_glm_rows=len(rows) - len(missing_glm))
     except InterruptedError:
         raise
     except Exception as exc:
@@ -257,7 +327,10 @@ def completion_details(pages):
     for index, state in enumerate(pages, 1):
         if state.get('status') not in {'partial', 'failed'}:
             continue
-        if state.get('status') == 'partial':
+        if state.get('status') == 'partial' and 'missing_qwen_rows' in state:
+            messages.append(tr('Page {page}: slow verification incomplete after cell retries; Qwen has unreadable or rule-rejected values in {qwen} rows, GLM in {glm} rows. Unverified values retain primary OCR.',
+                               page=index, qwen=len(state['missing_qwen_rows']), glm=len(state.get('missing_glm_rows', []))))
+        elif state.get('status') == 'partial':
             messages.append(tr('Page {page}: slow verification incomplete; Qwen matched {qwen} rows; GLM matched {glm} of {requested} requested rows. Primary OCR is preserved.',
                                page=index, qwen=state.get('parsed_qwen_rows', 0),
                                glm=state.get('parsed_glm_rows', 0), requested=state.get('rows', 0)))
@@ -265,5 +338,8 @@ def completion_details(pages):
             from .i18n import localized_saved_message
             messages.append(tr('Page {page}: slow verification failed: {reason} Primary OCR is preserved.',
                                page=index, reason=localized_saved_message(state.get('error', ''))))
+        if state.get('rule_rejections'):
+            messages.append(tr('Protocol rules rejected {p0} model readings. Check the value ranges and formats for this file.',
+                               p0=len(state['rule_rejections'])))
     from .i18n import join_text
     return join_text('\n', messages)

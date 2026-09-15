@@ -80,7 +80,10 @@ not recognition accuracy or identification of the experiment.
 Inspect the preview with its grid overlay before submitting. You can apply one
 protocol to all files, select another per file, or open a file to correct its
 rotation, grid, fields and rules. Uncertain fits require checking. The inspected
-settings are saved separately for each analysis.
+settings are saved separately for each analysis. Choose **Blank protocol** to
+create a protocol from scratch, including when the template library is empty.
+The file editor's **Save as new template** adds the current settings to the
+library as a separate template and makes it available to the other batch files.
 
 Analyses run sequentially. You can prepare another batch or review completed
 results while processing continues. The **Analysis queue** shows progress,
@@ -88,6 +91,13 @@ preparation details and colored statuses. **×** removes a task and stops it if
 running; saved results remain in file history. **Cancel all** stops unfinished
 work, and **Resume all** restarts cancelled, interrupted or failed tasks from
 the beginning. Tasks removed with **×** are not resumed.
+
+**Prepare selected file…** repeats preparation for only the selected file;
+**Prepare files again…** prepares all files still in the queue. Previous results
+remain in file history. **Export all ready files…** exports every file currently
+ready for export into one selected folder, with one workbook per file and a
+shared Compact or Extended format. Files awaiting review are skipped. Existing
+workbooks are preserved by adding a numeric suffix to duplicate names.
 
 Quitting the application interrupts unfinished analyses. They remain stopped
 until you resume them. Closing only the queue window keeps processing running.
@@ -210,8 +220,14 @@ flowchart TD
 
 Qwen and GLM run sequentially in separate worker processes and load local model
 files. They receive image crops and prompts, not the user's reference answers.
-Missing rows, an unexpected number of values, invalid responses or runtime errors
-leave primary OCR available and produce diagnostic details. Agreement changes a
+Missing or invalid Qwen readings are retried once using exact cell crops.
+GLM rows with missing values are retried on the individual disputed cells. Neither
+model receives the other model's proposed answers. Rows are never padded,
+truncated or shifted to fit the expected column count. Responses that remain
+unreadable, conflict with protocol rules or fail at runtime leave primary OCR
+available and produce diagnostic details. If the details report rejected values,
+check the file's numeric ranges and formats; model agreement does not override
+those constraints. Agreement changes a
 proposal; it does not confirm the measurement or remove the need for review.
 
 ### Models and their roles
