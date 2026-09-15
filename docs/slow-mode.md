@@ -151,8 +151,7 @@ CI runs the desktop tests and packages on Windows/macOS/Linux. A separate Window
 job runs `packaging/smoke_torch_backend.py`: real multimodal CPU generation for
 both architectures using tiny random weights and pinned real processors. This
 checks CPU operations and integration without claiming OCR accuracy or downloading
-full production models. Full model and hardware measurements are reported in the
-release notes. Private validation documents are never uploaded to CI.
+full production models. Private validation documents are never uploaded to CI.
 
 
 ### Windows CPU instruction compatibility

@@ -93,12 +93,11 @@ python packaging/verify_bundle.py dist
 Public macOS packages use ad hoc signing by default. Developer ID signing and
 notarization are [optional](macos-release-signing.md); enable `sign_macos` in the
 release workflow only when Apple credentials are configured.
-The [0.7.14 candidate notes](release-0.7.14.md) describe the release-audit fixes.
 
 Platform packaging lives in [macOS](../packaging/macos),
 [Windows](../packaging/windows) and [Linux](../packaging/linux).
 CI tests the source and packaged application before uploading installers to a
-release. Refer to the release notes for the scope of model and hardware testing.
+release. Run model and hardware checks on each target platform.
 
 ## Repository data policy
 
@@ -112,5 +111,4 @@ Bundled ONNX weights are runtime components; their
 ## Further reading
 
 - [Localization](LOCALIZATION.md)
-- [Earlier changes](history.md)
-- [Windows slow mode](release-0.7.12.md) and [CPU compatibility](release-0.7.13.md)
+- [Slow mode setup and CPU compatibility](slow-mode.md)

@@ -1,21 +1,219 @@
 {
-"Сохранить шаблон": {"en":"Save template","cs":"Uložit šablonu","ru":"Сохранить шаблон"},
-"{p0} — совпадение {p1}%\n": {"en": "{p0} — match {p1}%\n", "cs": "{p0} — shoda {p1}%\n", "ru": "{p0} — совпадение {p1}%\n"},
-"{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}": {"en": "{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}", "cs": "{p0}\nMřížka: {p1} × {p2} · Oblasti: {p3} · Vzor: {p4}", "ru": "{p0}\nСетка: {p1} × {p2} · Области: {p3} · Образец: {p4}"},
-"Шаблон сохранён: {p0}": {"en": "Template saved: {p0}", "cs": "Šablona uložena: {p0}", "ru": "Шаблон сохранён: {p0}"},
-"Будет удалён шаблон «{p0}». Обработанные документы сохранятся.": {"en": "Template “{p0}” will be deleted. Processed documents will be kept.", "cs": "Šablona „{p0}“ bude smazána. Zpracované dokumenty zůstanou zachovány.", "ru": "Будет удалён шаблон «{p0}». Обработанные документы сохранятся."},
-
-"число строк будет подогнано": {"en":"row count will be fitted","cs":"počet řádků bude přizpůsoben","ru":"число строк будет подогнано"},
-"Импорт JSON": {"en":"Import JSON","cs":"Import JSON","ru":"Импорт JSON"},
-"Автоматически подгонять строки шаблона": {"en":"Automatically fit template rows","cs":"Automaticky přizpůsobit řádky šablony","ru":"Автоматически подгонять строки шаблона"},
-"Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.": {"en":"For regular grids: detects rows and aligns rules and fields. Columns must match.","cs":"Pro pravidelné tabulky: rozpozná řádky a přizpůsobí pravidla i pole. Sloupce se musí shodovat.","ru":"Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать."},
-"Подогнать шаблон к таблице": {"en":"Fit template to table","cs":"Přizpůsobit šablonu tabulce","ru":"Подогнать шаблон к таблице"},
-"Подгонка требует проверки": {"en":"Fit needs checking","cs":"Přizpůsobení vyžaduje kontrolu","ru":"Подгонка требует проверки"},
-"Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля.": {"en":"Fitted: {p0} data rows. Check grid and fields.","cs":"Přizpůsobeno: {p0} datových řádků. Zkontrolujte mřížku a pole.","ru":"Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля."},
-" · Автоподгонка: {p0} строк данных. Проверьте сетку и поля.": {"en":" · Auto-fit: {p0} data rows. Check grid and fields.","cs":" · Automaticky přizpůsobeno: {p0} datových řádků. Zkontrolujte mřížku a pole.","ru":" · Автоподгонка: {p0} строк данных. Проверьте сетку и поля."},
-"Импорт шаблона": {"en":"Import template","cs":"Importovat šablonu","ru":"Импорт шаблона"},
-"Шаблон не импортирован": {"en":"Template not imported","cs":"Šablona nebyla importována","ru":"Шаблон не импортирован"},
-"Шаблон импортирован: {p0}": {"en":"Template imported: {p0}","cs":"Šablona importována: {p0}","ru":"Шаблон импортирован: {p0}"},
+  "Analysis queue": {
+    "en": "Analysis queue",
+    "ru": "Очередь анализов",
+    "cs": "Fronta analýz"
+  },
+  "Analyze selected files": {
+    "en": "Analyze selected files",
+    "ru": "Анализ выбранных файлов",
+    "cs": "Analyzovat vybrané soubory"
+  },
+  "High accuracy": {
+    "en": "High accuracy",
+    "ru": "Высокая точность",
+    "cs": "Vysoká přesnost"
+  },
+  "Analysis queue ({p0})": {
+    "en": "Analysis queue ({p0})",
+    "ru": "Очередь анализов ({p0})",
+    "cs": "Fronta analýz ({p0})"
+  },
+  "Analysis queued or running": {
+    "en": "Analysis queued or running",
+    "ru": "Анализ в очереди или выполняется",
+    "cs": "Analýza čeká nebo probíhá"
+  },
+  "Add to analysis queue": {
+    "en": "Add to analysis queue",
+    "ru": "Добавить в очередь анализов",
+    "cs": "Přidat do fronty analýz"
+  },
+  "Save a template before starting a batch.": {
+    "en": "Save a template before starting a batch.",
+    "ru": "Сохраните шаблон перед пакетным запуском.",
+    "cs": "Před hromadným spuštěním uložte šablonu."
+  },
+  "Files selected: {p0}": {
+    "en": "Files selected: {p0}",
+    "ru": "Выбрано файлов: {p0}",
+    "cs": "Vybráno souborů: {p0}"
+  },
+  "Apply one template to every file:": {
+    "en": "Apply one template to every file:",
+    "ru": "Применить один шаблон ко всем файлам:",
+    "cs": "Použít jednu šablonu pro všechny soubory:"
+  },
+  "Some files could not be queued": {
+    "en": "Some files could not be queued",
+    "ru": "Некоторые файлы не добавлены в очередь",
+    "cs": "Některé soubory nelze zařadit do fronty"
+  },
+  "Queue error": {
+    "en": "Queue error",
+    "ru": "Ошибка очереди",
+    "cs": "Chyba fronty"
+  },
+  "Cancel analysis": {
+    "en": "Cancel analysis",
+    "ru": "Отменить анализ",
+    "cs": "Zrušit analýzu"
+  },
+  "Retry analysis": {
+    "en": "Retry analysis",
+    "ru": "Повторить анализ",
+    "cs": "Opakovat analýzu"
+  },
+  "Open Review": {
+    "en": "Open Review",
+    "ru": "Открыть Review",
+    "cs": "Otevřít kontrolu"
+  },
+  "Queued": {
+    "en": "Queued",
+    "ru": "В очереди",
+    "cs": "Ve frontě"
+  },
+  "Analyzing": {
+    "en": "Analyzing",
+    "ru": "Анализируется",
+    "cs": "Probíhá analýza"
+  },
+  "Stopping": {
+    "en": "Stopping",
+    "ru": "Останавливается",
+    "cs": "Zastavování"
+  },
+  "Cancelled": {
+    "en": "Cancelled",
+    "ru": "Отменён",
+    "cs": "Zrušeno"
+  },
+  "Interrupted": {
+    "en": "Interrupted",
+    "ru": "Прерван",
+    "cs": "Přerušeno"
+  },
+  "Failed": {
+    "en": "Failed",
+    "ru": "Ошибка",
+    "cs": "Chyba"
+  },
+  "Review required": {
+    "en": "Review required",
+    "ru": "Нужна проверка",
+    "cs": "Nutná kontrola"
+  },
+  "Ready for Review": {
+    "en": "Ready for Review",
+    "ru": "Готов к проверке",
+    "cs": "Připraveno ke kontrole"
+  },
+  "Analyses run one at a time. You can prepare other tables and review completed results.": {
+    "en": "Analyses run one at a time. You can prepare other tables and review completed results.",
+    "ru": "Анализы выполняются по одному. Можно настраивать другие таблицы и проверять готовые результаты.",
+    "cs": "Analýzy běží postupně. Můžete připravovat další tabulky a kontrolovat hotové výsledky."
+  },
+  "File": {
+    "en": "File",
+    "ru": "Файл",
+    "cs": "Soubor"
+  },
+  "Status": {
+    "en": "Status",
+    "ru": "Состояние",
+    "cs": "Stav"
+  },
+  "Progress": {
+    "en": "Progress",
+    "ru": "Прогресс",
+    "cs": "Průběh"
+  },
+  "Details": {
+    "en": "Details",
+    "ru": "Подробности",
+    "cs": "Podrobnosti"
+  },
+  "Сохранить шаблон": {
+    "en": "Save template",
+    "cs": "Uložit šablonu",
+    "ru": "Сохранить шаблон"
+  },
+  "{p0} — совпадение {p1}%\n": {
+    "en": "{p0} — match {p1}%\n",
+    "cs": "{p0} — shoda {p1}%\n",
+    "ru": "{p0} — совпадение {p1}%\n"
+  },
+  "{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}": {
+    "en": "{p0}\nGrid: {p1} × {p2} · Regions: {p3} · Sample: {p4}",
+    "cs": "{p0}\nMřížka: {p1} × {p2} · Oblasti: {p3} · Vzor: {p4}",
+    "ru": "{p0}\nСетка: {p1} × {p2} · Области: {p3} · Образец: {p4}"
+  },
+  "Шаблон сохранён: {p0}": {
+    "en": "Template saved: {p0}",
+    "cs": "Šablona uložena: {p0}",
+    "ru": "Шаблон сохранён: {p0}"
+  },
+  "Будет удалён шаблон «{p0}». Обработанные документы сохранятся.": {
+    "en": "Template “{p0}” will be deleted. Processed documents will be kept.",
+    "cs": "Šablona „{p0}“ bude smazána. Zpracované dokumenty zůstanou zachovány.",
+    "ru": "Будет удалён шаблон «{p0}». Обработанные документы сохранятся."
+  },
+  "число строк будет подогнано": {
+    "en": "row count will be fitted",
+    "cs": "počet řádků bude přizpůsoben",
+    "ru": "число строк будет подогнано"
+  },
+  "Импорт JSON": {
+    "en": "Import JSON",
+    "cs": "Import JSON",
+    "ru": "Импорт JSON"
+  },
+  "Автоматически подгонять строки шаблона": {
+    "en": "Automatically fit template rows",
+    "cs": "Automaticky přizpůsobit řádky šablony",
+    "ru": "Автоматически подгонять строки шаблона"
+  },
+  "Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.": {
+    "en": "For regular grids: detects rows and aligns rules and fields. Columns must match.",
+    "cs": "Pro pravidelné tabulky: rozpozná řádky a přizpůsobí pravidla i pole. Sloupce se musí shodovat.",
+    "ru": "Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать."
+  },
+  "Подогнать шаблон к таблице": {
+    "en": "Fit template to table",
+    "cs": "Přizpůsobit šablonu tabulce",
+    "ru": "Подогнать шаблон к таблице"
+  },
+  "Подгонка требует проверки": {
+    "en": "Fit needs checking",
+    "cs": "Přizpůsobení vyžaduje kontrolu",
+    "ru": "Подгонка требует проверки"
+  },
+  "Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля.": {
+    "en": "Fitted: {p0} data rows. Check grid and fields.",
+    "cs": "Přizpůsobeno: {p0} datových řádků. Zkontrolujte mřížku a pole.",
+    "ru": "Подгонка выполнена: {p0} строк данных. Проверьте сетку и поля."
+  },
+  " · Автоподгонка: {p0} строк данных. Проверьте сетку и поля.": {
+    "en": " · Auto-fit: {p0} data rows. Check grid and fields.",
+    "cs": " · Automaticky přizpůsobeno: {p0} datových řádků. Zkontrolujte mřížku a pole.",
+    "ru": " · Автоподгонка: {p0} строк данных. Проверьте сетку и поля."
+  },
+  "Импорт шаблона": {
+    "en": "Import template",
+    "cs": "Importovat šablonu",
+    "ru": "Импорт шаблона"
+  },
+  "Шаблон не импортирован": {
+    "en": "Template not imported",
+    "cs": "Šablona nebyla importována",
+    "ru": "Шаблон не импортирован"
+  },
+  "Шаблон импортирован: {p0}": {
+    "en": "Template imported: {p0}",
+    "cs": "Šablona importována: {p0}",
+    "ru": "Шаблон импортирован: {p0}"
+  },
   "Добавьте изображения таблиц": {
     "en": "Add table images",
     "cs": "Přidejte obrázky tabulek",
@@ -1337,9 +1535,9 @@
     "ru": "Что включить в файл?"
   },
   "Сокращённый — только исходная таблица": {
-    "en": "Compact — original table only",
-    "cs": "Zkrácený — pouze původní tabulka",
-    "ru": "Сокращённый — только исходная таблица"
+    "en": "Compact — original table and fields",
+    "ru": "Сокращённый — исходная таблица и поля",
+    "cs": "Zkrácený — původní tabulka a pole"
   },
   "Расширенный — таблица, данные и аудит": {
     "en": "Extended — table, data and audit",
@@ -2370,5 +2568,660 @@
     "en": "{p0}–{p1} of {p2}",
     "cs": "{p0}–{p1} z {p2}",
     "ru": "{p0}–{p1} из {p2}"
+  },
+  "Prepare batch": {
+    "en": "Prepare batch",
+    "ru": "Подготовка пакета",
+    "cs": "Příprava dávky"
+  },
+  "Compatibility compares the form layout, not OCR accuracy. Open any file to inspect or adjust its protocol before analysis.": {
+    "en": "Compatibility compares the form layout, not OCR accuracy. Open any file to inspect or adjust its protocol before analysis.",
+    "ru": "Совместимость показывает соответствие структуры бланка, а не точность OCR. Откройте любой файл, чтобы проверить или поправить его протокол перед анализом.",
+    "cs": "Kompatibilita porovnává rozvržení formuláře, nikoli přesnost OCR. Otevřete soubor a před analýzou zkontrolujte či upravte jeho protokol."
+  },
+  "Protocol for all files": {
+    "en": "Protocol for all files",
+    "ru": "Протокол для всех файлов",
+    "cs": "Protokol pro všechny soubory"
+  },
+  "Apply to all": {
+    "en": "Apply to all",
+    "ru": "Применить ко всем",
+    "cs": "Použít pro všechny"
+  },
+  "Include": {
+    "en": "Include",
+    "ru": "Включить",
+    "cs": "Zahrnout"
+  },
+  "Protocol": {
+    "en": "Protocol",
+    "ru": "Протокол",
+    "cs": "Protokol"
+  },
+  "Compatibility": {
+    "en": "Compatibility",
+    "ru": "Совместимость",
+    "cs": "Kompatibilita"
+  },
+  "Checking compatibility…": {
+    "en": "Checking compatibility…",
+    "ru": "Проверка совместимости…",
+    "cs": "Kontrola kompatibility…"
+  },
+  "Open / adjust selected file": {
+    "en": "Open / adjust selected file",
+    "ru": "Открыть / настроить выбранный файл",
+    "cs": "Otevřít / upravit vybraný soubor"
+  },
+  "Checking files: {p0} / {p1}": {
+    "en": "Checking files: {p0} / {p1}",
+    "ru": "Проверено файлов: {p0} / {p1}",
+    "cs": "Zkontrolované soubory: {p0} / {p1}"
+  },
+  "Analysis mode for the batch": {
+    "en": "Analysis mode for the batch",
+    "ru": "Режим анализа пакета",
+    "cs": "Režim analýzy dávky"
+  },
+  "Fast analysis": {
+    "en": "Fast analysis",
+    "ru": "Быстрый анализ",
+    "cs": "Rychlá analýza"
+  },
+  "Slow analysis — additional model verification": {
+    "en": "Slow analysis — additional model verification",
+    "ru": "Медленный анализ — дополнительная проверка моделями",
+    "cs": "Pomalá analýza — dodatečné ověření modely"
+  },
+  "Files run sequentially in the selected mode. Slow analysis requires the local slow-mode module.": {
+    "en": "Files run sequentially in the selected mode. Slow analysis requires the local slow-mode module.",
+    "ru": "Файлы обрабатываются по очереди в выбранном режиме. Для медленного анализа нужен локальный модуль slow mode.",
+    "cs": "Soubory se zpracují postupně ve vybraném režimu. Pomalá analýza vyžaduje místní modul slow mode."
+  },
+  "Files run sequentially. You can review completed results while the queue continues.": {
+    "en": "Files run sequentially. You can review completed results while the queue continues.",
+    "ru": "Файлы обрабатываются по очереди. Готовые результаты можно проверять, пока очередь продолжает работу.",
+    "cs": "Soubory se zpracují postupně. Hotové výsledky lze kontrolovat, zatímco fronta pokračuje."
+  },
+  "Add selected files to queue": {
+    "en": "Add selected files to queue",
+    "ru": "Добавить выбранные файлы в очередь",
+    "cs": "Přidat vybrané soubory do fronty"
+  },
+  "Protocol for {p0}": {
+    "en": "Protocol for {p0}",
+    "ru": "Протокол для {p0}",
+    "cs": "Protokol pro {p0}"
+  },
+  "Changes apply only to this file. Check the grid, fields and rules on every page.": {
+    "en": "Changes apply only to this file. Check the grid, fields and rules on every page.",
+    "ru": "Изменения относятся только к этому файлу. Проверьте сетку, поля и правила на каждой странице.",
+    "cs": "Změny platí pouze pro tento soubor. Zkontrolujte mřížku, pole a pravidla na každé stránce."
+  },
+  "Use for this file": {
+    "en": "Use for this file",
+    "ru": "Применить к этому файлу",
+    "cs": "Použít pro tento soubor"
+  },
+  "Individual settings; geometry fixed for this file.": {
+    "en": "Individual settings; geometry fixed for this file.",
+    "ru": "Индивидуальные настройки; разметка закреплена для этого файла.",
+    "cs": "Individuální nastavení; geometrie je pevně určena pro tento soubor."
+  },
+  "Individual protocol": {
+    "en": "Individual protocol",
+    "ru": "Индивидуальный протокол",
+    "cs": "Individuální protokol"
+  },
+  "Grid could not be detected. Open the file and align the protocol manually.": {
+    "en": "Grid could not be detected. Open the file and align the protocol manually.",
+    "ru": "Сетка не найдена. Откройте файл и совместите протокол вручную.",
+    "cs": "Mřížka nebyla nalezena. Otevřete soubor a zarovnejte protokol ručně."
+  },
+  "Page {p0}: {p1}": {
+    "en": "Page {p0}: {p1}",
+    "ru": "Страница {p0}: {p1}",
+    "cs": "Strana {p0}: {p1}"
+  },
+  "Page {p0}": {
+    "en": "Page {p0}",
+    "ru": "Страница {p0}",
+    "cs": "Strana {p0}"
+  },
+  "Pages have different grids. Split the document into separate files.": {
+    "en": "Pages have different grids. Split the document into separate files.",
+    "ru": "На страницах разные сетки. Разделите документ на отдельные файлы.",
+    "cs": "Stránky mají různé mřížky. Rozdělte dokument na samostatné soubory."
+  },
+  "Wait for checking to finish. Files that cannot be fitted must be opened and adjusted, or excluded.": {
+    "en": "Wait for checking to finish. Files that cannot be fitted must be opened and adjusted, or excluded.",
+    "ru": "Дождитесь завершения проверки. Файлы, которые не удалось совместить, нужно открыть и настроить или исключить.",
+    "cs": "Počkejte na dokončení kontroly. Soubory, které nelze zarovnat, otevřete a upravte, nebo vyřaďte."
+  },
+  "Analysis mode": {
+    "en": "Analysis mode",
+    "ru": "Режим анализа",
+    "cs": "Režim analýzy"
+  },
+  "Slow analysis": {
+    "en": "Slow analysis",
+    "ru": "Медленный анализ",
+    "cs": "Pomalá analýza"
+  },
+  "Cancel all": {
+    "en": "Cancel all",
+    "ru": "Отменить все",
+    "cs": "Zrušit vše"
+  },
+  "Resume all": {
+    "en": "Resume all",
+    "ru": "Возобновить все",
+    "cs": "Obnovit vše"
+  },
+  "Resume all ({p0})": {
+    "en": "Resume all ({p0})",
+    "ru": "Возобновить все ({p0})",
+    "cs": "Obnovit vše ({p0})"
+  },
+  "Restart cancelled, interrupted and failed analyses from the beginning. Completed results are kept.": {
+    "en": "Restart cancelled, interrupted and failed analyses from the beginning. Completed results are kept.",
+    "ru": "Запустить отменённые, прерванные и неудачные анализы заново. Готовые результаты сохраняются.",
+    "cs": "Znovu spustit zrušené, přerušené a neúspěšné analýzy od začátku. Hotové výsledky zůstanou zachovány."
+  },
+  "Closing: stopping analyses…": {
+    "en": "Closing: stopping analyses…",
+    "ru": "Закрытие: останавливаю анализы…",
+    "cs": "Ukončování: zastavuji analýzy…"
+  },
+  "This data folder is already open in another TableScan Local window. Close that application before opening another copy.": {
+    "en": "This data folder is already open in another TableScan Local window. Close that application before opening another copy.",
+    "ru": "Эта папка данных уже открыта в другой копии TableScan Local. Закройте её, прежде чем открывать ещё одну копию программы.",
+    "cs": "Tato datová složka je již otevřena v jiné kopii TableScan Local. Před otevřením další kopie ji zavřete."
+  },
+  "Checking page {p0}: rotation {p1}°": {
+    "en": "Checking page {p0}: rotation {p1}°",
+    "ru": "Проверка страницы {p0}: поворот {p1}°",
+    "cs": "Kontrola stránky {p0}: otočení {p1}°"
+  },
+  "Orientation is uncertain. Open the file and check which side is up.": {
+    "en": "Orientation is uncertain. Open the file and check which side is up.",
+    "ru": "Ориентация неоднозначна. Откройте файл и проверьте, где верх страницы.",
+    "cs": "Orientace není jednoznačná. Otevřete soubor a zkontrolujte horní stranu stránky."
+  },
+  "Auto-fit applied: {p0} rows × {p1} columns.": {
+    "en": "Auto-fit applied: {p0} rows × {p1} columns.",
+    "ru": "Сетка подогнана: {p0} строк × {p1} столбцов.",
+    "cs": "Mřížka přizpůsobena: {p0} řádků × {p1} sloupců."
+  },
+  "Rotation: {p0}° counterclockwise.": {
+    "en": "Rotation: {p0}° counterclockwise.",
+    "ru": "Поворот: {p0}° против часовой стрелки.",
+    "cs": "Otočení: {p0}° proti směru hodinových ručiček."
+  },
+  "Each file is rotated and fitted separately. Check the overlay before analysis; files that need alignment cannot be queued until corrected. Compatibility measures layout, not OCR accuracy.": {
+    "en": "Each file is rotated and fitted separately. Check the overlay before analysis; files that need alignment cannot be queued until corrected. Compatibility measures layout, not OCR accuracy.",
+    "ru": "Каждый файл поворачивается и подгоняется отдельно. Проверьте наложение перед анализом; файлы с ошибками выравнивания нужно исправить до запуска. Совместимость оценивает разметку, а не точность OCR.",
+    "cs": "Každý soubor se otáčí a přizpůsobuje samostatně. Před analýzou zkontrolujte překrytí; soubory vyžadující zarovnání je nutné nejprve opravit. Kompatibilita hodnotí rozložení, nikoli přesnost OCR."
+  },
+  "Rotation": {
+    "en": "Rotation",
+    "ru": "Поворот",
+    "cs": "Otočení"
+  },
+  "Auto-fit": {
+    "en": "Auto-fit",
+    "ru": "Подгонка",
+    "cs": "Přizpůsobení"
+  },
+  "Overlay preview · blue: protocol · orange: detected grid": {
+    "en": "Overlay preview · blue: protocol · orange: detected grid",
+    "ru": "Предпросмотр · синий: протокол · оранжевый: найденная сетка",
+    "cs": "Náhled · modrá: protokol · oranžová: nalezená mřížka"
+  },
+  "Fit preview": {
+    "en": "Fit preview",
+    "ru": "Вписать предпросмотр",
+    "cs": "Přizpůsobit náhled"
+  },
+  "Preparing {p0}: {p1}": {
+    "en": "Preparing {p0}: {p1}",
+    "ru": "Подготовка {p0}: {p1}",
+    "cs": "Příprava {p0}: {p1}"
+  },
+  "Select a checked file to see its alignment.": {
+    "en": "Select a checked file to see its alignment.",
+    "ru": "Выберите проверенный файл для просмотра наложения.",
+    "cs": "Vyberte zkontrolovaný soubor pro náhled zarovnání."
+  },
+  "Fitted": {
+    "en": "Fitted",
+    "ru": "Подогнано",
+    "cs": "Přizpůsobeno"
+  },
+  "Manually checked": {
+    "en": "Manually checked",
+    "ru": "Проверено вручную",
+    "cs": "Ručně zkontrolováno"
+  },
+  "Needs alignment": {
+    "en": "Needs alignment",
+    "ru": "Нужна коррекция",
+    "cs": "Nutná úprava"
+  },
+  "Possible crossed-out row or shifted grid. Values were kept. Check the alignment before excluding the row.": {
+    "en": "Possible crossed-out row or shifted grid. Values were kept. Check the alignment before excluding the row.",
+    "ru": "Возможно зачёркивание строки или смещение сетки. Значения сохранены. Проверьте наложение перед исключением строки.",
+    "cs": "Možné přeškrtnutí řádku nebo posun mřížky. Hodnoty byly zachovány. Před vyloučením řádku zkontrolujte zarovnání."
+  },
+  "Preparation": {
+    "en": "Preparation",
+    "ru": "Подготовка",
+    "cs": "Příprava"
+  },
+  "Saved settings": {
+    "en": "Saved settings",
+    "ru": "Сохранённые настройки",
+    "cs": "Uložené nastavení"
+  },
+  "Alignment required. Use Prepare files again to correct the protocol before retrying.": {
+    "en": "Alignment required. Use Prepare files again to correct the protocol before retrying.",
+    "ru": "Нужна коррекция наложения. Нажмите «Подготовить файлы заново» и исправьте протокол перед повторным запуском.",
+    "cs": "Je nutné zarovnání. Před dalším pokusem opravte protokol pomocí volby Připravit soubory znovu."
+  },
+  "Prepare files again…": {
+    "en": "Prepare files again…",
+    "ru": "Подготовить файлы заново…",
+    "cs": "Připravit soubory znovu…"
+  },
+  "Check rotation, fit and protocols again. New analyses keep the previous results.": {
+    "en": "Check rotation, fit and protocols again. New analyses keep the previous results.",
+    "ru": "Перепроверьте поворот, сетку и протоколы. Новые анализы сохранят предыдущие результаты.",
+    "cs": "Znovu zkontrolujte otočení, mřížku a protokoly. Nové analýzy zachovají předchozí výsledky."
+  },
+  "Automatic — highest compatibility": {
+    "en": "Automatic — highest compatibility",
+    "ru": "Автоматически — наибольшая совместимость",
+    "cs": "Automaticky — nejvyšší kompatibilita"
+  },
+  "Ready for export": {
+    "en": "Ready for export",
+    "ru": "Готово к экспорту",
+    "cs": "Připraveno k exportu"
+  },
+  "Exported": {
+    "en": "Exported",
+    "ru": "Экспортировано",
+    "cs": "Exportováno"
+  },
+  "Remove from queue: {p0}": {
+    "en": "Remove from queue: {p0}",
+    "ru": "Убрать из очереди: {p0}",
+    "cs": "Odebrat z fronty: {p0}"
+  },
+  "Remove from queue and stop this analysis if running. Saved results stay in file history.": {
+    "en": "Remove from queue and stop this analysis if running. Saved results stay in file history.",
+    "ru": "Убрать из очереди и остановить этот анализ, если он выполняется. Сохранённые результаты останутся в истории файлов.",
+    "cs": "Odebrat z fronty a zastavit probíhající analýzu. Uložené výsledky zůstanou v historii souborů."
+  },
+  "Exclude this column": {
+    "en": "Exclude this column",
+    "ru": "Исключить эту колонку",
+    "cs": "Vyloučit tento sloupec"
+  },
+  "Leave this column’s measurements empty, keeping its header. Clear to restore the values.": {
+    "en": "Leave this column’s measurements empty, keeping its header. Clear to restore the values.",
+    "ru": "Оставить измерения колонки пустыми, сохранив заголовок. Снимите отметку для восстановления значений.",
+    "cs": "Ponechat měření sloupce prázdná a zachovat záhlaví. Zrušením obnovíte hodnoty."
+  },
+  "__builtin_rule__ID: порядковый номер, целое >= 1": {
+    "en": "ID: sequential ID, integer >= 1",
+    "ru": "ID: порядковый номер, целое >= 1",
+    "cs": "ID: pořadové ID, celé číslo >= 1"
+  },
+  "__builtin_rule__ID: sequential ID, integer >= 1": {
+    "en": "ID: sequential ID, integer >= 1",
+    "ru": "ID: порядковый номер, целое >= 1",
+    "cs": "ID: pořadové ID, celé číslo >= 1"
+  },
+  "__builtin_rule__L1: неотрицательное число; пусто = пропуск": {
+    "en": "L1: nonnegative number; blank = missing",
+    "ru": "L1: неотрицательное число; пусто = пропуск",
+    "cs": "L1: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L1: nonnegative number; blank = missing": {
+    "en": "L1: nonnegative number; blank = missing",
+    "ru": "L1: неотрицательное число; пусто = пропуск",
+    "cs": "L1: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L2: неотрицательное число; пусто = пропуск": {
+    "en": "L2: nonnegative number; blank = missing",
+    "ru": "L2: неотрицательное число; пусто = пропуск",
+    "cs": "L2: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L2: nonnegative number; blank = missing": {
+    "en": "L2: nonnegative number; blank = missing",
+    "ru": "L2: неотрицательное число; пусто = пропуск",
+    "cs": "L2: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L3: неотрицательное число; пусто = пропуск": {
+    "en": "L3: nonnegative number; blank = missing",
+    "ru": "L3: неотрицательное число; пусто = пропуск",
+    "cs": "L3: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L3: nonnegative number; blank = missing": {
+    "en": "L3: nonnegative number; blank = missing",
+    "ru": "L3: неотрицательное число; пусто = пропуск",
+    "cs": "L3: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L4: неотрицательное число; пусто = пропуск": {
+    "en": "L4: nonnegative number; blank = missing",
+    "ru": "L4: неотрицательное число; пусто = пропуск",
+    "cs": "L4: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L4: nonnegative number; blank = missing": {
+    "en": "L4: nonnegative number; blank = missing",
+    "ru": "L4: неотрицательное число; пусто = пропуск",
+    "cs": "L4: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L5: неотрицательное число; пусто = пропуск": {
+    "en": "L5: nonnegative number; blank = missing",
+    "ru": "L5: неотрицательное число; пусто = пропуск",
+    "cs": "L5: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L5: nonnegative number; blank = missing": {
+    "en": "L5: nonnegative number; blank = missing",
+    "ru": "L5: неотрицательное число; пусто = пропуск",
+    "cs": "L5: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R1: неотрицательное число; пусто = пропуск": {
+    "en": "R1: nonnegative number; blank = missing",
+    "ru": "R1: неотрицательное число; пусто = пропуск",
+    "cs": "R1: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R1: nonnegative number; blank = missing": {
+    "en": "R1: nonnegative number; blank = missing",
+    "ru": "R1: неотрицательное число; пусто = пропуск",
+    "cs": "R1: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R2: неотрицательное число; пусто = пропуск": {
+    "en": "R2: nonnegative number; blank = missing",
+    "ru": "R2: неотрицательное число; пусто = пропуск",
+    "cs": "R2: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R2: nonnegative number; blank = missing": {
+    "en": "R2: nonnegative number; blank = missing",
+    "ru": "R2: неотрицательное число; пусто = пропуск",
+    "cs": "R2: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R3: неотрицательное число; пусто = пропуск": {
+    "en": "R3: nonnegative number; blank = missing",
+    "ru": "R3: неотрицательное число; пусто = пропуск",
+    "cs": "R3: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R3: nonnegative number; blank = missing": {
+    "en": "R3: nonnegative number; blank = missing",
+    "ru": "R3: неотрицательное число; пусто = пропуск",
+    "cs": "R3: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R4: неотрицательное число; пусто = пропуск": {
+    "en": "R4: nonnegative number; blank = missing",
+    "ru": "R4: неотрицательное число; пусто = пропуск",
+    "cs": "R4: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R4: nonnegative number; blank = missing": {
+    "en": "R4: nonnegative number; blank = missing",
+    "ru": "R4: неотрицательное число; пусто = пропуск",
+    "cs": "R4: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R5: неотрицательное число; пусто = пропуск": {
+    "en": "R5: nonnegative number; blank = missing",
+    "ru": "R5: неотрицательное число; пусто = пропуск",
+    "cs": "R5: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R5: nonnegative number; blank = missing": {
+    "en": "R5: nonnegative number; blank = missing",
+    "ru": "R5: неотрицательное число; пусто = пропуск",
+    "cs": "R5: nezáporné číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__Notes: свободный текст, пусто допустимо": {
+    "en": "Notes: free text, blank allowed",
+    "ru": "Notes: свободный текст, пусто допустимо",
+    "cs": "Notes: volný text, prázdná hodnota povolena"
+  },
+  "__builtin_rule__Notes: free text, пусто допустимо": {
+    "en": "Notes: free text, blank allowed",
+    "ru": "Notes: свободный текст, пусто допустимо",
+    "cs": "Notes: volný text, prázdná hodnota povolena"
+  },
+  "__builtin_rule__L1: неотрицательное целое; пусто = пропуск": {
+    "en": "L1: nonnegative integer; blank = missing",
+    "ru": "L1: неотрицательное целое; пусто = пропуск",
+    "cs": "L1: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L1: nonnegative integer; blank = missing": {
+    "en": "L1: nonnegative integer; blank = missing",
+    "ru": "L1: неотрицательное целое; пусто = пропуск",
+    "cs": "L1: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L2: неотрицательное целое; пусто = пропуск": {
+    "en": "L2: nonnegative integer; blank = missing",
+    "ru": "L2: неотрицательное целое; пусто = пропуск",
+    "cs": "L2: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L2: nonnegative integer; blank = missing": {
+    "en": "L2: nonnegative integer; blank = missing",
+    "ru": "L2: неотрицательное целое; пусто = пропуск",
+    "cs": "L2: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L3: неотрицательное целое; пусто = пропуск": {
+    "en": "L3: nonnegative integer; blank = missing",
+    "ru": "L3: неотрицательное целое; пусто = пропуск",
+    "cs": "L3: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L3: nonnegative integer; blank = missing": {
+    "en": "L3: nonnegative integer; blank = missing",
+    "ru": "L3: неотрицательное целое; пусто = пропуск",
+    "cs": "L3: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L4: неотрицательное целое; пусто = пропуск": {
+    "en": "L4: nonnegative integer; blank = missing",
+    "ru": "L4: неотрицательное целое; пусто = пропуск",
+    "cs": "L4: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L4: nonnegative integer; blank = missing": {
+    "en": "L4: nonnegative integer; blank = missing",
+    "ru": "L4: неотрицательное целое; пусто = пропуск",
+    "cs": "L4: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L5: неотрицательное целое; пусто = пропуск": {
+    "en": "L5: nonnegative integer; blank = missing",
+    "ru": "L5: неотрицательное целое; пусто = пропуск",
+    "cs": "L5: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L5: nonnegative integer; blank = missing": {
+    "en": "L5: nonnegative integer; blank = missing",
+    "ru": "L5: неотрицательное целое; пусто = пропуск",
+    "cs": "L5: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L6: неотрицательное целое; пусто = пропуск": {
+    "en": "L6: nonnegative integer; blank = missing",
+    "ru": "L6: неотрицательное целое; пусто = пропуск",
+    "cs": "L6: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L6: nonnegative integer; blank = missing": {
+    "en": "L6: nonnegative integer; blank = missing",
+    "ru": "L6: неотрицательное целое; пусто = пропуск",
+    "cs": "L6: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L7: неотрицательное целое; пусто = пропуск": {
+    "en": "L7: nonnegative integer; blank = missing",
+    "ru": "L7: неотрицательное целое; пусто = пропуск",
+    "cs": "L7: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L7: nonnegative integer; blank = missing": {
+    "en": "L7: nonnegative integer; blank = missing",
+    "ru": "L7: неотрицательное целое; пусто = пропуск",
+    "cs": "L7: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L drop: неотрицательное целое; пусто = пропуск": {
+    "en": "L drop: nonnegative integer; blank = missing",
+    "ru": "L drop: неотрицательное целое; пусто = пропуск",
+    "cs": "L drop: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__L drop: nonnegative integer; blank = missing": {
+    "en": "L drop: nonnegative integer; blank = missing",
+    "ru": "L drop: неотрицательное целое; пусто = пропуск",
+    "cs": "L drop: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R1: неотрицательное целое; пусто = пропуск": {
+    "en": "R1: nonnegative integer; blank = missing",
+    "ru": "R1: неотрицательное целое; пусто = пропуск",
+    "cs": "R1: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R1: nonnegative integer; blank = missing": {
+    "en": "R1: nonnegative integer; blank = missing",
+    "ru": "R1: неотрицательное целое; пусто = пропуск",
+    "cs": "R1: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R2: неотрицательное целое; пусто = пропуск": {
+    "en": "R2: nonnegative integer; blank = missing",
+    "ru": "R2: неотрицательное целое; пусто = пропуск",
+    "cs": "R2: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R2: nonnegative integer; blank = missing": {
+    "en": "R2: nonnegative integer; blank = missing",
+    "ru": "R2: неотрицательное целое; пусто = пропуск",
+    "cs": "R2: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R3: неотрицательное целое; пусто = пропуск": {
+    "en": "R3: nonnegative integer; blank = missing",
+    "ru": "R3: неотрицательное целое; пусто = пропуск",
+    "cs": "R3: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R3: nonnegative integer; blank = missing": {
+    "en": "R3: nonnegative integer; blank = missing",
+    "ru": "R3: неотрицательное целое; пусто = пропуск",
+    "cs": "R3: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R4: неотрицательное целое; пусто = пропуск": {
+    "en": "R4: nonnegative integer; blank = missing",
+    "ru": "R4: неотрицательное целое; пусто = пропуск",
+    "cs": "R4: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R4: nonnegative integer; blank = missing": {
+    "en": "R4: nonnegative integer; blank = missing",
+    "ru": "R4: неотрицательное целое; пусто = пропуск",
+    "cs": "R4: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R5: неотрицательное целое; пусто = пропуск": {
+    "en": "R5: nonnegative integer; blank = missing",
+    "ru": "R5: неотрицательное целое; пусто = пропуск",
+    "cs": "R5: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R5: nonnegative integer; blank = missing": {
+    "en": "R5: nonnegative integer; blank = missing",
+    "ru": "R5: неотрицательное целое; пусто = пропуск",
+    "cs": "R5: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R6: неотрицательное целое; пусто = пропуск": {
+    "en": "R6: nonnegative integer; blank = missing",
+    "ru": "R6: неотрицательное целое; пусто = пропуск",
+    "cs": "R6: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R6: nonnegative integer; blank = missing": {
+    "en": "R6: nonnegative integer; blank = missing",
+    "ru": "R6: неотрицательное целое; пусто = пропуск",
+    "cs": "R6: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R7: неотрицательное целое; пусто = пропуск": {
+    "en": "R7: nonnegative integer; blank = missing",
+    "ru": "R7: неотрицательное целое; пусто = пропуск",
+    "cs": "R7: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R7: nonnegative integer; blank = missing": {
+    "en": "R7: nonnegative integer; blank = missing",
+    "ru": "R7: неотрицательное целое; пусто = пропуск",
+    "cs": "R7: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R drop: неотрицательное целое; пусто = пропуск": {
+    "en": "R drop: nonnegative integer; blank = missing",
+    "ru": "R drop: неотрицательное целое; пусто = пропуск",
+    "cs": "R drop: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "__builtin_rule__R drop: nonnegative integer; blank = missing": {
+    "en": "R drop: nonnegative integer; blank = missing",
+    "ru": "R drop: неотрицательное целое; пусто = пропуск",
+    "cs": "R drop: nezáporné celé číslo; prázdné = chybějící"
+  },
+  "Page {page}: slow verification incomplete; Qwen matched {qwen} rows; GLM matched {glm} of {requested} requested rows. Primary OCR is preserved.": {
+    "en": "Page {page}: slow verification incomplete; Qwen matched {qwen} rows; GLM matched {glm} of {requested} requested rows. Primary OCR is preserved.",
+    "ru": "Страница {page}: дополнительная проверка неполная; Qwen сопоставил {qwen} строк; GLM — {glm} из {requested} запрошенных. Основное распознавание сохранено.",
+    "cs": "Strana {page}: dodatečné ověření je neúplné; Qwen přiřadil {qwen} řádků; GLM {glm} z {requested} požadovaných. Základní OCR je zachováno."
+  },
+  "Page {page}: slow verification failed: {reason} Primary OCR is preserved.": {
+    "en": "Page {page}: slow verification failed: {reason} Primary OCR is preserved.",
+    "ru": "Страница {page}: дополнительная проверка не выполнена: {reason} Основное распознавание сохранено.",
+    "cs": "Strana {page}: dodatečné ověření selhalo: {reason} Základní OCR je zachováno."
+  },
+  "__builtin_rule__Notes: free text, blank allowed": {
+    "en": "Notes: free text, blank allowed",
+    "ru": "Notes: свободный текст, пусто допустимо",
+    "cs": "Notes: volný text, prázdná hodnota povolena"
+  },
+  "Auto-fit: reconstructed grid needs manual checking.": {
+    "en": "Auto-fit: reconstructed grid needs manual checking.",
+    "ru": "Автоподгонка: восстановленная сетка требует проверки.",
+    "cs": "Automatické přizpůsobení: obnovenou mřížku je nutné zkontrolovat."
+  },
+  "Auto-fit: invalid number of data rows.": {
+    "en": "Auto-fit: invalid number of data rows.",
+    "ru": "Автоподгонка: недопустимое количество строк данных.",
+    "cs": "Automatické přizpůsobení: neplatný počet datových řádků."
+  },
+  "Auto-fit: invalid grid coordinates.": {
+    "en": "Auto-fit: invalid grid coordinates.",
+    "ru": "Автоподгонка: недопустимые координаты сетки.",
+    "cs": "Automatické přizpůsobení: neplatné souřadnice mřížky."
+  },
+  "Auto-fit: column proportions differ from the template.": {
+    "en": "Auto-fit: column proportions differ from the template.",
+    "ru": "Автоподгонка: пропорции столбцов отличаются от шаблона.",
+    "cs": "Automatické přizpůsobení: poměry sloupců se liší od šablony."
+  },
+  "Auto-fit: row structure differs from the protocol. Check the headers and guides.": {
+    "en": "Auto-fit: row structure differs from the protocol. Check the headers and guides.",
+    "ru": "Автоподгонка: структура строк отличается от протокола. Проверьте заголовки и линии.",
+    "cs": "Automatické přizpůsobení: struktura řádků se liší od protokolu. Zkontrolujte záhlaví a čáry."
+  },
+  "Auto-fit: uneven row spacing needs manual checking.": {
+    "en": "Auto-fit: uneven row spacing needs manual checking.",
+    "ru": "Автоподгонка: неравномерная высота строк требует ручной проверки.",
+    "cs": "Automatické přizpůsobení: nerovnoměrné řádky vyžadují ruční kontrolu."
+  },
+  "Auto-fit: header proportions differ. Check the header rows.": {
+    "en": "Auto-fit: header proportions differ. Check the header rows.",
+    "ru": "Автоподгонка: пропорции заголовка отличаются. Проверьте строки заголовка.",
+    "cs": "Automatické přizpůsobení: poměry záhlaví se liší. Zkontrolujte řádky záhlaví."
+  },
+  "Auto-fit: OCR fields inside the table need manual alignment.": {
+    "en": "Auto-fit: OCR fields inside the table need manual alignment.",
+    "ru": "Автоподгонка: поля распознавания внутри таблицы требуют ручного выравнивания.",
+    "cs": "Automatické přizpůsobení: pole OCR uvnitř tabulky vyžadují ruční zarovnání."
+  },
+  "Auto-fit: a metadata field falls outside the page.": {
+    "en": "Auto-fit: a metadata field falls outside the page.",
+    "ru": "Автоподгонка: поле метаданных выходит за границы страницы.",
+    "cs": "Automatické přizpůsobení: pole metadat leží mimo stránku."
+  },
+  "Auto-fit: pages have different grids. Open them as separate files.": {
+    "en": "Auto-fit: pages have different grids. Open them as separate files.",
+    "ru": "Автоподгонка: страницы имеют разные сетки. Откройте их отдельными файлами.",
+    "cs": "Automatické přizpůsobení: stránky mají různé mřížky. Otevřete je jako samostatné soubory."
+  },
+  "Auto-fit: detected {detected} columns; the protocol has {expected}. Choose another protocol or adjust its columns.": {
+    "en": "Auto-fit: detected {detected} columns; the protocol has {expected}. Choose another protocol or adjust its columns.",
+    "ru": "Автоподгонка: найдено {detected} столбцов, в протоколе — {expected}. Выберите другой протокол или исправьте его столбцы.",
+    "cs": "Automatické přizpůsobení: nalezeno {detected} sloupců, protokol má {expected}. Vyberte jiný protokol nebo upravte jeho sloupce."
   }
 }

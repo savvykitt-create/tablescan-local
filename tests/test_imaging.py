@@ -115,3 +115,14 @@ def test_border_connecting_handwriting_is_not_a_cancellation():
     cv2.line(image,(10,85),(590,90),(45,45,45),7)
     template = TableTemplate("t","t",NormalizedRect(0,0,1,1),[0,.5,1],[0,.5,1])
     assert detect_crossed_rows(image,template) == [1]
+
+
+def test_slanted_vertical_rules_are_not_lost_in_scans():
+    image = np.full((800, 1200, 3), 255, np.uint8)
+    for x in range(100, 1101, 100):
+        cv2.line(image, (x, 150), (x + 7, 650), (80, 80, 80), 2)
+    for y in range(150, 651, 50):
+        cv2.line(image, (100, y), (1107, y), (40, 40, 40), 2)
+    detection = detect_grid(image)
+    assert len(detection.column_guides) - 1 == 10
+    assert len(detection.row_guides) - 1 == 10

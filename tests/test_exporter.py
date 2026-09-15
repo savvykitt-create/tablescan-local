@@ -119,6 +119,36 @@ def test_layout_sheet_keeps_excluded_measurements_empty(tmp_path):
     assert layout["B3"].value is None and layout["C3"].value is None
 
 
+def test_column_exclusion_overlaps_rows_and_restores_reviewed_values(tmp_path):
+    job = make_job(); page = job.pages[0]
+    cell = page.cell(1, 1); cell.final_text = '13.7'; cell.status = 'corrected'
+    page.set_excluded('column', 1, True, job.template)
+    page.set_excluded('row', 1, True, job.template)
+    page.set_excluded('column', 1, False, job.template)
+    assert cell.status == 'excluded' and cell.final_text == ''
+    restored = JobResult.from_dict(job.to_dict())
+    page = restored.pages[0]; cell = page.cell(1, 1)
+    page.set_excluded('row', 1, False, restored.template)
+    assert cell.final_text == '13.7' and cell.status == 'corrected'
+    page.set_excluded('column', 1, True, restored.template)
+    wb = load_workbook(export_job(restored, tmp_path/'columns.xlsx'))
+    assert wb['Original table']['B1'].value == '1'
+    assert wb['Original table']['B2'].value is None
+    assert all(row[5] != 'Measure 1' for row in list(wb['Data'].values)[1:])
+
+
+def test_compact_fields_include_all_pages_and_literal_metadata(tmp_path):
+    job = make_job()
+    second = PageResult.from_dict(job.pages[0].to_dict()); second.page_index = 1
+    second.fields[0].final_text = '=1+1'
+    second.fields[1].final_text = '0017'
+    job.pages.append(second)
+    wb = load_workbook(export_job(job, tmp_path/'compact-fields.xlsx', mode='compact'))
+    assert wb.sheetnames == ['Original table', 'Original table 2', 'Fields']
+    assert list(wb['Fields'].values)[1:] == [(1,'Test','PLANTAR'), (1,'Side','Left Hind'), (2,'Test','=1+1'), (2,'Side','0017')]
+    assert wb['Fields']['C4'].data_type == 's'
+
+
 def test_export_keeps_raw_and_alternatives_as_literal_text(tmp_path):
     job = make_job()
     item = job.pages[0].cell(1, 1)
@@ -148,7 +178,7 @@ def test_export_blocks_unconfirmed_numeric_and_retains_first_data_row(tmp_path):
     assert wb["Data"]["G2"].value == 34.4
 
 
-def test_confirmed_value_cannot_bypass_hard_rule_on_export(tmp_path):
+def test_confirmed_value_overrides_hard_rule_on_export(tmp_path):
     import pytest
     job = make_job()
     job.template.column_rules[1].value_format = "numeric"
@@ -157,9 +187,9 @@ def test_confirmed_value_cannot_bypass_hard_rule_on_export(tmp_path):
     item = job.pages[0].cell(1, 1)
     item.final_text = "125"
     item.applied_rule = "1 decimal place"
-    with pytest.raises(ValueError, match="R2C2"):
-        export_job(job, tmp_path / "should-not-exist.xlsx")
-    assert not (tmp_path / "should-not-exist.xlsx").exists()
+    wb = load_workbook(export_job(job, tmp_path / "manual-override.xlsx"))
+    assert wb["Original table"]["B2"].value == 125
+    wb.close()
     item.final_text = "12.5"
     output = export_job(job, tmp_path / "valid.xlsx")
     rows = list(load_workbook(output)["Audit"].values)
@@ -179,15 +209,15 @@ def test_export_records_writer_adaptation_evidence(tmp_path):
     assert record[-1] == item.writer_evidence
 
 
-def test_compact_exports_only_original_layout_for_every_page(tmp_path):
+def test_compact_exports_original_layout_and_fields_for_every_page(tmp_path):
     job = make_job()
     second = PageResult.from_dict(job.pages[0].to_dict())
     second.page_index = 1
     job.pages.append(second)
     output = export_job(job, tmp_path / "compact.xlsx", mode="compact")
     wb = load_workbook(output, data_only=True)
-    assert wb.sheetnames == ["Original table", "Original table 2"]
-    for sheet in wb:
+    assert wb.sheetnames == ["Original table", "Original table 2", "Fields"]
+    for sheet in (wb["Original table"], wb["Original table 2"]):
         assert sheet["B2"].value == 12.5
         assert sheet["C2"].value == "8.2 ± 0.4"
     wb.close()

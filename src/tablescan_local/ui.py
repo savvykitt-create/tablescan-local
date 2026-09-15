@@ -1,8 +1,10 @@
 from __future__ import annotations
+from .i18n import localized_rule_name
 
 from .i18n import tr, fmt, join_text
 import json
 import os
+import sys
 from .i18n import escape_text as escape
 from .i18n import language, set_language, SUPPORTED_LANGUAGES, bind
 from bisect import bisect_right
@@ -13,8 +15,8 @@ from uuid import uuid4
 
 import cv2
 import numpy as np
-from PySide6.QtCore import QObject, QPointF, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
-from PySide6.QtGui import QColor, QIcon, QImage, QPainter, QPainterPath, QPainterPathStroker, QPen, QPixmap
+from PySide6.QtCore import QEvent, QLockFile, QObject, QPointF, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
+from PySide6.QtGui import QShortcut, QKeySequence, QColor, QIcon, QImage, QPainter, QPainterPath, QPainterPathStroker, QPen, QPixmap
 from PySide6.QtWidgets import QApplication, QGraphicsItem, QGraphicsLineItem, QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView, QHBoxLayout, QHeaderView, QInputDialog, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QVBoxLayout
 
 from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QProgressDialog, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
@@ -31,6 +33,8 @@ from .storage import LocalStore
 from .theme import apply_theme, colors, set_theme_style
 from .template_matcher import TemplateMatch, rank_templates
 from .template_fit import fit_document_template, fit_template
+from .analysis_queue import AnalysisQueue
+from .queue_dialog import AnalysisQueueDialog
 
 
 BLUE = "#4F46E5"
@@ -459,7 +463,7 @@ class DocumentCanvas(QGraphicsView):
                 item = self.scene().addRect(rect, QPen(color, 4 if index == self.active_rule else 2))
                 fill = QColor(color); fill.setAlpha(32); item.setBrush(fill)
                 item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-                text = self.scene().addSimpleText(fmt('{p0}. {p1}', p0=index + 1, p1=region.name))
+                text = self.scene().addSimpleText(fmt('{p0}. {p1}', p0=index + 1, p1=localized_rule_name(region.name)))
                 text.setPos(rect.left() + 5, rect.top() + 3); text.setBrush(color)
                 text.setScale(1.15); text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
@@ -870,7 +874,7 @@ class TablePage(QWidget):
     savedTemplateRequested = Signal(str)
     rotationRequested = Signal(int)
 
-    def __init__(self, mode: str = "document") -> None:
+    def __init__(self, mode: str = "document", *, private_copy: bool = False) -> None:
         super().__init__()
         self.mode = mode
         self.image: np.ndarray | None = None
@@ -893,7 +897,7 @@ class TablePage(QWidget):
         if mode == "template":
             validate = QPushButton(tr('Проверить шаблон'))
             validate.clicked.connect(self._validate_template)
-            save_version = QPushButton(tr('Сохранить шаблон'))
+            save_version = QPushButton(tr('Use for this file') if private_copy else tr('Сохранить шаблон'))
             save_version.setProperty("primary", True)
             save_version.clicked.connect(self._continue)
             header.addWidget(validate); header.addWidget(save_version)
@@ -1038,7 +1042,7 @@ class TablePage(QWidget):
 
     def set_recognition_running(self, running: bool) -> None:
         self.continue_button.setEnabled(not running)
-        self.continue_button.setText(tr('Распознавание выполняется…') if running else tr('Сохранить сетку и продолжить'))
+        self.continue_button.setText(tr('Analysis queued or running') if running else tr('Add to analysis queue'))
 
     def set_saved_templates(self, templates: list[TableTemplate]) -> None:
         selected_id = self.template.id if self.template else self.saved_template_select.currentData()
@@ -1365,7 +1369,7 @@ class TablePage(QWidget):
         while self.rule_list.count() < len(self.template.cell_rules):
             self.rule_list.addItem("")
         for i, region in enumerate(self.template.cell_rules):
-            self.rule_list.item(i).setText(fmt('{p0}. {p1}\n{p2}', p0=i + 1, p1=region.name, p2=region.address()))
+            self.rule_list.item(i).setText(fmt('{p0}. {p1}\n{p2}', p0=i + 1, p1=localized_rule_name(region.name), p2=region.address()))
         self.rule_list.blockSignals(False)
         self._quick_dirty = False
         self._quick_error = ""
@@ -1496,7 +1500,7 @@ class TablePage(QWidget):
         if self.template:
             for index, region in enumerate(self.template.cell_rules):
                 outside = region.row_end >= self.template.rows or region.column_end >= self.template.columns
-                self.rule_list.addItem(fmt('{p0}. {p1}\n{p2}', p0=index + 1, p1=region.name, p2=region.address()) + (tr(' — вне сетки!') if outside else ""))
+                self.rule_list.addItem(fmt('{p0}. {p1}\n{p2}', p0=index + 1, p1=localized_rule_name(region.name), p2=region.address()) + (tr(' — вне сетки!') if outside else ""))
         self.rule_list.blockSignals(False)
         self.rule_list.setCurrentRow(self.rule_list.count() - 1)
         self._rule_selected(self.rule_list.currentRow())
@@ -1517,7 +1521,7 @@ class TablePage(QWidget):
             self._quick_active_rule_id = region.id
             self.rule_summary.setText(region.constraints.summary())
             self.canvas.select_region(region.row_start, region.row_end, region.column_start, region.column_end)
-            self.quick_rule_name.setText(region.name)
+            self.quick_rule_name.setText(localized_rule_name(region.name))
             self.quick_kind.setCurrentIndex(max(0, self.quick_kind.findData(region.constraints.value_format)))
             self.quick_places.setValue(-1 if region.constraints.decimal_places is None else region.constraints.decimal_places)
             self.quick_minimum.setText("" if region.constraints.minimum is None else str(region.constraints.minimum))
@@ -1652,7 +1656,7 @@ class TablePage(QWidget):
         self._refresh_columns()
         self._refresh_cell_rules()
         if changes:
-            self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(changes)))
+            self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0=join_text('; ', changes)))
         self.canvas.redraw()
         self.templateChanged.emit(self.template)
 
@@ -1684,7 +1688,7 @@ class TablePage(QWidget):
         self.set_document(self.image, self.template)
         notices = list(detection.warnings)
         if changes:
-            notices.append(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(changes)))
+            notices.append(tr('Диапазоны правил обновлены: {p0}', p0=join_text('; ', changes)))
         self.grid_warning.setText(join_text(' ', notices))
         self.templateChanged.emit(self.template)
         notify(self, tr("Grid detected"))
@@ -1733,7 +1737,7 @@ class TablePage(QWidget):
             return
         for region in self.template.fields:
             value = fmt(' — {p0}', p0=region.fixed_value) if region.source == "fixed" and region.fixed_value else ""
-            self.field_list.addItem(fmt('{p0}{p1}', p0=region.name, p1=value))
+            self.field_list.addItem(fmt('{p0}{p1}', p0=localized_rule_name(region.name), p1=value))
         maximum = max(0, self.template.columns - 1)
         self.field_column_start.setRange(0, maximum)
         self.field_column_end.setRange(0, maximum)
@@ -1743,7 +1747,7 @@ class TablePage(QWidget):
             return
         region = self.template.fields[index]
         self._loading_form = True
-        self.field_name.setText(region.name)
+        self.field_name.setText(localized_rule_name(region.name))
         self.field_kind.setCurrentIndex(max(0, self.field_kind.findData(region.kind)))
         self.field_recognition.setCurrentIndex(max(0, self.field_recognition.findData(region.recognition)))
         self.field_source.setCurrentIndex(max(0, self.field_source.findData(region.source)))
@@ -1817,7 +1821,7 @@ class TablePage(QWidget):
         if self.template:
             self.template.ensure_column_rules()
             for index, rule in enumerate(self.template.column_rules):
-                self.column_select.addItem(fmt('{p0}: {p1}', p0=index + 1, p1=rule.name))
+                self.column_select.addItem(fmt('{p0}: {p1}', p0=index + 1, p1=localized_rule_name(rule.name)))
         self.column_select.blockSignals(False)
         if self.column_select.count():
             self.column_select.setCurrentIndex(0)
@@ -1839,7 +1843,7 @@ class TablePage(QWidget):
         rule = self.template.column_rules[index]
         rule.name = self.column_name.text().strip() or rule.name
         rule.role = str(self.column_role.currentData())
-        self.column_select.setItemText(index, fmt('{p0}: {p1}', p0=index + 1, p1=rule.name))
+        self.column_select.setItemText(index, fmt('{p0}: {p1}', p0=index + 1, p1=localized_rule_name(rule.name)))
         self.templateChanged.emit(self.template)
 
     def save_column(self) -> None:
@@ -1901,7 +1905,7 @@ class RecognitionWorker(QThread):
     failed = Signal(str)
     cancelled = Signal()
 
-    def __init__(self, images: list[np.ndarray], source_path: str, template: TableTemplate, crop_root: Path, high_accuracy: bool = True, parent: QObject | None = None, slow_mode: bool = False) -> None:
+    def __init__(self, images: list[np.ndarray] | None, source_path: str, template: TableTemplate, crop_root: Path, high_accuracy: bool = True, parent: QObject | None = None, slow_mode: bool = False, *, auto_prepare: bool = False) -> None:
         super().__init__(parent)
         self.images = images
         self.source_path = source_path
@@ -1909,9 +1913,26 @@ class RecognitionWorker(QThread):
         self.crop_root = crop_root
         self.high_accuracy = high_accuracy
         self.slow_mode = slow_mode
+        self.auto_prepare = auto_prepare
+        self.preparation = None
 
     def run(self) -> None:
         try:
+            if self.auto_prepare:
+                from .batch_preflight import prepare_file
+                checked = prepare_file(self.source_path, [self.template], self.isInterruptionRequested,
+                                       lambda message: self.progress.emit(0, 1, message))
+                assessment = checked.assessments.get(self.template.id)
+                if checked.error or not assessment or assessment.template is None:
+                    reason = checked.error or (assessment.error if assessment else '')
+                    raise ValueError(str(tr('Alignment required. Use Prepare files again to correct the protocol before retrying.')) + ' ' + reason)
+                self.template = assessment.template
+                self.preparation = dict(rotation=assessment.rotation_degrees, status=assessment.fit_status,
+                                        score=assessment.score, rows=self.template.rows, columns=self.template.columns)
+            if self.images is None:
+                self.images = rotate_document(load_document(self.source_path), self.template.rotation_degrees)
+            if self.isInterruptionRequested():
+                raise InterruptedError
             def report(value: int, maximum: int, label: str) -> None:
                 if self.isInterruptionRequested():
                     raise InterruptedError
@@ -2044,7 +2065,12 @@ class ReviewPage(QWidget):
         fields_layout.addWidget(self.fields_label)
         self.fields_table = QTableWidget(0, 3)
         self.fields_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.fields_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        # Cocoa's selectedChildren traversal can invalidate other selected cells
+        # while constructing a table's accessibility model. One selected cell
+        # still identifies the field and avoids that native use-after-free.
+        self.fields_table.setSelectionBehavior(
+            QTableWidget.SelectionBehavior.SelectItems if sys.platform == 'darwin'
+            else QTableWidget.SelectionBehavior.SelectRows)
         self.fields_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.fields_table.setHorizontalHeaderLabels([tr('Поле'), tr('Значение'), tr('Оценка OCR')])
         self.fields_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
@@ -2105,6 +2131,12 @@ class ReviewPage(QWidget):
         set_theme_style(self.correct_value, "font-size: 19px;")
         value_title.setBuddy(self.correct_value)
         self.correct_value.returnPressed.connect(self.confirm_current)
+        self.confirm_shortcuts = []
+        for key in ("Return", "Enter"):
+            shortcut = QShortcut(QKeySequence(key), self)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(self.confirm_current)
+            self.confirm_shortcuts.append(shortcut)
         value_row.addWidget(value_title)
         value_row.addWidget(self.correct_value, 1)
         edit_box.addLayout(value_row)
@@ -2113,13 +2145,12 @@ class ReviewPage(QWidget):
         self.writer_suggestion_button.setShortcut("Alt+A")
         self.writer_suggestion_button.clicked.connect(self._use_writer_suggestion)
         self.writer_suggestion_button.hide()
-        edit_box.addWidget(self.writer_suggestion_button)
         actions = QHBoxLayout()
-        self.confirm_button = QPushButton(tr('Подтвердить и далее'))
+        self.confirm_button = QPushButton(tr('Подтвердить и далее') + '  [Enter]')
         self.confirm_button.setProperty("primary", True)
         self.confirm_button.setToolTip(tr('Сохранить значение и перейти к следующему спорному. Enter в поле ввода'))
         self.confirm_button.clicked.connect(self.confirm_current)
-        self.next_button = QPushButton(tr('Следующее спорное →'))
+        self.next_button = QPushButton(tr('Следующее спорное →') + '  [Alt+→]')
         self.next_button.setShortcut("Alt+Right")
         self.next_button.setToolTip(tr('Перейти без подтверждения текущего значения. Alt+→'))
         self.next_button.clicked.connect(self.select_next_uncertain)
@@ -2131,6 +2162,10 @@ class ReviewPage(QWidget):
         self.exclude_row.setToolTip(tr('Оставить измерения строки пустыми. Снимите отметку, чтобы восстановить значения.'))
         self.exclude_row.toggled.connect(self._exclude_toggled)
         secondary.addWidget(self.exclude_row)
+        self.exclude_column = QCheckBox(tr('Exclude this column'))
+        self.exclude_column.setToolTip(tr('Leave this column’s measurements empty, keeping its header. Clear to restore the values.'))
+        self.exclude_column.toggled.connect(self._exclude_column_toggled)
+        secondary.addWidget(self.exclude_column)
         secondary.addStretch()
         self.details_toggle = QToolButton()
         self.details_toggle.setText(tr('Почему нужна проверка'))
@@ -2140,6 +2175,10 @@ class ReviewPage(QWidget):
         self.details_toggle.toggled.connect(self._toggle_details)
         secondary.addWidget(self.details_toggle)
         edit_box.addLayout(secondary)
+        suggestion_size = self.writer_suggestion_button.sizePolicy()
+        suggestion_size.setRetainSizeWhenHidden(True)
+        self.writer_suggestion_button.setSizePolicy(suggestion_size)
+        edit_box.addWidget(self.writer_suggestion_button)
         self.confidence_label = QLabel()
         self.confidence_label.setWordWrap(True)
         self.confidence_label.setTextFormat(Qt.TextFormat.RichText)
@@ -2308,6 +2347,10 @@ class ReviewPage(QWidget):
             self.exclude_row.setChecked(False)
             self.exclude_row.setEnabled(False)
             self.exclude_row.blockSignals(False)
+            self.exclude_column.blockSignals(True)
+            self.exclude_column.setChecked(False)
+            self.exclude_column.setEnabled(False)
+            self.exclude_column.blockSignals(False)
         else:
             item = page.cells[self.current_index]
             suggestion = getattr(item, "writer_suggestion", "")
@@ -2322,6 +2365,10 @@ class ReviewPage(QWidget):
             self.exclude_row.setEnabled(item.row >= self.result.template.header_rows)
             self.exclude_row.setChecked(item.row in page.excluded_rows)
             self.exclude_row.blockSignals(False)
+            self.exclude_column.blockSignals(True)
+            self.exclude_column.setEnabled(item.column >= self.result.template.row_label_columns)
+            self.exclude_column.setChecked(item.column in page.excluded_columns)
+            self.exclude_column.blockSignals(False)
         self.confirm_button.setEnabled(item.status != "excluded")
         self.correct_value.setEnabled(item.status != "excluded")
         self.writer_suggestion_button.setEnabled(item.status != "excluded")
@@ -2346,6 +2393,7 @@ class ReviewPage(QWidget):
             "possible_border_digit": tr('Граница таблицы могла быть прочитана как 1'),
             "crossed_out_row": tr('На изображении обнаружен непрерывный штрих через строку'),
             "auto_excluded_crossed_row": tr('Непрерывный штрих найден по всей строке; её значения автоматически оставлены пустыми'),
+            "suspected_crossed_row": tr('Possible crossed-out row or shifted grid. Values were kept. Check the alignment before excluding the row.'),
             "non_numeric_mark_row": tr('В большинстве ячеек строки OCR видит буквы или символы вместо чисел; строка оставлена пустой'),
             "alternative_selected": tr('Выбрано альтернативное прочтение; исходный OCR показан выше'),
             "rule_selected_alternative": tr('Выбрано другое прочтение OCR, соответствующее вашему правилу'),
@@ -2478,24 +2526,7 @@ class ReviewPage(QWidget):
         if item.status == "excluded":
             return
         corrected = self.correct_value.text().strip()
-        if self.current_kind == "cell" and item.status != "excluded":
-            rule, name = self.result.template.cell_constraints(item.row, item.column)
-            if rule and rule.value_format in {"numeric", "integer", "complex_numeric"}:
-                corrected = canonical_numeric(corrected)
-            if rule and rule.hard_errors(corrected):
-                QMessageBox.warning(self, tr('Значение не соответствует правилу'), tr('{p0}: {p1}\n\nИсправьте значение или измените правило и повторите распознавание.', p0=name, p1=rule.summary()))
-                return
-        elif self.current_kind == "field":
-            region = next((region for region in self.result.template.fields if region.id == item.region_id), None)
-            if region is None:
-                QMessageBox.warning(self, tr('Проверьте правила'), tr('Поле отсутствует в шаблоне.'))
-                return
-            if region.kind in {"numeric", "integer", "complex_numeric"}:
-                corrected = canonical_numeric(corrected)
-            if region.hard_errors(corrected):
-                QMessageBox.warning(self, tr('Значение не соответствует правилу'),
-                                    tr('Поле «{p0}» не соответствует правилу: {p1}', p0=region.name, p1=region.constraints().summary()))
-                return
+        # Explicit human corrections override recognition constraints verbatim.
         item.final_text = corrected
         if getattr(item, "status", "automatic") != "excluded":
             item.status = "confirmed" if corrected == item.raw_text else "corrected"
@@ -2549,24 +2580,17 @@ class ReviewPage(QWidget):
         self.select_next_uncertain()
 
     def _exclude_toggled(self, checked: bool) -> None:
+        self._set_axis_excluded('row', checked)
+
+    def _exclude_column_toggled(self, checked: bool) -> None:
+        self._set_axis_excluded('column', checked)
+
+    def _set_axis_excluded(self, axis: str, checked: bool) -> None:
         if not self.result or self.current_kind != "cell" or self.current_index < 0:
             return
         page = self.result.pages[self.current_page]
-        row = page.cells[self.current_index].row
-        if checked and row not in page.excluded_rows:
-            page.excluded_rows.append(row)
-        elif not checked and row in page.excluded_rows:
-            page.excluded_rows.remove(row)
-        for cell in page.cells:
-            if cell.row == row and cell.column >= self.result.template.row_label_columns:
-                if checked:
-                    if cell.final_text:
-                        cell.suggested_text = cell.final_text
-                    cell.final_text = ""
-                    cell.status = "excluded"
-                elif cell.status == "excluded":
-                    cell.final_text = cell.suggested_text or cell.raw_text
-                    cell.status = "automatic"
+        cell = page.cells[self.current_index]
+        page.set_excluded(axis, cell.row if axis == 'row' else cell.column, checked, self.result.template)
         self._populate()
         self._show_current()
         self.resultChanged.emit(self.result)
@@ -2629,6 +2653,10 @@ class ReviewPage(QWidget):
         self.exclude_row.setChecked(False)
         self.exclude_row.setEnabled(False)
         self.exclude_row.blockSignals(False)
+        self.exclude_column.blockSignals(True)
+        self.exclude_column.setChecked(False)
+        self.exclude_column.setEnabled(False)
+        self.exclude_column.blockSignals(False)
         self.confidence_label.clear()
         self.details_toggle.setChecked(False)
 
@@ -2714,8 +2742,11 @@ class MainWindow(QMainWindow):
         self.result: JobResult | None = None
         self.worker: RecognitionWorker | None = None
         self._workers: list[RecognitionWorker] = []
-        self.progress_dialog: QProgressDialog | None = None
-        self.pending_sources: list[str] = []
+        self._close_requested = False
+        self._close_timer = QTimer(self)
+        self._close_timer.setInterval(100)
+        self._close_timer.timeout.connect(self._finish_close_if_idle)
+        QApplication.instance().installEventFilter(self)
         self.template_editor_working: TableTemplate | None = None
         self.template_editor_reference = ""
         self._pending_draft: tuple[str, dict] | None = None
@@ -2724,6 +2755,13 @@ class MainWindow(QMainWindow):
         self._draft_timer.setInterval(250)
         self._draft_timer.timeout.connect(lambda: self._flush_draft(warn=False))
         self._build_ui()
+        self.analysis_queue = AnalysisQueue(self.store, self._make_queue_worker, self)
+        self.queue_dialog = AnalysisQueueDialog(self.analysis_queue, self)
+        self.queue_dialog.reviewRequested.connect(lambda job_id: self.open_recent(job_id, prefer_result=True))
+        self.queue_dialog.prepareRequested.connect(self.prepare_batch)
+        self.analysis_queue.changed.connect(self._queue_changed)
+        self.analysis_queue.resultSaved.connect(self._queue_result_saved)
+        self._queue_changed()
         self.files_page.historyRequested.connect(self.refresh_recent)
         self.refresh_recent()
         self.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "savvykit.png")))
@@ -2749,6 +2787,9 @@ class MainWindow(QMainWindow):
         top_layout.addWidget(self.file_title)
         self.save_status = QLabel("")
         top_layout.addWidget(self.save_status)
+        self.queue_button = QPushButton(tr('Analysis queue'))
+        self.queue_button.clicked.connect(self.show_analysis_queue)
+        top_layout.addWidget(self.queue_button)
         self.theme_select = QComboBox()
         self.theme_select.addItem(tr('Светлая тема'), "light")
         self.theme_select.addItem(tr('Тёмная тема'), "dark")
@@ -3089,17 +3130,57 @@ class MainWindow(QMainWindow):
     def open_files(self, paths: list[str]) -> None:
         if not paths:
             return
-        self.pending_sources = list(paths[1:])
-        if len(paths) > 1:
-            QMessageBox.information(
-                self,
-                tr('Очередь создана'),
-                tr('The first file opens now. {p0} remaining file(s) will reuse this template after each export.', p0=len(paths) - 1),
-            )
-        self.open_source(paths[0])
+        if len(paths) == 1:
+            self.open_source(paths[0])
+            return
+        self.prepare_batch(paths)
+
+    def prepare_batch(self, paths: list[str]) -> None:
+        from .template_matcher import latest_template_versions
+        templates = latest_template_versions(self.store.load_templates())
+        if not templates:
+            QMessageBox.warning(self, tr('Analysis queue'), tr('Save a template before starting a batch.'))
+            return
+        from .batch_dialog import BatchPreparationDialog
+        dialog = BatchPreparationDialog(paths, templates,
+                                        lambda: TablePage(mode="template", private_copy=True), self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.enqueue_prepared_files(dialog.jobs, *dialog.analysis_options, preparations=dialog.preparations)
+        dialog.deleteLater()
+
+    def enqueue_files(self, paths, template, high_accuracy=True, slow_mode=False):
+        self.enqueue_prepared_files([(path, template) for path in paths], high_accuracy, slow_mode)
+
+    def enqueue_prepared_files(self, jobs, high_accuracy=True, slow_mode=False, *, preparations=None):
+        if not self._flush_draft():
+            return
+        if slow_mode:
+            from .slow_mode import runtime_config
+            try:
+                runtime_config()
+            except RuntimeError as exc:
+                QMessageBox.warning(self, tr('Slow mode недоступен'), str(exc))
+                return
+            high_accuracy = True
+        errors = []
+        for path, template in jobs:
+            job_id = None
+            try:
+                job_id, copied = self.store.import_source(path)
+                self.store.save_draft(job_id, template)
+                self.analysis_queue.enqueue(job_id, str(path), str(copied), template, high_accuracy, slow_mode,
+                                            preparation=(preparations or {}).get(path))
+            except Exception as exc:
+                if job_id:
+                    self.store.delete_job(job_id)
+                errors.append(f'{Path(path).name}: {exc}')
+        self.refresh_recent()
+        self.show_analysis_queue()
+        if errors:
+            QMessageBox.warning(self, tr('Some files could not be queued'), '\n'.join(errors))
 
     def open_source(self, path: str, reused_template: TableTemplate | None = None) -> None:
-        if any(worker.isRunning() for worker in self._workers) or not self._flush_draft():
+        if not self._flush_draft():
             return
         selected_match: TemplateMatch | None = None
         new_job_id = ""
@@ -3170,6 +3251,30 @@ class MainWindow(QMainWindow):
         if result is not None:
             self.review_page.set_result(images, result)
         self._navigate(2 if result is not None else 1)
+        self._queue_changed()
+
+    def show_analysis_queue(self):
+        self.queue_dialog.show()
+        self.queue_dialog.raise_()
+        self.queue_dialog.activateWindow()
+
+    def _make_queue_worker(self, entry):
+        worker = RecognitionWorker(None, entry['stored_path'], TableTemplate.from_dict(entry['template']),
+                                   self.store.jobs_dir / entry['job_id'] / 'crops', entry['high_accuracy'],
+                                   self, slow_mode=entry['slow_mode'], auto_prepare='preparation' not in entry)
+        self.worker = worker
+        self._workers.append(worker)
+        worker.finished.connect(lambda: self._recognition_thread_finished(worker))
+        return worker
+
+    def _queue_changed(self):
+        busy = sum(e['status'] in ('queued', 'running', 'cancelling') for e in self.analysis_queue.entries)
+        self.queue_button.setText(tr('Analysis queue ({p0})', p0=busy))
+        self.table_page.set_recognition_running(self.analysis_queue.busy(self.job_id))
+
+    def _queue_result_saved(self, job_id, result):
+        # A completion must never install another document's result in the editor.
+        self.refresh_recent()
 
     @staticmethod
     def _detect_or_manual(image: np.ndarray) -> GridDetection:
@@ -3220,8 +3325,8 @@ class MainWindow(QMainWindow):
         self._template_changed(self.template)
         notify(self, tr("Document rotated"))
 
-    def open_recent(self, job_id: str) -> None:
-        if any(worker.isRunning() for worker in self._workers) or not self._flush_draft():
+    def open_recent(self, job_id: str, *, prefer_result: bool = False) -> None:
+        if not self._flush_draft():
             return
         try:
             loaded = self.store.load_job(job_id)
@@ -3231,7 +3336,7 @@ class MainWindow(QMainWindow):
             images = load_document(metadata["stored_source_path"])
             if not images:
                 raise ValueError(tr('The document contains no pages.'))
-            draft = self.store.load_draft(job_id)
+            draft = None if prefer_result and result else self.store.load_draft(job_id)
             if draft and result and draft.to_dict() == result.template.to_dict():
                 draft = None  # Saving unchanged controls must not hide reviewed data.
             if draft:
@@ -3305,15 +3410,8 @@ class MainWindow(QMainWindow):
     def start_recognition(self, template: TableTemplate) -> None:
         if not self.images or not self.job_id:
             return
-        running = next((worker for worker in self._workers if worker.isRunning()), None)
-        if running is not None:
-            # A fast double click can queue the same action twice before the
-            # modal progress window is painted. Never replace the only strong
-            # reference to a live QThread.
-            if self.progress_dialog:
-                self.progress_dialog.show()
-                self.progress_dialog.raise_()
-                self.progress_dialog.activateWindow()
+        if self.analysis_queue.busy(self.job_id):
+            self.show_analysis_queue()
             return
         if self.table_page.template is not None:
             if not self.table_page.prepare_current_settings():
@@ -3339,26 +3437,13 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr('Проверьте правила'), str(exc))
             return
         self.template = template
-        crop_root = self.store.jobs_dir / self.job_id / "crops"
-        self.progress_dialog = QProgressDialog(tr('Подготовка локального OCR…'), tr('Отмена'), 0, 100, self)
-        self.progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
-        self.progress_dialog.setMinimumDuration(0)
-        self.worker = RecognitionWorker(
-            self.images, self.source_path, TableTemplate.from_dict(template.to_dict()), crop_root,
-            self.table_page.high_accuracy.isChecked(),
-            self,
-            slow_mode=self.table_page.slow_mode.isChecked(),
-        )
-        self._workers.append(self.worker)
-        self.table_page.set_recognition_running(True)
-        self.worker.progress.connect(self._recognition_progress)
-        self.worker.completed.connect(self._recognition_done)
-        self.worker.failed.connect(self._recognition_failed)
-        self.worker.cancelled.connect(self._recognition_cancelled)
-        current_worker = self.worker
-        self.worker.finished.connect(lambda: self._recognition_thread_finished(current_worker))
-        self.progress_dialog.canceled.connect(self.worker.requestInterruption)
-        self.worker.start()
+        try:
+            self.analysis_queue.enqueue(self.job_id, self.source_path, self.stored_source_path, template,
+                                        self.table_page.high_accuracy.isChecked(), self.table_page.slow_mode.isChecked())
+        except OSError as exc:
+            QMessageBox.warning(self, tr('Queue error'), str(exc))
+            return
+        self.show_analysis_queue()
 
     def _recognition_thread_finished(self, worker: RecognitionWorker) -> None:
         if worker in self._workers:
@@ -3366,21 +3451,9 @@ class MainWindow(QMainWindow):
         if self.worker is worker:
             self.worker = None
             self.table_page.set_recognition_running(False)
-            if self.progress_dialog:
-                self.progress_dialog.close()
-                self.progress_dialog = None
         worker.deleteLater()
 
-    def _recognition_progress(self, value: int, maximum: int, label: str) -> None:
-        if not self.progress_dialog:
-            return
-        self.progress_dialog.setMaximum(maximum)
-        self.progress_dialog.setValue(value)
-        self.progress_dialog.setLabelText(label)
-
     def _recognition_done(self, result: JobResult) -> None:
-        if self.progress_dialog:
-            self.progress_dialog.close()
         self._flush_draft()
         self.result = result
         self.template = TableTemplate.from_dict(result.template.to_dict())
@@ -3397,33 +3470,57 @@ class MainWindow(QMainWindow):
             notify(self, tr('Slow mode завершён. Исправлено измерений: {p0}. Проверьте спорные значения.',
                            p0=sum(page.slow_mode.get('changed', 0) for page in result.pages)))
 
-    def _recognition_failed(self, message: str) -> None:
-        if self.progress_dialog:
-            self.progress_dialog.close()
-        QMessageBox.critical(self, tr('Ошибка распознавания'), message)
+    def eventFilter(self, watched, event):
+        # Quit from the application menu/Cmd+Q must use the same asynchronous
+        # shutdown as closing the main window, including with a dialog open.
+        if watched is QApplication.instance() and event.type() == QEvent.Type.Quit and self.isVisible():
+            self.close()
+            event.ignore()
+            return True
+        return super().eventFilter(watched, event)
 
-    def _recognition_cancelled(self) -> None:
-        if self.progress_dialog:
-            self.progress_dialog.close()
+    def _has_background_work(self):
+        from .batch_dialog import BatchPreparationDialog
+        return self.analysis_queue.worker is not None or any(
+            thread.isRunning() for thread in self.findChildren(QThread)) or any(
+            dialog.worker is not None for dialog in self.findChildren(BatchPreparationDialog))
+
+    def _finish_close_if_idle(self):
+        if self._close_requested and not self._has_background_work():
+            self._close_timer.stop()
+            self.close()
 
     def closeEvent(self, event) -> None:
-        running = [worker for worker in self._workers if worker.isRunning()]
-        if running:
-            for worker in running:
-                worker.requestInterruption()
+        if not self._close_requested:
+            try:
+                self.analysis_queue.shutdown()
+            except OSError as exc:
+                QMessageBox.warning(self, tr('Queue error'), str(exc))
+                event.ignore()
+                return
+            for thread in self.findChildren(QThread):
+                thread.requestInterruption()
+            from .batch_dialog import BatchPreparationDialog
+            for dialog in self.findChildren(BatchPreparationDialog):
+                dialog.reject()
+            if self.template and not self.table_page.prepare_current_settings():
+                event.ignore()
+                return
+            if not self._flush_draft():
+                event.ignore()
+                return
+            self._close_requested = True
+            self.queue_dialog.hide()
+            self.setEnabled(False)
+            self.save_status.setText(tr('Closing: stopping analyses…'))
+        if self._has_background_work():
             event.ignore()
-            QMessageBox.information(
-                self,
-                tr('Завершение анализа'),
-                tr('Останавливаю локальный анализ. Закройте приложение ещё раз после завершения остановки.'),
-            )
+            self._close_timer.start()
             return
-        if self.template and not self.table_page.prepare_current_settings():
-            event.ignore()
-            return
-        if not self._flush_draft():
-            event.ignore()
-            return
+        self._close_timer.stop()
+        for dialog in self.findChildren(QDialog):
+            if dialog.isVisible():
+                dialog.reject()
         super().closeEvent(event)
 
     def _result_changed(self, result: JobResult) -> None:
@@ -3431,6 +3528,7 @@ class MainWindow(QMainWindow):
             return  # Ignore a queued edit emitted by a previously open document.
         if self.job_id:
             self.store.save_result(self.job_id, result)
+            self.analysis_queue.review_updated(self.job_id, result)
         self.refresh_recent()
         self._update_steps()
 
@@ -3450,21 +3548,30 @@ class MainWindow(QMainWindow):
         try:
             saved = export_job(self.result, target, mode=options.mode)
             self.preferences.setValue("export/mode", options.mode)
+            self.analysis_queue.exported(self.job_id)
         except Exception as exc:
             QMessageBox.critical(self, tr('Ошибка экспорта'), str(exc))
             return
         notify(self, tr('Проверенная таблица сохранена:\n{p0}', p0=saved))
-        if self.pending_sources and self.template:
-            next_source = self.pending_sources.pop(0)
-            self.open_source(next_source, self.template)
-            return
         self._update_steps()
 
 
-def create_application() -> tuple[QApplication, MainWindow]:
+class InstanceAlreadyRunning(RuntimeError):
+    pass
+
+
+def create_application(*, lock_store=False) -> tuple[QApplication, MainWindow]:
     app = QApplication.instance() or QApplication([])
     app.setApplicationName("TableScan Local")
     app.setOrganizationName("TableScan Local")
     app.setStyle("Fusion")
+    if lock_store:
+        root = Path(os.getenv('TABLESCAN_DATA_DIR') or QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation))
+        root.mkdir(parents=True, exist_ok=True)
+        lock = QLockFile(str(root / 'instance.lock'))
+        lock.setStaleLockTime(0)
+        if not lock.tryLock(0):
+            raise InstanceAlreadyRunning(tr('This data folder is already open in another TableScan Local window. Close that application before opening another copy.'))
+        app._store_lock = lock  # Keep ownership until the application exits.
     window = MainWindow()
     return app, window

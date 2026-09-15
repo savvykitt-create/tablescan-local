@@ -67,7 +67,7 @@ def test_english_default_and_language_persistence(tmp_path, monkeypatch, qtbot):
     _, reopened = create_application()
     qtbot.addWidget(reopened)
     assert language() == 'cs' and reopened.language_select.currentData() == 'cs'
-    assert reopened.review_page.confirm_button.text() == 'Potvrdit a pokračovat'
+    assert reopened.review_page.confirm_button.text() == 'Potvrdit a pokračovat  [Enter]'
 
 
 def test_language_switch_preserves_review_input_selection_image_and_result(qtbot, tmp_path, monkeypatch):
@@ -97,7 +97,7 @@ def test_language_switch_preserves_review_input_selection_image_and_result(qtbot
         assert review.current_index == 0 and review.canvas.active_cell == (0, 0)
         assert review.crop_label._source_pixmap.cacheKey() == crop
         assert result.to_dict() == snapshot
-        assert review.confirm_button.text() == button
+        assert review.confirm_button.text() == button + "  [Enter]"
         assert review.address_label.text() == address
         assert address in review.crop_caption.text()
         assert '12.7' in review.writer_suggestion_button.text()
@@ -106,7 +106,7 @@ def test_language_switch_preserves_review_input_selection_image_and_result(qtbot
         if code != 'ru':
             assert not re.search('[А-Яа-яЁё]', review.confidence_label.text())
     review.confirm_current()
-    assert cell.final_text == '12.7'
+    assert cell.final_text == '12,7'
 
 
 def test_live_translation_in_open_rule_and_export_dialogs(qtbot):
@@ -185,3 +185,23 @@ def test_standard_qt_buttons_follow_application_language(qtbot):
         qtbot.addWidget(box)
         assert box.button(box.StandardButton.Cancel).text().replace("&", "") == cancel
         assert box.button(box.StandardButton.Yes).text().replace("&", "") == yes
+
+
+def test_legacy_factory_rule_names_and_saved_progress_follow_language():
+    from tablescan_local.i18n import localized_rule_name, localized_saved_message
+    label = localized_rule_name('ID: порядковый номер, целое >= 1')
+    progress = localized_saved_message('Recognizing cell 7, 9')
+    for code in ('ru', 'en', 'cs'):
+        set_language(code)
+        assert bool(re.search('[А-Яа-яЁё]', str(label))) == (code == 'ru')
+        assert bool(re.search('[А-Яа-яЁё]', str(progress))) == (code == 'ru')
+    assert localized_rule_name('My custom protocol') == 'My custom protocol'
+
+
+def test_slow_diagnostics_show_parsing_counts_in_each_language():
+    from tablescan_local.slow_mode import completion_details
+    for code in ('en', 'cs', 'ru'):
+        set_language(code)
+        details = str(completion_details([{'status': 'partial', 'parsed_qwen_rows': 16, 'parsed_glm_rows': 0, 'rows': 2}]))
+        assert '16' in details and '0' in details and '2' in details
+        assert bool(re.search('[А-Яа-яЁё]', details)) == (code == 'ru')

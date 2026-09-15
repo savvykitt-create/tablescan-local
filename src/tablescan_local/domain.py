@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .i18n import tr, fmt, join_text
+from .i18n import tr, fmt, join_text, localized_rule_name
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -175,7 +175,7 @@ class TableTemplate:
                     if (old != new and end == old - 1) or end >= new:
                         setattr(region, end_key, new - 1)
             if region.address() != before:
-                changed.append(f"{region.name}: {before} → {region.address()}")
+                changed.append(fmt("{name}: {before} → {after}", name=localized_rule_name(region.name), before=before, after=region.address()))
         if rows != old_rows:
             lo, hi = self.row_guides[0], self.row_guides[-1]
             self.row_guides = [lo + (hi - lo) * i / rows for i in range(rows + 1)]
@@ -204,9 +204,9 @@ class TableTemplate:
                     -item[0],
                 ),
             )
-            return region.constraints, f"{region.name} · {region.address()}"
+            return region.constraints, fmt("{name} · {address}", name=localized_rule_name(region.name), address=region.address())
         rule = self.column_rules[column]
-        return rule.constraints(), rule.name
+        return rule.constraints(), localized_rule_name(rule.name)
 
     def is_header_cell(self, row: int, column: int) -> bool:
         if row >= self.header_rows and self.column_rules[column].role != "header":
@@ -349,6 +349,7 @@ class CellResult:
     writer_evidence: str = ""
     preview_crop_path: str = ""
     slow_mode_evidence: dict[str, Any] = field(default_factory=dict)
+    exclusion_backup: dict[str, Any] = field(default_factory=dict)
 
     @property
     def needs_review(self) -> bool:
@@ -380,6 +381,37 @@ class PageResult:
     fields: list[FieldResult]
     excluded_rows: list[int] = field(default_factory=list)
     slow_mode: dict[str, Any] = field(default_factory=dict)
+    excluded_columns: list[int] = field(default_factory=list)
+
+    def is_excluded(self, row: int, column: int, template: TableTemplate) -> bool:
+        return ((row in self.excluded_rows and column >= template.row_label_columns)
+                or (column in self.excluded_columns and row >= template.header_rows))
+
+    def set_excluded(self, axis: str, index: int, checked: bool, template: TableTemplate) -> None:
+        template.ensure_column_rules()
+        indices = self.excluded_rows if axis == 'row' else self.excluded_columns
+        if checked and index not in indices:
+            indices.append(index)
+        elif not checked and index in indices:
+            indices.remove(index)
+        for cell in self.cells:
+            if self.is_excluded(cell.row, cell.column, template):
+                if cell.status != 'excluded':
+                    cell.exclusion_backup = dict(final_text=cell.final_text, status=cell.status,
+                                                 suggested_text=cell.suggested_text)
+                    cell.suggested_text = cell.final_text
+                    cell.final_text = ''
+                    cell.status = 'excluded'
+            elif cell.status == 'excluded' and template.column_rules[cell.column].role != 'ignored':
+                if cell.exclusion_backup:
+                    for key in ('final_text', 'status', 'suggested_text'):
+                        if key in cell.exclusion_backup:
+                            setattr(cell, key, cell.exclusion_backup[key])
+                    cell.exclusion_backup = {}
+                else:
+                    # Results saved before reversible row/column exclusions.
+                    cell.final_text = cell.suggested_text or cell.raw_text
+                    cell.status = 'automatic'
 
     def cell(self, row: int, column: int) -> CellResult | None:
         return next((cell for cell in self.cells if cell.row == row and cell.column == column), None)
@@ -400,6 +432,7 @@ class PageResult:
             fields=[FieldResult(**item) for item in data.get("fields", [])],
             excluded_rows=[int(value) for value in data.get("excluded_rows", [])],
             slow_mode=dict(data.get("slow_mode", {})),
+            excluded_columns=[int(value) for value in data.get('excluded_columns', [])],
         )
 
 

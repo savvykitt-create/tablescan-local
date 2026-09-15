@@ -116,3 +116,43 @@ def set_language(code: str) -> None:
                 # Qt can own and delete a child while its Python wrapper still exists.
                 unbind(obj)
                 break
+
+
+def localized_rule_name(value: str):
+    """Translate only known factory labels, including legacy saved labels."""
+    key = "__builtin_rule__" + value
+    return Text(lambda: _catalog[key][_language]) if key in _catalog else value
+
+
+def localized_saved_message(value: str):
+    """Re-render known fixed messages saved by an earlier language session."""
+    for source, versions in _catalog.items():
+        if value == source or value in versions.values():
+            return Text(lambda versions=versions: versions[_language])
+    # Progress messages are persisted as rendered text. Recover only known
+    # catalog patterns; arbitrary filenames and document values stay untouched.
+    import re
+    from string import Formatter
+    for source, versions in _catalog.items():
+        if "{" not in source or source.startswith("__builtin_rule__"):
+            continue
+        for pattern in {source, *versions.values()}:
+            parts = list(Formatter().parse(pattern))
+            if any(spec or conversion for _, _, spec, conversion in parts):
+                continue
+            if sum(len(literal) for literal, _, _, _ in parts) < 12:
+                continue
+            names, expression = [], ""
+            for literal, field, _, _ in parts:
+                expression += re.escape(literal)
+                if field is not None:
+                    if field in names:
+                        expression += "\\" + str(names.index(field) + 1)
+                    else:
+                        names.append(field)
+                        expression += "(.*?)"
+            match = re.fullmatch(expression, value, re.DOTALL)
+            if match:
+                values = dict(zip(names, match.groups()))
+                return Text(lambda versions=versions, values=values: versions[_language].format(**values))
+    return value

@@ -67,3 +67,58 @@ def test_taller_rows_do_not_move_metadata_on_same_page():
     f=fit_template(t,d,page_aspect=1.4)
     assert f.fields[0].rect==t.fields[0].rect
     assert f.fields[1].rect==t.fields[1].rect
+
+
+def test_same_nonuniform_row_structure_is_fitted_to_observed_lines():
+    t = master()
+    # A short printed header is not an extra animal and must not prevent fit.
+    t.row_guides[1] -= .009
+    d = GridDetection(t.table_rect, [v - .01 for v in t.row_guides],
+                      [v + .01 for v in t.column_guides])
+    old = t.to_dict()
+    fitted = fit_template(t, d)
+    assert fitted.row_guides == d.row_guides
+    assert fitted.column_guides == d.column_guides
+    assert t.to_dict() == old
+
+
+@pytest.mark.parametrize('animals', range(1, 200))
+def test_every_supported_animal_count_and_short_header(animals):
+    t = master()
+    t.fields = []
+    master_heights = np.array([.6] + [1.] * 20)
+    t.row_guides = (.25 + np.r_[0, np.cumsum(master_heights)] / master_heights.sum() * .63).tolist()
+    # A short header followed by arbitrary count of equally tall data rows.
+    heights = np.array([.6] + [1.] * animals)
+    guides = .25 + np.r_[0, np.cumsum(heights)] / heights.sum() * .63
+    d = GridDetection(t.table_rect, guides.tolist(), t.column_guides)
+    f = fit_template(t, d)
+    assert f.rows == animals + 1
+    assert f.cell_rules[0].row_end == animals
+    assert f.row_guides == d.row_guides
+
+
+@pytest.mark.parametrize('animals', [1, 7, 19, 23, 41, 57, 99, 199])
+@pytest.mark.parametrize('assay', ['von_frey', 'plantar', 'staircase'])
+def test_detect_and_fit_unlisted_counts_from_pixels(animals, assay):
+    import cv2, json
+    from pathlib import Path
+    from tablescan_local.imaging import detect_grid
+    path = Path(__file__).parents[1] / 'src/tablescan_local/default_templates' / (assay + '.json')
+    t = TableTemplate.from_dict(json.loads(path.read_text()))
+    height = max(1600, (animals + 1) * 35)
+    width = round(height * t.reference_page_aspect)
+    # Render complete lines at adequate scan resolution; no row-count hints.
+    image = np.full((height, width, 3), 255, np.uint8)
+    x = [round(v * width) for v in t.column_guides]
+    y = np.linspace(t.row_guides[0], t.row_guides[-1], animals + 2) * height
+    for line in y:
+        cv2.line(image, (x[0], round(line)), (x[-1], round(line)), (0, 0, 0), 2)
+    for line in x:
+        cv2.line(image, (line, round(y[0])), (line, round(y[-1])), (0, 0, 0), 2)
+    d = detect_grid(image)
+    f = fit_template(t, d, width / height)
+    assert f.rows == animals + 1
+    assert f.columns == t.columns
+    for column in range(t.columns):
+        assert f.cell_constraints(animals, column)[0] is not None

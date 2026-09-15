@@ -33,7 +33,7 @@ def test_repeated_non_numeric_ocr_marks_exclude_only_the_crossed_row():
     assert detect_non_numeric_mark_rows([*crossed, *normal], template) == [0]
 
 
-def test_crossed_row_is_blank_by_default_but_ocr_proposal_is_retained(tmp_path, monkeypatch):
+def test_suspected_crossing_keeps_values_and_requires_review(tmp_path, monkeypatch):
     template = TableTemplate("t", "t", NormalizedRect(0, 0, 1, 1), [0, .5, 1], [0, .5, 1])
     image = np.full((120, 200, 3), 255, np.uint8)
     cv2.putText(image, "34.4", (15, 45), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
@@ -44,17 +44,16 @@ def test_crossed_row_is_blank_by_default_but_ocr_proposal_is_retained(tmp_path, 
     monkeypatch.setattr("tablescan_local.pipeline.detect_crossed_rows", lambda *args: [1])
     result = process_page(image, "source.png", 0, template, Engine(), crop_directory=tmp_path)
     assert template.header_rows == 0
-    assert result.excluded_rows == [1]
+    assert result.excluded_rows == []
     assert len(result.cells) == 4
     assert all(c.raw_text == "I34.4" and c.alternatives == "344" for c in result.cells)
     assert result.cell(1, 0).final_text == "34.4"
     crossed = result.cell(1, 1)
-    assert crossed.final_text == ""
-    assert crossed.suggested_text == "34.4"
-    assert crossed.status == "excluded"
-    assert not crossed.needs_review
-    assert "auto_excluded_crossed_row" in crossed.flags
-    assert "crossed_out_row" not in result.cell(1, 0).flags
+    assert crossed.final_text == "34.4"
+    assert crossed.status == "automatic"
+    assert crossed.needs_review
+    assert "suspected_crossed_row" in crossed.flags
+    assert "suspected_crossed_row" not in result.cell(1, 0).flags
 
 
 def test_cell_rule_reaches_ocr_and_header_is_not_validated_as_a_number(tmp_path, monkeypatch):

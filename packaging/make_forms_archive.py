@@ -14,5 +14,5 @@ with ZipFile(output, 'w', ZIP_DEFLATED) as archive:
     for key in ('von_frey', 'plantar', 'staircase'):
         archive.write(source / f'{key}.xlsx', f'Excel/{key}.xlsx')
         archive.write(source / f'{key}.json', f'templates/{key}.json')
-    archive.write(root / 'examples/lab_forms_excel/README_RU.md', 'README_RU.md')
+    archive.write(root / 'examples/lab_forms_excel/README.md', 'README.md')
 print(output)

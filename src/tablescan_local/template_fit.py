@@ -5,6 +5,7 @@ import numpy as np
 
 from .domain import NormalizedRect, TableTemplate
 from .imaging import GridDetection, detect_grid
+from .i18n import tr
 
 
 def fit_template(template: TableTemplate, detection: GridDetection, page_aspect: float | None = None) -> TableTemplate:
@@ -15,26 +16,38 @@ def fit_template(template: TableTemplate, detection: GridDetection, page_aspect:
     change independently when a shorter cohort fills the same table area.
     """
     if detection.warnings:
-        raise ValueError("Auto-fit: reconstructed grid needs manual checking.")
+        raise ValueError(tr("Auto-fit: reconstructed grid needs manual checking."))
     rows = len(detection.row_guides) - 1
     if len(detection.column_guides) != len(template.column_guides):
-        raise ValueError("Auto-fit: column count differs from the template.")
+        raise ValueError(tr("Auto-fit: detected {detected} columns; the protocol has {expected}. Choose another protocol or adjust its columns.", detected=len(detection.column_guides) - 1, expected=template.columns))
     if not template.header_rows < rows <= 200:
-        raise ValueError("Auto-fit: invalid number of data rows.")
+        raise ValueError(tr("Auto-fit: invalid number of data rows."))
     old_x = np.asarray(template.column_guides)
     new_x = np.asarray(detection.column_guides)
     old_y = np.asarray(template.row_guides)
     new_y = np.asarray(detection.row_guides)
     for axis in (old_x, new_x, old_y, new_y):
         if not np.all(np.isfinite(axis)) or np.any(np.diff(axis) <= 0):
-            raise ValueError("Auto-fit: invalid grid coordinates.")
+            raise ValueError(tr("Auto-fit: invalid grid coordinates."))
     if np.max(np.abs((old_x-old_x[0]) / np.ptp(old_x) - (new_x-new_x[0]) / np.ptp(new_x))) > .025:
-        raise ValueError("Auto-fit: column proportions differ from the template.")
-    # This first implementation intentionally rejects merged/nonuniform headers.
-    for axis in (old_y, new_y):
-        pitch = np.median(np.diff(axis))
-        if np.max(np.abs(np.diff(axis) / pitch - 1)) > .15:
-            raise ValueError("Auto-fit: uneven row spacing needs manual checking.")
+        raise ValueError(tr("Auto-fit: column proportions differ from the template."))
+    if len(old_y) == len(new_y):
+        # Scanned forms can have a short header and taller final row. Fit the
+        # observed boundaries, provided the row structure still agrees.
+        if np.max(np.abs((old_y-old_y[0]) / np.ptp(old_y) - (new_y-new_y[0]) / np.ptp(new_y))) > .035:
+            raise ValueError(tr("Auto-fit: row structure differs from the protocol. Check the headers and guides."))
+    else:
+        # Changing the number of rows is safe only for regular repeating rows.
+        for axis in (old_y, new_y):
+            heights = np.diff(axis)[template.header_rows:]
+            pitch = np.median(heights)
+            if np.max(np.abs(heights / pitch - 1)) > .15:
+                raise ValueError(tr("Auto-fit: uneven row spacing needs manual checking."))
+        if template.header_rows:
+            old_header = np.diff(old_y)[:template.header_rows] / np.median(np.diff(old_y)[template.header_rows:])
+            new_header = np.diff(new_y)[:template.header_rows] / np.median(np.diff(new_y)[template.header_rows:])
+            if np.max(np.abs(old_header - new_header)) > .15:
+                raise ValueError(tr("Auto-fit: header proportions differ. Check the header rows."))
     sx = np.ptp(new_x) / np.ptp(old_x)
     sy = np.median(np.diff(new_y)) / np.median(np.diff(old_y))
     if template.reference_page_aspect:
@@ -46,11 +59,11 @@ def fit_template(template: TableTemplate, detection: GridDetection, page_aspect:
             y = new_y[-1] + (r.y - old_y[-1]) * sy
         else:
             if field.source != "fixed" and r.y + r.height > old_y[0]:
-                raise ValueError("Auto-fit: OCR fields inside the table need manual alignment.")
+                raise ValueError(tr("Auto-fit: OCR fields inside the table need manual alignment."))
             y = new_y[0] + (r.y - old_y[0]) * sy
         x = new_x[0] + (r.x - old_x[0]) * sx
         if x < -.002 or y < -.002 or x + r.width*sx > 1.002 or y + r.height*sy > 1.002:
-            raise ValueError("Auto-fit: a metadata field falls outside the page.")
+            raise ValueError(tr("Auto-fit: a metadata field falls outside the page."))
         field.rect = NormalizedRect(max(0., float(x)), max(0., float(y)), float(r.width*sx), float(r.height*sy))
     fitted.resize_grid(rows, template.columns)
     fitted.table_rect = detection.table_rect
@@ -71,5 +84,5 @@ def fit_document_template(template: TableTemplate, images: list[np.ndarray]) -> 
             np.max(np.abs(np.array(a)-np.array(b))) > .002
             for a, b in ((first.row_guides, other.row_guides), (first.column_guides, other.column_guides))
         ):
-            raise ValueError("Auto-fit: pages have different grids. Open them as separate files.")
+            raise ValueError(tr("Auto-fit: pages have different grids. Open them as separate files."))
     return first

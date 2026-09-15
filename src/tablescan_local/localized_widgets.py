@@ -1,5 +1,6 @@
 """Qt widgets that retain explicitly translated text for in-place language switching."""
 from __future__ import annotations
+import sys
 
 from PySide6 import QtGui, QtWidgets
 from .i18n import Text, bind, render, unbind
@@ -88,6 +89,16 @@ class QFormLayout(QtWidgets.QFormLayout):
 
 
 class QTableWidget(_widget(QtWidgets.QTableWidget)):
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Hidden tables can be populated before Cocoa's accessibility model
+        # exists. Initialize its dimensions before selected cells are queried;
+        # rebuilding that model inside selectedItems traversal invalidates cells.
+        if sys.platform == 'darwin' and QtGui.QAccessible.isActive():
+            change = QtGui.QAccessibleTableModelChangeEvent(
+                self, QtGui.QAccessibleTableModelChangeEvent.ModelChangeType.ModelReset)
+            QtGui.QAccessible.updateAccessibility(change)
+
     def setHorizontalHeaderLabels(self, labels):
         for column, text in enumerate(labels):
             self.setHorizontalHeaderItem(column, QTableWidgetItem(text))

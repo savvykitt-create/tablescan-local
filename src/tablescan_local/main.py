@@ -5,7 +5,7 @@ import sys
 import cv2
 import numpy as np
 
-from .ui import create_application
+from .ui import create_application, InstanceAlreadyRunning
 
 
 def self_test() -> int:
@@ -78,7 +78,12 @@ def main() -> int:
         return slow_mode_self_test()
     if "--self-test" in sys.argv:
         return self_test()
-    app, window = create_application()
+    try:
+        app, window = create_application(lock_store=True)
+    except InstanceAlreadyRunning as exc:
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.warning(None, 'TableScan Local', str(exc))
+        return 1
     window.show()
     return app.exec()
 

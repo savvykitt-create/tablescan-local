@@ -161,6 +161,24 @@ def test_auto_excluded_crossed_row_displays_blank_and_can_be_restored(qtbot):
     assert page.cell(1, 1).status == "automatic"
 
 
+def test_column_checkbox_blanks_data_and_restores_confirmed_values(qtbot):
+    template = TableTemplate('column', 'Column', NormalizedRect(0,0,1,1),
+                             [0,.5,1], [0,.5,1], header_rows=1)
+    template.ensure_column_rules()
+    cells = [CellResult(r,c,str(r+c),str(r+c),.99,status='confirmed')
+             for r in range(2) for c in range(2)]
+    page = PageResult(0,'test.png',cells,[])
+    review = ReviewPage(); qtbot.addWidget(review)
+    review.set_result([np.full((100,100,3),255,np.uint8)], JobResult('test.png',template,[page]))
+    review._cell_clicked(1,1)
+    assert review.exclude_column.isEnabled()
+    review.exclude_column.setChecked(True)
+    assert review.table.item(1,1).text() == '—'
+    assert page.cell(0,1).final_text == '1' and page.excluded_columns == [1]
+    review.exclude_column.setChecked(False)
+    assert page.cell(1,1).final_text == '2' and page.cell(1,1).status == 'confirmed'
+
+
 def test_only_real_conflicts_need_review_and_all_can_be_confirmed(qtbot, monkeypatch):
     from PySide6.QtWidgets import QMessageBox
 
@@ -213,3 +231,37 @@ def test_writer_style_suggestion_requires_explicit_confirmation(qtbot):
 
     assert review.correct_value.text() == "49.1"
     assert cell.final_text == "99.1"
+
+
+def test_manual_correction_overrides_rules_and_survives_export(qtbot, tmp_path):
+    from tablescan_local.exporter import export_job
+    from openpyxl import load_workbook
+    t = TableTemplate('t', 'Manual', NormalizedRect(0, 0, 1, 1), [0, 1], [0, 1], header_rows=0, row_label_columns=0)
+    t.ensure_column_rules()
+    t.column_rules[0].value_format = "numeric"
+    t.column_rules[0].minimum = 0
+    t.column_rules[0].maximum = 9
+    t.column_rules[0].decimal_places = 1
+    cell = CellResult(0, 0, '5.0', '5.0', .5, flags=['low_confidence'])
+    job = JobResult('test.png', t, [PageResult(0, 'test.png', [cell], [])])
+    review = ReviewPage(); qtbot.addWidget(review)
+    review.set_result([np.full((200, 200, 3), 255, np.uint8)], job)
+    review.correct_value.setText('-135.123')
+    review.confirm_current()
+    assert cell.final_text == '-135.123' and cell.status == 'corrected'
+    assert job.unresolved_count == 0
+    workbook = load_workbook(export_job(job, tmp_path / 'manual.xlsx', mode='compact'))
+    assert workbook.active['A1'].value == -135.123
+    assert workbook.active['A1'].number_format == '0.000'
+    workbook.close()
+
+
+def test_suggestion_does_not_move_actions(qtbot):
+    review = ReviewPage(); qtbot.addWidget(review)
+    review.resize(1400, 900); review.show()
+    qtbot.wait(10)
+    before = review.confirm_button.geometry()
+    review.writer_suggestion_button.show()
+    qtbot.wait(10)
+    assert review.confirm_button.geometry() == before
+    assert review.writer_suggestion_button.y() > review.confirm_button.y()

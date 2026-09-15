@@ -484,7 +484,7 @@
   "cell_rules": [
     {
       "id": "staircase-c0",
-      "name": "ID: порядковый номер, целое >= 1",
+      "name": "ID: sequential ID, integer >= 1",
       "row_start": 1,
       "row_end": 20,
       "column_start": 0,
@@ -506,7 +506,7 @@
     },
     {
       "id": "staircase-c1",
-      "name": "L1: неотрицательное целое; пусто = пропуск",
+      "name": "L1: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 1,
@@ -528,7 +528,7 @@
     },
     {
       "id": "staircase-c2",
-      "name": "L2: неотрицательное целое; пусто = пропуск",
+      "name": "L2: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 2,
@@ -550,7 +550,7 @@
     },
     {
       "id": "staircase-c3",
-      "name": "L3: неотрицательное целое; пусто = пропуск",
+      "name": "L3: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 3,
@@ -572,7 +572,7 @@
     },
     {
       "id": "staircase-c4",
-      "name": "L4: неотрицательное целое; пусто = пропуск",
+      "name": "L4: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 4,
@@ -594,7 +594,7 @@
     },
     {
       "id": "staircase-c5",
-      "name": "L5: неотрицательное целое; пусто = пропуск",
+      "name": "L5: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 5,
@@ -616,7 +616,7 @@
     },
     {
       "id": "staircase-c6",
-      "name": "L6: неотрицательное целое; пусто = пропуск",
+      "name": "L6: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 6,
@@ -638,7 +638,7 @@
     },
     {
       "id": "staircase-c7",
-      "name": "L7: неотрицательное целое; пусто = пропуск",
+      "name": "L7: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 7,
@@ -660,7 +660,7 @@
     },
     {
       "id": "staircase-c8",
-      "name": "L drop: неотрицательное целое; пусто = пропуск",
+      "name": "L drop: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 8,
@@ -682,7 +682,7 @@
     },
     {
       "id": "staircase-c9",
-      "name": "R1: неотрицательное целое; пусто = пропуск",
+      "name": "R1: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 9,
@@ -704,7 +704,7 @@
     },
     {
       "id": "staircase-c10",
-      "name": "R2: неотрицательное целое; пусто = пропуск",
+      "name": "R2: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 10,
@@ -726,7 +726,7 @@
     },
     {
       "id": "staircase-c11",
-      "name": "R3: неотрицательное целое; пусто = пропуск",
+      "name": "R3: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 11,
@@ -748,7 +748,7 @@
     },
     {
       "id": "staircase-c12",
-      "name": "R4: неотрицательное целое; пусто = пропуск",
+      "name": "R4: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 12,
@@ -770,7 +770,7 @@
     },
     {
       "id": "staircase-c13",
-      "name": "R5: неотрицательное целое; пусто = пропуск",
+      "name": "R5: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 13,
@@ -792,7 +792,7 @@
     },
     {
       "id": "staircase-c14",
-      "name": "R6: неотрицательное целое; пусто = пропуск",
+      "name": "R6: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 14,
@@ -814,7 +814,7 @@
     },
     {
       "id": "staircase-c15",
-      "name": "R7: неотрицательное целое; пусто = пропуск",
+      "name": "R7: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 15,
@@ -836,7 +836,7 @@
     },
     {
       "id": "staircase-c16",
-      "name": "R drop: неотрицательное целое; пусто = пропуск",
+      "name": "R drop: nonnegative integer; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 16,
@@ -858,7 +858,7 @@
     },
     {
       "id": "staircase-c17",
-      "name": "Notes: свободный текст, пусто допустимо",
+      "name": "Notes: free text, blank allowed",
       "row_start": 1,
       "row_end": 20,
       "column_start": 17,

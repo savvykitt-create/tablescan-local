@@ -204,7 +204,7 @@ def test_export_number_format_follows_scale_with_or_without_a_rule(tmp_path, pla
 @pytest.mark.parametrize("kind,required,bad,good", [("text", True, "", "SAMPLE-1"),
                                                     ("integer", False, "abc", "123"),
                                                     ("numeric", False, "abc", "12.5")])
-def test_fields_are_validated_on_single_bulk_and_export(qtbot, tmp_path, monkeypatch, warnings, kind, required, bad, good):
+def test_manual_fields_override_rules_but_bulk_keeps_conflicts(qtbot, tmp_path, monkeypatch, warnings, kind, required, bad, good):
     job = table_job()
     region = FieldRegion("f", "Sample", NormalizedRect(0, 0, .2, .2), kind=kind, required=required)
     job.template.fields = [region]
@@ -214,16 +214,16 @@ def test_fields_are_validated_on_single_bulk_and_export(qtbot, tmp_path, monkeyp
     widget.current_kind, widget.current_index = "field", 0
     widget.correct_value.setText(bad)
     widget.confirm_current()
-    assert field.final_text == good and warnings
+    assert field.final_text == bad and not warnings
+    assert export_job(job, tmp_path / "manual.xlsx").exists()
     field.final_text, field.status, field.flags = bad, "automatic", ["low_confidence"]
     monkeypatch.setattr(QMessageBox, "question", lambda *_: QMessageBox.StandardButton.Yes)
     widget.confirm_all_uncertain()
     assert field.status == "automatic"
-    field.status = "confirmed"  # Old/tampered saved data must not bypass export validation.
-    with pytest.raises(ValueError, match="Sample"):
+    with pytest.raises(ValueError, match="need review"):
         export_job(job, tmp_path / "invalid.xlsx")
     assert not (tmp_path / "invalid.xlsx").exists()
-    field.final_text = good
+    field.final_text, field.status = good, "confirmed"
     assert export_job(job, tmp_path / "valid.xlsx").exists()
 
 

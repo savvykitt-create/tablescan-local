@@ -249,3 +249,21 @@ def refine_page(image, page, template, directory, config, progress=None):
     except Exception as exc:
         # All inference finishes before applying anything: failure retains OCR.
         page.slow_mode.update(status='failed', error=str(exc), changed=0)
+
+
+def completion_details(pages):
+    """Human-readable diagnostics from saved structured inference evidence."""
+    messages = []
+    for index, state in enumerate(pages, 1):
+        if state.get('status') not in {'partial', 'failed'}:
+            continue
+        if state.get('status') == 'partial':
+            messages.append(tr('Page {page}: slow verification incomplete; Qwen matched {qwen} rows; GLM matched {glm} of {requested} requested rows. Primary OCR is preserved.',
+                               page=index, qwen=state.get('parsed_qwen_rows', 0),
+                               glm=state.get('parsed_glm_rows', 0), requested=state.get('rows', 0)))
+        else:
+            from .i18n import localized_saved_message
+            messages.append(tr('Page {page}: slow verification failed: {reason} Primary OCR is preserved.',
+                               page=index, reason=localized_saved_message(state.get('error', ''))))
+    from .i18n import join_text
+    return join_text('\n', messages)

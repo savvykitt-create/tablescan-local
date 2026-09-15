@@ -96,10 +96,9 @@ def process_page(
     template.validate_value_rules()
     crop_directory = crop_directory or Path(tempfile.mkdtemp(prefix="tablescan-crops-"))
     suspected_rows = detect_crossed_rows(image, template)
-    # A row-wide connected stroke is stronger evidence than any per-cell OCR
-    # guess.  Keep the OCR proposal for reversible inspection, but expose and
-    # export the data cells as empty by default.
-    excluded_rows: list[int] = sorted(set(suspected_rows))
+    # A shifted printed border can look exactly like a cancellation. Keep the
+    # readings and require Review; only the reviewer may exclude a whole row.
+    excluded_rows: list[int] = []
     total = template.rows * template.columns + len(template.fields)
     completed = 0
 
@@ -160,21 +159,21 @@ def process_page(
                     retry_crops=crop_variants[1:] if numeric else None,
                 )
                 flags = list(recognized.flags or [])
-                crossed_data_cell = row in excluded_rows and column >= template.row_label_columns
+                crossed_data_cell = row in suspected_rows and column >= template.row_label_columns
                 if crossed_data_cell:
-                    flags.extend(("crossed_out_row", "auto_excluded_crossed_row"))
+                    flags.append("suspected_crossed_row")
                 result = CellResult(
                     row=row,
                     column=column,
                     raw_text=recognized.raw_text,
-                    final_text="" if crossed_data_cell else recognized.text,
+                    final_text=recognized.text,
                     confidence=recognized.confidence,
                     crop_path=crop_path,
                     flags=sorted(set(flags)),
-                    status="excluded" if crossed_data_cell else "automatic",
+                    status="automatic",
                     alternatives=recognized.alternative,
                     applied_rule=f"{rule_name}: {constraints.summary()}" if active else "",
-                    suggested_text=recognized.text if crossed_data_cell else "",
+                    suggested_text="",
                     candidate_confidences=dict(recognized.candidate_confidences),
                     candidate_scores=dict(recognized.candidate_scores),
                     ranking_scores=dict(recognized.ranking_scores),
@@ -185,22 +184,13 @@ def process_page(
             if progress:
                 progress(completed, total, tr('Recognizing cell {p0}, {p1}', p0=row + 1, p1=column + 1))
 
-    # Wavy cancellations are often broken at cell borders and therefore do
-    # not form one row-wide geometric component.  OCR nevertheless gives a
-    # very distinctive, repeated signature (words/symbols instead of numbers)
-    # across the row.  Use that conservative consensus only after every cell
-    # has been read, and keep the numeric proposals for reversible inspection.
-    for row in detect_non_numeric_mark_rows(cells, template):
-        if row not in excluded_rows:
-            excluded_rows.append(row)
+    # Repeated OCR failures are a reason to inspect a row, never proof that
+    # measurements should disappear. This also catches wavy cancellations.
+    for row in detect_non_numeric_mark_rows(cells, template) if template.detect_crossed_rows else []:
         for cell in cells:
             if cell.row != row or cell.column < template.row_label_columns:
                 continue
-            if cell.final_text:
-                cell.suggested_text = cell.final_text
-            cell.final_text = ""
-            cell.status = "excluded"
-            cell.flags = sorted(set([*cell.flags, "crossed_out_row", "auto_excluded_crossed_row", "non_numeric_mark_row"]))
+            cell.flags = sorted(set([*cell.flags, "suspected_crossed_row", "non_numeric_mark_row"]))
     excluded_rows.sort()
 
     page = PageResult(page_index, source_path, cells, fields, excluded_rows)

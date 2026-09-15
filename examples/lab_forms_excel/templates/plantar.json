@@ -376,7 +376,7 @@
   "cell_rules": [
     {
       "id": "plantar-c0",
-      "name": "ID: порядковый номер, целое >= 1",
+      "name": "ID: sequential ID, integer >= 1",
       "row_start": 1,
       "row_end": 20,
       "column_start": 0,
@@ -398,7 +398,7 @@
     },
     {
       "id": "plantar-c1",
-      "name": "L1: неотрицательное число; пусто = пропуск",
+      "name": "L1: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 1,
@@ -420,7 +420,7 @@
     },
     {
       "id": "plantar-c2",
-      "name": "L2: неотрицательное число; пусто = пропуск",
+      "name": "L2: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 2,
@@ -442,7 +442,7 @@
     },
     {
       "id": "plantar-c3",
-      "name": "L3: неотрицательное число; пусто = пропуск",
+      "name": "L3: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 3,
@@ -464,7 +464,7 @@
     },
     {
       "id": "plantar-c4",
-      "name": "L4: неотрицательное число; пусто = пропуск",
+      "name": "L4: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 4,
@@ -486,7 +486,7 @@
     },
     {
       "id": "plantar-c5",
-      "name": "L5: неотрицательное число; пусто = пропуск",
+      "name": "L5: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 5,
@@ -508,7 +508,7 @@
     },
     {
       "id": "plantar-c6",
-      "name": "R1: неотрицательное число; пусто = пропуск",
+      "name": "R1: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 6,
@@ -530,7 +530,7 @@
     },
     {
       "id": "plantar-c7",
-      "name": "R2: неотрицательное число; пусто = пропуск",
+      "name": "R2: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 7,
@@ -552,7 +552,7 @@
     },
     {
       "id": "plantar-c8",
-      "name": "R3: неотрицательное число; пусто = пропуск",
+      "name": "R3: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 8,
@@ -574,7 +574,7 @@
     },
     {
       "id": "plantar-c9",
-      "name": "R4: неотрицательное число; пусто = пропуск",
+      "name": "R4: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 9,
@@ -596,7 +596,7 @@
     },
     {
       "id": "plantar-c10",
-      "name": "R5: неотрицательное число; пусто = пропуск",
+      "name": "R5: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
       "column_start": 10,
@@ -618,7 +618,7 @@
     },
     {
       "id": "plantar-c11",
-      "name": "Notes: свободный текст, пусто допустимо",
+      "name": "Notes: free text, blank allowed",
       "row_start": 1,
       "row_end": 20,
       "column_start": 11,

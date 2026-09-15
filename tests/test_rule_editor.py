@@ -90,7 +90,7 @@ def test_selection_undo_redo_and_reapplying_same_range_replaces_rule(qtbot):
     assert t.cell_rules[0].name == "Уточнённое правило"
 
 
-def test_rule_rejects_wrong_manual_confirmation_and_allows_corrected_value(qtbot, monkeypatch):
+def test_rule_accepts_individual_manual_overrides(qtbot, monkeypatch):
     review = ReviewPage(); qtbot.addWidget(review)
     t = template(); t.cell_rules = [CellRuleRegion("r", "Measurements", 0, 3, 1, 3, ValueConstraints("numeric", minimum=0, maximum=100, decimal_places=1))]
     cell = CellResult(0, 1, "344", "344", .99, flags=["rule_conflict"], applied_rule="Measurements")
@@ -99,10 +99,12 @@ def test_rule_rejects_wrong_manual_confirmation_and_allows_corrected_value(qtbot
     warnings = []
     monkeypatch.setattr(QMessageBox, "warning", lambda *args: warnings.append(args))
     review.confirm_current()
-    assert warnings and cell.needs_review
+    assert not warnings and not cell.needs_review
+    assert cell.final_text == "344"
+    review._cell_clicked(0, 1)
     review.correct_value.setText("34,4")
     review.confirm_current()
-    assert cell.final_text == "34.4" and cell.status == "corrected"
+    assert cell.final_text == "34,4" and cell.status == "corrected"
 
 
 def test_editing_template_invalidates_current_result_without_mutating_snapshot(qtbot, monkeypatch, tmp_path):
@@ -122,8 +124,12 @@ def test_double_start_keeps_one_live_recognition_worker(qtbot, monkeypatch, tmp_
     app, window = create_application(); qtbot.addWidget(window)
     t = template()
     window.images = [np.full((100, 100, 3), 255, np.uint8)]
-    window.job_id = "double-start"
-    window.source_path = "source.png"
+    import cv2
+    source = tmp_path / 'source.png'
+    cv2.imwrite(str(source), window.images[0])
+    window.job_id, copied = window.store.import_source(source)
+    window.source_path = str(source)
+    window.stored_source_path = str(copied)
     started = threading.Event()
     release = threading.Event()
 

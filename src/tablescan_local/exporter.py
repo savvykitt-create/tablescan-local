@@ -76,7 +76,7 @@ def _cell_value(result: CellResult, template: TableTemplate) -> tuple[Any, str]:
     value = _excel_value(result.final_text, numeric=numeric)
     number_format = "General"
     if numeric and isinstance(value, (float, int)):
-        places = rule.decimal_places
+        places = None if result.status in {"confirmed", "corrected"} else rule.decimal_places
         if places is None:
             normalized = result.final_text.strip().replace(",", ".").replace("−", "-")
             places = max(0, -Decimal(normalized).as_tuple().exponent)
@@ -101,7 +101,7 @@ def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> N
         for column in range(job.template.columns):
             result = page.cell(row, column)
             is_excluded_value = bool(
-                result and (result.status == "excluded" or (excluded and column >= job.template.row_label_columns))
+                result and (result.status == "excluded" or page.is_excluded(row, column, job.template))
             )
             value, number_format = (None, "General") if result is None or is_excluded_value else _cell_value(result, job.template)
             cell = sheet.cell(row=row + 1, column=column + 1, value=value)
@@ -141,7 +141,7 @@ def _add_layout_sheet(workbook: Workbook, page: PageResult, job: JobResult) -> N
 
 
 def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") -> Path:
-    """Export reviewed results; compact includes only the source-layout sheets."""
+    """Export reviewed results; compact contains source layouts and fields."""
     if mode not in {"compact", "extended"}:
         raise ValueError(tr('Неизвестный режим экспорта'))
     if not job.pages:
@@ -151,10 +151,11 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
         raise ValueError(tr('{p0} values still need review', p0=job.unresolved_count))
     for page in job.pages:
         for region in job.template.fields:
-            if region.hard_errors(_field_result(page, region)):
+            reviewed = any(f.region_id == region.id and f.status in {"confirmed", "corrected"} for f in page.fields)
+            if not reviewed and region.hard_errors(_field_result(page, region)):
                 raise ValueError(tr('Поле «{p0}» не соответствует правилу: {p1}', p0=region.name, p1=region.constraints().summary()))
         for cell in page.cells:
-            if cell.status != "excluded" and cell.row not in page.excluded_rows:
+            if cell.status not in {"excluded", "confirmed", "corrected"} and not page.is_excluded(cell.row, cell.column, job.template):
                 rule, name = job.template.cell_constraints(cell.row, cell.column)
                 if rule and rule.hard_errors(cell.final_text):
                     raise ValueError(tr('R{p0}C{p1}: значение не соответствует правилу «{p2}»', p0=cell.row + 1, p1=cell.column + 1, p2=name))
@@ -166,6 +167,23 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
         workbook.remove(workbook.active)
         for page in job.pages:
             _add_layout_sheet(workbook, page, job)
+        if any(page.fields for page in job.pages):
+            fields_sheet = workbook.create_sheet('Fields')
+            fields_sheet.append(['Page', 'Field', 'Value'])
+            for page in job.pages:
+                for field in page.fields:
+                    # Metadata is text: identifiers, dates and leading zeros
+                    # must survive exactly as reviewed, including formula-like text.
+                    fields_sheet.append([page.page_index + 1, field.name, field.final_text])
+            fields_sheet.freeze_panes = 'A2'
+            fields_sheet.auto_filter.ref = fields_sheet.dimensions
+            for cell in fields_sheet[1]:
+                cell.font = Font(bold=True, color='FFFFFF')
+                cell.fill = PatternFill('solid', fgColor='1D4ED8')
+            for column, width in [('A', 10), ('B', 28), ('C', 60)]:
+                fields_sheet.column_dimensions[column].width = width
+            for row in fields_sheet.iter_rows(min_row=2):
+                row[2].alignment = Alignment(wrap_text=True, vertical='top')
         return _save_workbook(workbook, target_path)
     data_sheet = workbook.active
     data_sheet.title = "Data"
@@ -213,7 +231,7 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
                 if rule.role != "data":
                     continue
                 result = _cell(page, row, column)
-                if result is None or not result.final_text:
+                if result is None or not result.final_text or result.status == 'excluded' or page.is_excluded(row, column, job.template):
                     continue
                 header_parts = []
                 for header_row in range(job.template.header_rows):

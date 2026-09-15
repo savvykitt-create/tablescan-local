@@ -4,6 +4,7 @@ from .i18n import tr, fmt, join_text
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
+from threading import RLock
 
 from .components import connected_components
 
@@ -15,6 +16,7 @@ from .domain import NormalizedRect, TableTemplate
 
 
 SUPPORTED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
+_PDF_LOCK = RLock()  # PDFium operations must not overlap across OCR/preflight/UI threads.
 
 
 def write_image(path: str | Path, image: np.ndarray) -> None:
@@ -50,13 +52,24 @@ def load_document(path: str | Path, scale: float = 3.0) -> list[np.ndarray]:
     if suffix == ".pdf":
         import pypdfium2 as pdfium
 
-        document = pdfium.PdfDocument(str(source))
-        pages: list[np.ndarray] = []
-        for index in range(len(document)):
-            bitmap = document[index].render(scale=scale)
-            rgb = np.asarray(bitmap.to_pil().convert("RGB"))
-            pages.append(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
-        return pages
+        with _PDF_LOCK:
+            document = pdfium.PdfDocument(str(source))
+            pages: list[np.ndarray] = []
+            try:
+                for index in range(len(document)):
+                    page = document[index]
+                    try:
+                        bitmap = page.render(scale=scale)
+                        try:
+                            rgb = np.asarray(bitmap.to_pil().convert("RGB"))
+                            pages.append(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
+                        finally:
+                            bitmap.close()
+                    finally:
+                        page.close()
+            finally:
+                document.close()
+            return pages
     with Image.open(source) as image:
         frames = []
         frame_count = getattr(image, "n_frames", 1)
@@ -84,7 +97,9 @@ def _projection_lines(mask: np.ndarray, axis: int, threshold_ratio: float) -> li
     projection = np.sum(mask > 0, axis=axis)
     reference = mask.shape[axis]
     indices = np.where(projection >= reference * threshold_ratio)[0]
-    return _cluster_indices(indices.tolist(), gap=max(2, round(reference * 0.003)))
+    # Cluster adjacent pixels in a boundary, not neighboring grid rows.
+    # Scaling this gap with table width merged dense high-resolution tables.
+    return _cluster_indices(indices.tolist(), gap=2)
 
 
 def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
@@ -164,8 +179,12 @@ def detect_grid(image: np.ndarray) -> GridDetection:
         cv2.dilate(binary, np.ones((5, 1), np.uint8)), cv2.MORPH_OPEN,
         np.ones((1, max(25, round(table_width * .025))), np.uint8),
     )
+    vertical_flexible = cv2.morphologyEx(
+        cv2.dilate(binary, np.ones((1, 5), np.uint8)), cv2.MORPH_OPEN,
+        np.ones((max(25, round(table_height * .04)), 1), np.uint8),
+    )
     roi_h = horizontal_flexible[y : y + table_height, x : x + table_width]
-    roi_v = vertical[y : y + table_height, x : x + table_width]
+    roi_v = vertical_flexible[y : y + table_height, x : x + table_width]
     local_rows = _projection_lines(roi_h, axis=1, threshold_ratio=0.45)
     local_rows, reconstructed = regular_row_guides(local_rows)
     local_columns = _projection_lines(roi_v, axis=0, threshold_ratio=0.45)
