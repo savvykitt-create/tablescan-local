@@ -11,7 +11,7 @@ if [[ "${TABLESCAN_REQUIRE_SIGNED:-0}" == "1" ]]; then
   : "${TABLESCAN_CODESIGN_IDENTITY:?Developer ID Application identity is required}"
   spctl --assess --type execute --verbose=4 "$APP_PATH"
 fi
-hdiutil create -volname "TableScan Local" -srcfolder "$APP_PATH" -ov -format ULFO "$OUTPUT_DIR/$OUTPUT_NAME"
+hdiutil create -volname "TableScan Local" -srcfolder "$APP_PATH" -ov -format ULMO "$OUTPUT_DIR/$OUTPUT_NAME"
 if [[ "${TABLESCAN_REQUIRE_SIGNED:-0}" == "1" ]]; then
   codesign --sign "$TABLESCAN_CODESIGN_IDENTITY" --timestamp "$OUTPUT_DIR/$OUTPUT_NAME"
   python "$PROJECT_DIR/packaging/macos/notarize.py" "$OUTPUT_DIR/$OUTPUT_NAME"
