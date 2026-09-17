@@ -309,3 +309,16 @@ def test_export_all_ready_rechecks_results_and_avoids_overwrite(qtbot, tmp_path,
         wb.close()
     assert [e['status'] for e in window.analysis_queue.entries] == ['exported', 'exported', 'review', 'exported', 'failed', 'review']
     assert notices and window.result is None
+
+
+def test_model_status_updates_without_percentage_change(qtbot, tmp_path):
+    store = LocalStore(tmp_path / 'store')
+    worker = FakeWorker()
+    queue = AnalysisQueue(store, lambda _: worker)
+    queue.enqueue(*add_job(store, tmp_path, 'progress.png'), template())
+    notices = []
+    queue.changed.connect(lambda: notices.append(queue.active['message']))
+    worker.progress.emit(0, 1, 'Loading model')
+    worker.progress.emit(0, 1, 'Generated 16 tokens')
+    worker.progress.emit(0, 1, 'Generated 16 tokens')
+    assert notices == ['Loading model', 'Generated 16 tokens']

@@ -204,3 +204,29 @@ def test_out_of_range_model_reading_is_reported_and_never_applied(tmp_path, monk
     assert p.slow_mode['status'] == 'partial'
     assert p.slow_mode['rule_rejections'] == [{'row': 0, 'column': 1, 'model': 'qwen'}]
     assert 'Protocol rules rejected 1' in str(slow.completion_details([p.slow_mode]))
+
+
+def test_primary_models_are_released_before_slow_starts(tmp_path, monkeypatch):
+    import weakref
+    from tablescan_local import pipeline
+    t, _ = fixture_page()
+    references = []
+    primary_pages = []
+    class Engine:
+        model_version = 'test'
+        def __init__(self, **kwargs):
+            references.append(weakref.ref(self))
+    monkeypatch.setattr(pipeline, 'LocalOcrEngine', Engine)
+    monkeypatch.setattr(slow, 'runtime_config', lambda: {})
+    def primary(image, source, index, *args):
+        primary_pages.append(index)
+        return PageResult(index, source, [], [])
+    monkeypatch.setattr(pipeline, 'process_page', primary)
+    def refine(*args):
+        assert primary_pages == [0, 1]
+        assert all(ref() is None for ref in references)
+    monkeypatch.setattr(slow, 'refine_page', refine)
+    result = pipeline.process_document([np.zeros((2, 2, 3), np.uint8)] * 2, 'test', t,
+                                       crop_root=tmp_path, slow_mode=True)
+    assert len(result.pages) == 2
+    assert result.model_version == 'test+slow-qwen-glm-v1'

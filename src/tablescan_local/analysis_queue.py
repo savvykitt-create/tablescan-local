@@ -88,7 +88,7 @@ class AnalysisQueue(QObject):
 
     def _progress(self, value, maximum, message):
         percent = round(100 * value / max(1, maximum))
-        changed = self.active['progress'] != percent
+        changed = self.active['progress'] != percent or self.active.get('message') != str(message)
         self.active.update(progress=percent, message=str(message))
         if changed:
             self.changed.emit()

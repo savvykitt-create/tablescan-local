@@ -23,6 +23,33 @@ inside the local job's `slow-mode` directory.
 
 ## Install once
 
+### From application Settings
+
+On Windows, install TableScan using the standard `.exe` installer, then open
+**Settings → Slow mode → Install Slow mode**. The application downloads Python
+3.12 automatically if needed, installs the dependencies and both models, and
+checks both models locally. No terminal or separate Python installation is
+required. Python is installed for the current user without changing PATH.
+
+Settings shows whether the module is missing, installing, ready, or needs repair.
+Installation runs in the background; expand **Show installation details** for
+the download and setup log. Keep TableScan open until setup finishes. After a
+failure, use **Retry installation**. The ready status is shown only after setup
+and model verification succeed. You can select Slow analysis immediately, or
+close and reopen TableScan; the installation persists across launches.
+
+Allow at least 15 GB of free disk space and internet access for installation.
+The progress bar shows downloaded bytes for Python and activity during package
+and model setup. Full model verification can take a long time on CPU.
+Documents are not uploaded. Recognition works offline after setup.
+
+The same Settings panel works on macOS/Linux with an existing Python 3.12.
+Automatic Python bootstrapping is currently Windows-only. The Windows bootstrap
+uses the official Python 3.12.10 x64 installer and verifies its pinned SHA-256
+from the Python release SBOM before running it.
+
+### Alternative manual installation
+
 Python 3.12 is required. On Windows use the installed Start-menu shortcut
 **Install or repair slow mode** or run from a checkout:
 

@@ -3278,5 +3278,110 @@
     "en": "Protocol rules rejected {p0} model readings. Check the value ranges and formats for this file.",
     "ru": "Правила протокола отклонили {p0} значений моделей. Проверьте диапазоны и форматы значений для этого файла.",
     "cs": "Pravidla protokolu odmítla {p0} hodnot modelů. Zkontrolujte rozsahy a formáty hodnot tohoto souboru."
+  },
+  "Preparing Slow verification": {
+    "en": "Preparing Slow verification",
+    "ru": "Подготовка дополнительной проверки Slow",
+    "cs": "Příprava ověření Slow"
+  },
+  "Slow model {p0} stopped (exit code {p1}). Diagnostic log: {p2}": {
+    "en": "Slow model {p0} stopped (exit code {p1}). Diagnostic log: {p2}",
+    "ru": "Модель Slow {p0} остановилась (код завершения {p1}). Журнал диагностики: {p2}",
+    "cs": "Model Slow {p0} se zastavil (návratový kód {p1}). Diagnostický protokol: {p2}"
+  },
+  "Loading model into memory": {
+    "en": "Loading model into memory",
+    "ru": "Загрузка модели в оперативную память",
+    "cs": "Načítání modelu do paměti"
+  },
+  "Starting model runtime": {
+    "en": "Starting model runtime",
+    "ru": "Запуск среды модели",
+    "cs": "Spouštění prostředí modelu"
+  },
+  "Slow mode": {
+    "en": "Slow mode",
+    "cs": "Režim Slow",
+    "ru": "Режим Slow"
+  },
+  "Additional local verification with Qwen and GLM. Installation needs internet and at least 15 GB of free space. CPU: 16 GB RAM minimum, 24 GB recommended. Windows installs Python automatically.": {
+    "en": "Additional local verification with Qwen and GLM. Installation needs internet and at least 15 GB of free space. CPU: 16 GB RAM minimum, 24 GB recommended. Windows installs Python automatically.",
+    "cs": "Dodatečné místní ověření pomocí Qwen a GLM. Instalace vyžaduje internet a alespoň 15 GB volného místa. CPU: minimálně 16 GB RAM, doporučeno 24 GB. Ve Windows se Python nainstaluje automaticky.",
+    "ru": "Дополнительная локальная проверка моделями Qwen и GLM. Для установки нужны интернет и минимум 15 ГБ свободного места. Для CPU: минимум 16 ГБ RAM, рекомендуется 24 ГБ. В Windows Python устанавливается автоматически."
+  },
+  "Show installation details": {
+    "en": "Show installation details",
+    "cs": "Podrobnosti instalace",
+    "ru": "Подробности установки"
+  },
+  "Slow mode is installed and ready. Select Slow analysis when recognizing a document.": {
+    "en": "Slow mode is installed and ready. Select Slow analysis when recognizing a document.",
+    "cs": "Režim Slow je nainstalován a připraven. Při rozpoznávání dokumentu vyberte Slow.",
+    "ru": "Slow mode установлен и готов. Выберите Slow при распознавании документа."
+  },
+  "Slow mode is not installed.": {
+    "en": "Slow mode is not installed.",
+    "cs": "Režim Slow není nainstalován.",
+    "ru": "Slow mode не установлен."
+  },
+  "Slow mode is being installed by another process.": {
+    "en": "Slow mode is being installed by another process.",
+    "cs": "Režim Slow právě instaluje jiný proces.",
+    "ru": "Slow mode уже устанавливается другим процессом."
+  },
+  "Slow mode setup is incomplete or needs repair. Retry installation.": {
+    "en": "Slow mode setup is incomplete or needs repair. Retry installation.",
+    "cs": "Instalace režimu Slow není dokončena nebo vyžaduje opravu. Opakujte instalaci.",
+    "ru": "Установка Slow mode не завершена или требует восстановления. Повторите установку."
+  },
+  "Slow mode installation failed. Open installation details and retry.": {
+    "en": "Slow mode installation failed. Open installation details and retry.",
+    "cs": "Instalace režimu Slow selhala. Otevřete podrobnosti a zkuste to znovu.",
+    "ru": "Не удалось установить Slow mode. Откройте подробности и повторите установку."
+  },
+  "Retry installation": {
+    "en": "Retry installation",
+    "cs": "Opakovat instalaci",
+    "ru": "Повторить установку"
+  },
+  "Install Slow mode": {
+    "en": "Install Slow mode",
+    "cs": "Nainstalovat režim Slow",
+    "ru": "Установить Slow mode"
+  },
+  "Wait for the current analysis to finish before installing Slow mode.": {
+    "en": "Wait for the current analysis to finish before installing Slow mode.",
+    "cs": "Před instalací režimu Slow počkejte na dokončení aktuální analýzy.",
+    "ru": "Дождитесь завершения текущего анализа перед установкой Slow mode."
+  },
+  "Preparing Slow mode…": {
+    "en": "Preparing Slow mode…",
+    "cs": "Příprava režimu Slow…",
+    "ru": "Подготовка Slow mode…"
+  },
+  "Downloading Python…": {
+    "en": "Downloading Python…",
+    "cs": "Stahování Pythonu…",
+    "ru": "Скачивание Python…"
+  },
+  "Installing Python…": {
+    "en": "Installing Python…",
+    "cs": "Instalace Pythonu…",
+    "ru": "Установка Python…"
+  },
+  "Downloading and installing models…": {
+    "en": "Downloading and installing models…",
+    "cs": "Stahování a instalace modelů…",
+    "ru": "Скачивание и установка моделей…"
+  },
+  "Checking both models — this can take a long time on CPU…": {
+    "en": "Checking both models — this can take a long time on CPU…",
+    "cs": "Ověřování obou modelů — na CPU to může trvat dlouho…",
+    "ru": "Проверка обеих моделей — на CPU это может занять много времени…"
+  },
+  "Slow mode installation is still running. Wait for it to finish before closing TableScan.": {
+    "en": "Slow mode installation is still running. Wait for it to finish before closing TableScan.",
+    "cs": "Instalace režimu Slow stále probíhá. Před zavřením TableScan počkejte na její dokončení.",
+    "ru": "Установка Slow mode ещё выполняется. Дождитесь её завершения перед закрытием TableScan."
   }
 }

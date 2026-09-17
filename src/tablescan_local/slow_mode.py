@@ -190,7 +190,7 @@ def run_model(kind, records, directory, config, progress=None):
     timeout = (max(7200, len(records) * 600) if config.get('backend') == 'transformers'
                else max(600, len(records) * 45))
     with (directory / f'{kind}.log').open('w', encoding='utf-8') as log:
-        process = start_worker([config['python'], str(runner), str(request), str(output)], log, env)
+        process = start_worker([config['python'], '-X', 'faulthandler', str(runner), str(request), str(output)], log, env)
         try:
             while process.poll() is None:
                 if progress:
@@ -201,8 +201,10 @@ def run_model(kind, records, directory, config, progress=None):
                         pass
                     label = 'Qwen' if kind == 'qwen' else 'GLM'
                     tokens = 0
+                    phase = 'starting'
                     try:
                         state = json.loads(status.read_text(encoding='utf-8'))
+                        phase = state.get('phase', 'starting')
                         device = state.get('device')
                         if isinstance(state.get('tokens'), int):
                             tokens = state['tokens']
@@ -212,6 +214,10 @@ def run_model(kind, records, directory, config, progress=None):
                         pass
                     message = tr('Slow mode: {p0}, выполнено {p1} из {p2}',
                                  p0=label, p1=count, p2=len(records))
+                    if phase == 'loading':
+                        message += ' · ' + tr('Loading model into memory')
+                    elif phase == 'starting':
+                        message += ' · ' + tr('Starting model runtime')
                     if tokens:
                         message += ' · ' + tr('Сгенерировано токенов: {p0}', p0=tokens)
                     progress(count, len(records), message)
@@ -219,7 +225,9 @@ def run_model(kind, records, directory, config, progress=None):
                     raise TimeoutError(tr('Slow mode: превышено время ожидания модели.'))
                 time.sleep(.2)
             if process.returncode:
-                raise RuntimeError(tr('Slow mode: модель {p0} завершилась с ошибкой.', p0=kind))
+                raise RuntimeError(tr('Slow model {p0} stopped (exit code {p1}). Diagnostic log: {p2}',
+                                      p0=kind, p1=f'{process.returncode} / 0x{process.returncode & 0xffffffff:08X}',
+                                      p2=str(directory / f'{kind}.log')))
         finally:
             if process.poll() is None:
                 process.terminate()

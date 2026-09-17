@@ -2903,6 +2903,9 @@ class MainWindow(QMainWindow):
         language_note.setMaximumWidth(820)
         set_theme_style(language_note, f"color: {MUTED};")
         settings_layout.addWidget(language_note)
+        from .slow_settings import SlowSettings
+        self.slow_settings = SlowSettings(self, busy=self._has_background_work)
+        settings_layout.addWidget(self.slow_settings)
         settings_layout.addStretch()
 
         for page in (document_workspace, templates_workspace, settings_page): self.main_stack.addWidget(page)
@@ -3159,11 +3162,16 @@ class MainWindow(QMainWindow):
         if not self._flush_draft():
             return
         if slow_mode:
+            from .slow_setup import setup_status
             from .slow_mode import runtime_config
             try:
                 runtime_config()
             except RuntimeError as exc:
+                self._navigate_section(2)
                 QMessageBox.warning(self, tr('Slow mode недоступен'), str(exc))
+                return
+            if self.slow_settings.is_installing() or setup_status() != 'ready':
+                self._navigate_section(2)
                 return
             high_accuracy = True
         errors = []
@@ -3422,11 +3430,16 @@ class MainWindow(QMainWindow):
                 return
             template = self.table_page.template
         if self.table_page.slow_mode.isChecked():
+            from .slow_setup import setup_status
             from .slow_mode import runtime_config
             try:
                 runtime_config()
             except RuntimeError as exc:
+                self._navigate_section(2)
                 QMessageBox.warning(self, tr('Slow mode недоступен'), str(exc))
+                return
+            if self.slow_settings.is_installing() or setup_status() != 'ready':
+                self._navigate_section(2)
                 return
         template = TableTemplate.from_dict(template.to_dict())
         try:
@@ -3495,6 +3508,11 @@ class MainWindow(QMainWindow):
             self.close()
 
     def closeEvent(self, event) -> None:
+        if self.slow_settings.is_installing():
+            self._navigate_section(2)
+            QMessageBox.information(self, tr('Slow mode'), tr('Slow mode installation is still running. Wait for it to finish before closing TableScan.'))
+            event.ignore()
+            return
         if not self._close_requested:
             try:
                 self.analysis_queue.shutdown()

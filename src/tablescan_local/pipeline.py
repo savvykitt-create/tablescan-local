@@ -215,17 +215,27 @@ def process_document(
         from .slow_mode import runtime_config
         slow_config = runtime_config()
     engine = LocalOcrEngine(high_accuracy=high_accuracy or slow_mode)
+    model_version = engine.model_version
     pages = []
     for index, image in enumerate(images):
         page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
-        page = process_page(image, source_path, index, template, engine, progress, page_crop_root)
-        if slow_mode:
-            from .slow_mode import refine_page
+        pages.append(process_page(image, source_path, index, template, engine, progress, page_crop_root))
+    # ONNX sessions must not compete with the much larger Slow models for RAM.
+    # Finish primary OCR first, then release all sessions before starting Qwen/GLM.
+    del engine
+    if slow_mode:
+        import gc
+        from .slow_mode import refine_page
+        gc.collect()
+        for index, (image, page) in enumerate(zip(images, pages)):
+            if progress:
+                progress(0, 1, str(tr('Preparing Slow verification')))
+            page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
             directory = (page_crop_root or Path(tempfile.mkdtemp(prefix='tablescan-slow-'))) / 'slow-mode'
             refine_page(image, page, template, directory, slow_config, progress)
             flag_table_outliers(page, template)
-        pages.append(page)
-    return JobResult(source_path, template, pages, engine.model_version + ('+slow-qwen-glm-v1' if slow_mode else ''))
+    return JobResult(source_path, template, pages, model_version + ('+slow-qwen-glm-v1' if slow_mode else ''))
+
 
 
 def suggest_standard_fields(image: np.ndarray, template: TableTemplate, engine: LocalOcrEngine | None = None) -> list[FieldRegion]:
