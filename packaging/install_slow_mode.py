@@ -25,6 +25,13 @@ def torch_index(device):
 
 
 def install_dependencies(python, backend, device):
+    # pip must never escape the application's dedicated virtual environment,
+    # including when the user has configured global pip target/user options.
+    subprocess.run([str(python), '-c',
+                    'import sys; assert sys.prefix != sys.base_prefix, "Expected a virtual environment"'], check=True)
+    for name in ('PIP_TARGET', 'PIP_PREFIX', 'PIP_USER', 'PYTHONHOME', 'PYTHONPATH'):
+        os.environ.pop(name, None)
+    os.environ.update(PIP_CONFIG_FILE=os.devnull, PIP_REQUIRE_VIRTUALENV='1', PYTHONNOUSERSITE='1')
     subprocess.run([str(python), '-m', 'pip', 'install', '--upgrade', 'pip'], check=True)
     if backend == 'mlx':
         packages = ['mlx-vlm==0.7.0', 'mlx==0.32.2', 'mlx-metal==0.32.2']
@@ -74,6 +81,7 @@ def main():
     parser.add_argument('--cpu-dtype', choices=['bfloat16', 'float32'], default='bfloat16',
                         help='BF16 uses less RAM; float32 is a compatibility option needing about 32 GB RAM')
     parser.add_argument('--copy-runtime', type=Path, help='Maintainer option: reuse an MLX environment')
+    parser.add_argument('--lock-owner', default='', help=argparse.SUPPRESS)
     parser.add_argument('--download', action='store_true', help=argparse.SUPPRESS)
     parser.add_argument('--root', type=Path, default=runtime.runtime_root())
     args = parser.parse_args()
@@ -95,17 +103,21 @@ def main():
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
         parser.error(f'Installation already in progress. If it was interrupted, remove {lock} and retry.')
-    os.close(fd)
+    with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+        handle.write(args.lock_owner)
     try:
         # A partially repaired environment must never be advertised as ready.
         (root / 'runtime.json').unlink(missing_ok=True)
         venv = root / 'runtime'
         python = runtime.venv_python(venv)
-        if not python.exists():
+        healthy = python.exists() and (venv / 'pyvenv.cfg').is_file()
+        if healthy:
+            healthy = subprocess.run([str(python), '-c', 'import pip, sys; assert sys.prefix != sys.base_prefix']).returncode == 0
+        if not healthy:
             if args.copy_runtime:
                 subprocess.run(['cp', '-cR', str(args.copy_runtime.resolve()), str(venv)], check=True)
             else:
-                subprocess.run([sys.executable, '-m', 'venv', str(venv)], check=True)
+                subprocess.run([sys.executable, '-m', 'venv', '--clear', str(venv)], check=True)
         if not args.copy_runtime:
             install_dependencies(python, args.backend, args.device)
         env = os.environ.copy()

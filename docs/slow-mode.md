@@ -25,16 +25,24 @@ inside the local job's `slow-mode` directory.
 
 ### From application Settings
 
-On Windows, install TableScan using the standard `.exe` installer, then open
+On Windows or Apple Silicon macOS, install TableScan, then open
 **Settings → Slow mode → Install Slow mode**. The application downloads Python
 3.12 automatically if needed, installs the dependencies and both models, and
 checks both models locally. No terminal or separate Python installation is
-required. Python is installed for the current user without changing PATH.
+required. Python is prepared for the current user without changing PATH.
+
+The application creates its own virtual environment in the Slow data folder
+(`slow-mode/runtime`) and installs all optional dependencies there. Model workers
+use that environment automatically; no activation is needed. The main application
+uses its bundled Python and dependencies. System Python packages are not modified.
 
 Settings shows whether the module is missing, installing, ready, or needs repair.
 Installation runs in the background; expand **Show installation details** for
-the download and setup log. Keep TableScan open until setup finishes. After a
-failure, use **Retry installation**. The ready status is shown only after setup
+the download and setup log. **Cancel installation** stops the download, dependency
+installation, or model verification and its child processes. Wait for the cancelled
+status before closing TableScan. After cancellation or failure, use **Retry
+installation**; completed model files are reused. An in-flight network operation
+may take up to 15 seconds to stop. The ready status is shown only after setup
 and model verification succeed. You can select Slow analysis immediately, or
 close and reopen TableScan; the installation persists across launches.
 
@@ -43,10 +51,11 @@ The progress bar shows downloaded bytes for Python and activity during package
 and model setup. Full model verification can take a long time on CPU.
 Documents are not uploaded. Recognition works offline after setup.
 
-The same Settings panel works on macOS/Linux with an existing Python 3.12.
-Automatic Python bootstrapping is currently Windows-only. The Windows bootstrap
-uses the official Python 3.12.10 x64 installer and verifies its pinned SHA-256
-from the Python release SBOM before running it.
+The Windows bootstrap uses the official Python 3.12.10 x64 installer and verifies its pinned SHA-256
+from the Python release SBOM before running it. Apple Silicon macOS uses the
+[standalone CPython distribution](https://github.com/astral-sh/python-build-standalone)
+(Python 3.12.14, build 20260901), verifies its pinned SHA-256, and extracts it
+inside the application data folder. Other platforms require an existing Python 3.12.
 
 ### Alternative manual installation
 

@@ -10,6 +10,9 @@ from .ui import create_application, InstanceAlreadyRunning
 
 def self_test() -> int:
     """Load the packaged OCR runtime and run one in-memory recognition pass."""
+    from .slow_setup import download_context
+    if not download_context().get_ca_certs():
+        raise RuntimeError("Python download certificates are missing from the application")
     from .ocr import LocalOcrEngine, OcrValue, constrain_reading
     from .constraints import ValueConstraints
 

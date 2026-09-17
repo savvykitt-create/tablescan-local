@@ -3383,5 +3383,35 @@
     "en": "Slow mode installation is still running. Wait for it to finish before closing TableScan.",
     "cs": "Instalace režimu Slow stále probíhá. Před zavřením TableScan počkejte na její dokončení.",
     "ru": "Установка Slow mode ещё выполняется. Дождитесь её завершения перед закрытием TableScan."
+  },
+  "Cancel installation": {
+    "en": "Cancel installation",
+    "ru": "Отменить установку",
+    "cs": "Zrušit instalaci"
+  },
+  "Slow mode installation cancelled. You can retry installation.": {
+    "en": "Slow mode installation cancelled. You can retry installation.",
+    "ru": "Установка Slow отменена. Можно повторить установку.",
+    "cs": "Instalace režimu Slow byla zrušena. Můžete ji zkusit znovu."
+  },
+  "Stopping Slow mode installation…": {
+    "en": "Stopping Slow mode installation…",
+    "ru": "Остановка установки Slow…",
+    "cs": "Zastavování instalace režimu Slow…"
+  },
+  "Creating isolated environment and installing models…": {
+    "en": "Creating isolated environment and installing models…",
+    "ru": "Создание изолированного окружения и установка моделей…",
+    "cs": "Vytváření izolovaného prostředí a instalace modelů…"
+  },
+  "Additional local verification with Qwen and GLM. Installation needs internet and at least 15 GB of free space. CPU: 16 GB RAM minimum, 24 GB recommended. Windows and Apple Silicon macOS prepare Python and an isolated environment automatically.": {
+    "en": "Additional local verification with Qwen and GLM. Installation needs internet and at least 15 GB of free space. CPU: 16 GB RAM minimum, 24 GB recommended. Windows and Apple Silicon macOS prepare Python and an isolated environment automatically.",
+    "ru": "Дополнительная локальная проверка с Qwen и GLM. Для установки нужны интернет и минимум 15 ГБ свободного места. CPU: минимум 16 ГБ RAM, рекомендуется 24 ГБ. На Windows и Mac с Apple Silicon Python и изолированное окружение подготавливаются автоматически.",
+    "cs": "Dodatečné místní ověření pomocí Qwen a GLM. Instalace potřebuje internet a alespoň 15 GB volného místa. CPU: minimálně 16 GB RAM, doporučeno 24 GB. Windows a macOS s Apple Silicon připraví Python a izolované prostředí automaticky."
+  },
+  "Slow mode installation is still running. Cancel it in Settings or wait for it to finish before closing TableScan.": {
+    "en": "Slow mode installation is still running. Cancel it in Settings or wait for it to finish before closing TableScan.",
+    "ru": "Установка Slow ещё выполняется. Отмените её в настройках или дождитесь завершения перед закрытием TableScan.",
+    "cs": "Instalace režimu Slow stále probíhá. Před zavřením TableScan ji zrušte v Nastavení nebo počkejte na dokončení."
   }
 }

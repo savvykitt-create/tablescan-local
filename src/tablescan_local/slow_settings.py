@@ -12,9 +12,18 @@ class SetupWorker(QThread):
     progress = Signal(str, int, int)
     failed = Signal(str)
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.cancellation = slow_setup.Cancellation()
+
+    def cancel(self):
+        self.cancellation.cancel()
+
     def run(self):
         try:
-            slow_setup.install(self.progress.emit)
+            slow_setup.install(self.progress.emit, self.cancellation)
+        except slow_setup.SetupCancelled:
+            pass
         except Exception as exc:
             self.failed.emit(str(exc))
 
@@ -26,10 +35,11 @@ class SlowSettings(QWidget):
         self.worker = None
         self.lock = None
         self.error = ''
+        self.cancelling = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 20, 0, 0)
         layout.addWidget(QLabel(tr('Slow mode')))
-        note = QLabel(tr('Additional local verification with Qwen and GLM. Installation needs internet and at least 15 GB of free space. CPU: 16 GB RAM minimum, 24 GB recommended. Windows installs Python automatically.'))
+        note = QLabel(tr('Additional local verification with Qwen and GLM. Installation needs internet and at least 15 GB of free space. CPU: 16 GB RAM minimum, 24 GB recommended. Windows and Apple Silicon macOS prepare Python and an isolated environment automatically.'))
         note.setWordWrap(True)
         layout.addWidget(note)
         self.status = QLabel()
@@ -38,6 +48,10 @@ class SlowSettings(QWidget):
         self.install_button = QPushButton()
         self.install_button.clicked.connect(self.start_install)
         layout.addWidget(self.install_button)
+        self.cancel_button = QPushButton(tr('Cancel installation'))
+        self.cancel_button.clicked.connect(self.cancel_install)
+        self.cancel_button.hide()
+        layout.addWidget(self.cancel_button)
         self.progress = QProgressBar()
         self.progress.hide()
         layout.addWidget(self.progress)
@@ -77,13 +91,14 @@ class SlowSettings(QWidget):
             return
         state = slow_setup.setup_status()
         messages = {
+            'cancelled': tr('Slow mode installation cancelled. You can retry installation.'),
             'ready': tr('Slow mode is installed and ready. Select Slow analysis when recognizing a document.'),
             'missing': tr('Slow mode is not installed.'),
             'installing': tr('Slow mode is being installed by another process.'),
             'failed': tr('Slow mode setup is incomplete or needs repair. Retry installation.'),
         }
         self.status.setText(tr('Slow mode installation failed. Open installation details and retry.') if self.error else messages[state])
-        self.install_button.setText(tr('Retry installation') if state == 'failed' or self.error else tr('Install Slow mode'))
+        self.install_button.setText(tr('Retry installation') if state in {'failed', 'cancelled'} or self.error else tr('Install Slow mode'))
         self.install_button.setEnabled(state not in {'ready', 'installing'})
 
     def start_install(self):
@@ -105,6 +120,9 @@ class SlowSettings(QWidget):
             self.status.setText(tr('Slow mode is being installed by another process.'))
             return
         self.error = ''
+        self.cancelling = False
+        self.cancel_button.setEnabled(True)
+        self.cancel_button.show()
         self.install_button.setEnabled(False)
         self.progress.setRange(0, 0)
         self.progress.show()
@@ -115,7 +133,17 @@ class SlowSettings(QWidget):
         self.worker.finished.connect(self.finished)
         self.worker.start()
 
+    def cancel_install(self):
+        if self.worker is None or self.cancelling:
+            return
+        self.cancelling = True
+        self.cancel_button.setEnabled(False)
+        self.status.setText(tr('Stopping Slow mode installation…'))
+        self.worker.cancel()
+
     def show_progress(self, message, value, maximum):
+        if self.cancelling:
+            return
         self.status.setText(localized_saved_message(message))
         self.progress.setRange(0, 100 if maximum else 0)
         if maximum:
@@ -131,4 +159,6 @@ class SlowSettings(QWidget):
         self.lock.unlock()
         self.lock = None
         self.progress.hide()
+        self.cancel_button.hide()
+        self.cancelling = False
         self.refresh()

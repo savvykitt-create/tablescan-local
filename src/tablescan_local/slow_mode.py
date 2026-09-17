@@ -149,7 +149,7 @@ def recover_cells(kind, image, template, cells, directory, config, progress=None
     return {r['id']: row_values(r['raw'], 1) for r in results}, {r['id']: r.get('execution', {}) for r in results}
 
 
-def start_worker(command, log, env):
+def start_worker(command, log, env, *, process_tree=False):
     """Undo PyInstaller's process-wide DLL search override only while spawning."""
     kernel = None
     if sys.platform == 'win32' and getattr(sys, 'frozen', False):
@@ -158,7 +158,8 @@ def start_worker(command, log, env):
         kernel.SetDllDirectoryW(None)
     try:
         return subprocess.Popen(command, stdout=log, stderr=log, env=env,
-                                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0)
+                                creationflags=(subprocess.CREATE_NO_WINDOW | (subprocess.CREATE_NEW_PROCESS_GROUP if process_tree else 0)) if sys.platform == 'win32' else 0,
+                                start_new_session=process_tree and sys.platform != 'win32')
     finally:
         if kernel is not None:
             kernel.SetDllDirectoryW(getattr(sys, '_MEIPASS', None))

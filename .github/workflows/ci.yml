@@ -74,12 +74,12 @@ jobs:
       - name: Create Ubuntu packages
         if: runner.os == 'Linux'
         run: bash packaging/linux/make_packages.sh
-      - name: Create macOS DMG and ZIP
+      - name: Create macOS ZIP
         if: runner.os == 'macOS'
         run: |
           VERSION=$(python -c "from tablescan_local import __version__; print(__version__)")
           ARCH=$(uname -m)
-          bash packaging/macos/make_dmg.sh "dist/TableScan Local.app" "TableScan-Local-${VERSION}-macOS-${ARCH}.dmg"
+          mkdir -p release
           ditto -c -k --sequesterRsrc --keepParent "dist/TableScan Local.app" "release/TableScan-Local-${VERSION}-macOS-${ARCH}.zip"
       - name: Create Windows installer
         if: runner.os == 'Windows'

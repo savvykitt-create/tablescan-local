@@ -55,7 +55,8 @@ are an [optional release mode](docs/macos-release-signing.md).
    under **Fields** and configure expected values under **Rules**.
 3. **Analyze:** choose Fast, High accuracy or Slow analysis. Standard recognition
    models are included; install optional Slow analysis from **Settings → Slow mode →
-   Install Slow mode**. Windows downloads Python and the models automatically.
+   Install Slow mode**. Windows and Apple Silicon macOS prepare Python, an isolated virtual environment,
+   and the models automatically. Setup can be cancelled from Settings.
 4. **Review:** compare flagged values with their original crops. Edit and press
    **Enter** to confirm and continue, or **Alt+Right** to skip to the next disputed
    value. Handwriting suggestions appear below the main actions; **Alt+A** copies

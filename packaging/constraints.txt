@@ -1,6 +1,7 @@
 # Validated build environment for the 0.7.14 candidate.
 # Refresh together with packaging/licenses snapshots and the release tests.
 altgraph==0.17.5
+certifi==2026.7.22
 et-xmlfile==2.0.0
 flatbuffers==25.12.19
 numpy==2.5.3
