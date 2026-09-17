@@ -19,7 +19,7 @@ Apple Silicon macOS.
 | Computer | Download | Install |
 | --- | --- | --- |
 | Windows, 64-bit | `Setup-x64.exe` | Run the installer, then open **TableScan Local** from Start. |
-| Mac with Apple Silicon | `macOS-arm64.dmg` | Open the disk image and copy **TableScan Local** to Applications. |
+| Mac with Apple Silicon | `macOS-arm64.zip` (or `.dmg`) | Extract the ZIP (or open the disk image), then copy **TableScan Local.app** to Applications. |
 
 The names above are the endings of the versioned filenames. On a Mac, **Apple
 menu → About This Mac** identifies the chip or processor.
@@ -36,7 +36,7 @@ developer cannot be verified. This is an expected installation limitation.
 
 If you trust the release downloaded from this repository:
 
-1. Copy **TableScan Local** from the DMG to **Applications**, then try opening it.
+1. Extract the ZIP (or open the DMG), copy **TableScan Local.app** to **Applications**, then try opening it.
 2. If macOS blocks it, open **System Settings → Privacy & Security**.
 3. Scroll to **Security**, find the message about TableScan Local and select
    **Open Anyway**. Authenticate and confirm opening when prompted.
