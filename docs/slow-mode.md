@@ -41,8 +41,8 @@ Installation runs in the background; expand **Show installation details** for
 the download and setup log. **Cancel installation** stops the download, dependency
 installation, or model verification and its child processes. Wait for the cancelled
 status before closing TableScan. After cancellation or failure, use **Retry
-installation**; completed model files are reused. An in-flight network operation
-may take up to 15 seconds to stop. The ready status is shown only after setup
+installation**; completed model files are reused. Cancellation may wait briefly for an in-flight network operation to return or
+time out. The ready status is shown only after setup
 and model verification succeed. You can select Slow analysis immediately, or
 close and reopen TableScan; the installation persists across launches.
 
