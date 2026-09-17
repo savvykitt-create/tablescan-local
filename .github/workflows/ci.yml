@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-14, macos-15-intel]
+        os: [windows-2022, macos-14]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -132,7 +132,20 @@ jobs:
             sha256sum -- *.dmg *.exe *.deb *.tar.gz *.AppImage *.zip > SHA256SUMS
           )
           gh release view "$RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" release/* --clobber
+          for FILE in release/*; do
+            uploaded=false
+            for attempt in 1 2 3; do
+              if timeout 10m env GODEBUG=http2client=0 gh release upload "$RELEASE_TAG" "$FILE" --clobber; then
+                uploaded=true
+                break
+              fi
+              sleep 10
+            done
+            if [[ "$uploaded" != true ]]; then
+              echo "Upload failed after three attempts: $FILE" >&2
+              exit 1
+            fi
+          done
 
   windows-cpu-backend:
     runs-on: windows-2022

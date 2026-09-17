@@ -13,14 +13,13 @@ results. Processing stays on your computer; no online account is required.
 
 Download the file for your computer from the
 [latest release](https://github.com/savvykitt-create/tablescan-local/releases/latest).
-Expand **Assets** to see the installers.
+Expand **Assets** to see the installers. Current updates target Windows x64 and
+Apple Silicon macOS.
 
 | Computer | Download | Install |
 | --- | --- | --- |
 | Windows, 64-bit | `Setup-x64.exe` | Run the installer, then open **TableScan Local** from Start. |
 | Mac with Apple Silicon | `macOS-arm64.dmg` | Open the disk image and copy **TableScan Local** to Applications. |
-| Mac with Intel | `macOS-x86_64.dmg` | Open the disk image and copy **TableScan Local** to Applications. |
-| Ubuntu, 64-bit Intel/AMD | `amd64.deb` | Install the package, then open **TableScan Local** from the application menu. |
 
 The names above are the endings of the versioned filenames. On a Mac, **Apple
 menu → About This Mac** identifies the chip or processor.
