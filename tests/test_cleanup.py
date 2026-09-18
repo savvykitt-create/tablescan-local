@@ -133,3 +133,23 @@ def test_settings_removal_refused_during_analysis(roots, qtbot):
     card.start_remove()
     assert card.worker is None
     assert (slow / 'runtime.json').exists()
+
+
+def test_external_python_is_never_uninstalled(roots, monkeypatch):
+    from types import SimpleNamespace
+    slow, _ = roots
+    monkeypatch.setattr(cleanup, 'sys', SimpleNamespace(platform='win32'))
+    monkeypatch.setattr(cleanup, 'registered_private_python', lambda root: False)
+    monkeypatch.setattr(cleanup.subprocess, 'run', lambda *a, **kw: pytest.fail('External Python must be preserved'))
+    cleanup.uninstall_private_python(slow)
+
+
+def test_user_declines_removal(roots, monkeypatch, qtbot):
+    slow, _ = roots
+    (slow / 'setup-cancelled').touch()
+    monkeypatch.setattr(QMessageBox, 'question', lambda *a: QMessageBox.No)
+    card = SlowSettings()
+    qtbot.addWidget(card)
+    card.start_remove()
+    assert card.worker is None
+    assert (slow / 'setup-cancelled').exists()
