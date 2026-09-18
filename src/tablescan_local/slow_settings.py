@@ -1,11 +1,12 @@
 """Optional Slow mode installation card for the application's Settings page."""
 from PySide6.QtCore import QLockFile, QThread, QTimer, Signal
-from PySide6.QtWidgets import QVBoxLayout, QProgressBar, QPlainTextEdit
+from PySide6.QtWidgets import QVBoxLayout, QProgressBar, QPlainTextEdit, QMessageBox
 
 from .i18n import tr, localized_saved_message
 from .localized_widgets import QWidget, QLabel, QPushButton
 from .slow_runtime import runtime_root
 from . import slow_setup
+from .cleanup import remove_slow, prune_empty, SLOW_FILES
 
 
 class SetupWorker(QThread):
@@ -28,6 +29,16 @@ class SetupWorker(QThread):
             self.failed.emit(str(exc))
 
 
+class RemovalWorker(QThread):
+    failed = Signal(str)
+
+    def run(self):
+        try:
+            remove_slow(setup_locked=True)
+        except Exception as exc:
+            self.failed.emit(str(exc))
+
+
 class SlowSettings(QWidget):
     def __init__(self, parent=None, busy=lambda: False):
         super().__init__(parent)
@@ -36,6 +47,7 @@ class SlowSettings(QWidget):
         self.lock = None
         self.error = ''
         self.cancelling = False
+        self.removing = False
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 20, 0, 0)
         layout.addWidget(QLabel(tr('Slow mode')))
@@ -48,6 +60,9 @@ class SlowSettings(QWidget):
         self.install_button = QPushButton()
         self.install_button.clicked.connect(self.start_install)
         layout.addWidget(self.install_button)
+        self.remove_button = QPushButton(tr('Remove Slow mode'))
+        self.remove_button.clicked.connect(self.start_remove)
+        layout.addWidget(self.remove_button)
         self.cancel_button = QPushButton(tr('Cancel installation'))
         self.cancel_button.clicked.connect(self.cancel_install)
         self.cancel_button.hide()
@@ -97,9 +112,38 @@ class SlowSettings(QWidget):
             'installing': tr('Slow mode is being installed by another process.'),
             'failed': tr('Slow mode setup is incomplete or needs repair. Retry installation.'),
         }
-        self.status.setText(tr('Slow mode installation failed. Open installation details and retry.') if self.error else messages[state])
+        self.status.setText(tr('Slow mode operation failed. Open details and retry.') if self.error else messages[state])
         self.install_button.setText(tr('Retry installation') if state in {'failed', 'cancelled'} or self.error else tr('Install Slow mode'))
         self.install_button.setEnabled(state not in {'ready', 'installing'})
+        self.remove_button.setEnabled(state != 'installing' and any((runtime_root() / name).exists() for name in SLOW_FILES))
+
+    def start_remove(self):
+        if self.worker is not None:
+            return
+        if self.busy():
+            self.status.setText(tr('Wait for the current analysis to finish before removing Slow mode.'))
+            return
+        if QMessageBox.question(self, tr('Remove Slow mode'),
+                tr('Remove Slow models, Python environment and cache? Your TableScan history and documents will be kept.'),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            return
+        root = runtime_root()
+        self.lock = QLockFile(str(root / 'setup.lock'))
+        self.lock.setStaleLockTime(0)
+        if not self.lock.tryLock(0):
+            self.status.setText(tr('Slow mode is being installed by another process.'))
+            return
+        self.removing = True
+        self.error = ''
+        self.install_button.setEnabled(False)
+        self.remove_button.setEnabled(False)
+        self.progress.setRange(0, 0)
+        self.progress.show()
+        self.status.setText(tr('Removing Slow mode…'))
+        self.worker = RemovalWorker(self)
+        self.worker.failed.connect(self.failed)
+        self.worker.finished.connect(self.finished)
+        self.worker.start()
 
     def start_install(self):
         if self.worker is not None:
@@ -124,6 +168,7 @@ class SlowSettings(QWidget):
         self.cancel_button.setEnabled(True)
         self.cancel_button.show()
         self.install_button.setEnabled(False)
+        self.remove_button.setEnabled(False)
         self.progress.setRange(0, 0)
         self.progress.show()
         self.status.setText(tr('Preparing Slow mode…'))
@@ -158,6 +203,12 @@ class SlowSettings(QWidget):
         self.worker = None
         self.lock.unlock()
         self.lock = None
+        if self.removing:
+            try:
+                prune_empty(runtime_root())
+            except OSError as exc:
+                self.error = str(exc)
+        self.removing = False
         self.progress.hide()
         self.cancel_button.hide()
         self.cancelling = False

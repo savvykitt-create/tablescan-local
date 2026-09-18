@@ -223,7 +223,7 @@ def install(progress, cancel=None):
                                  'Include_launcher=0', 'Include_test=0', 'Include_doc=0', 'Include_tcltk=0',
                                  'Include_pip=1', 'PrependPath=0', 'Shortcuts=0', 'AssociateFiles=0'], log,
                                 accepted=(0, 3010), cancel=cancel)
-                    package.unlink(missing_ok=True)
+                    # Retain the verified installer for offline removal of private Python.
                 else:
                     raise RuntimeError('Install Python 3.12, then retry Slow mode installation.')
                 python = find_python(root, log, cancel)

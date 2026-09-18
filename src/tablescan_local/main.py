@@ -77,6 +77,9 @@ def slow_mode_self_test() -> int:
 
 
 def main() -> int:
+    if "--uninstall-data" in sys.argv:
+        from .cleanup import uninstall_main
+        return uninstall_main()
     if "--slow-mode-self-test" in sys.argv:
         return slow_mode_self_test()
     if "--self-test" in sys.argv:

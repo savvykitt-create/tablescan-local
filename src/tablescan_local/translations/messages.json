@@ -3413,5 +3413,35 @@
     "en": "Slow mode installation is still running. Cancel it in Settings or wait for it to finish before closing TableScan.",
     "ru": "Установка Slow ещё выполняется. Отмените её в настройках или дождитесь завершения перед закрытием TableScan.",
     "cs": "Instalace režimu Slow stále probíhá. Před zavřením TableScan ji zrušte v Nastavení nebo počkejte na dokončení."
+  },
+  "Remove Slow mode": {
+    "en": "Remove Slow mode",
+    "ru": "Удалить Slow mode",
+    "cs": "Odstranit režim Slow"
+  },
+  "Removing Slow mode…": {
+    "en": "Removing Slow mode…",
+    "ru": "Удаление Slow mode…",
+    "cs": "Odstraňování režimu Slow…"
+  },
+  "Wait for the current analysis to finish before removing Slow mode.": {
+    "en": "Wait for the current analysis to finish before removing Slow mode.",
+    "ru": "Дождитесь завершения текущего анализа перед удалением Slow mode.",
+    "cs": "Před odstraněním režimu Slow počkejte na dokončení analýzy."
+  },
+  "Remove Slow models, Python environment and cache? Your TableScan history and documents will be kept.": {
+    "en": "Remove Slow models, Python environment and cache? Your TableScan history and documents will be kept.",
+    "ru": "Удалить модели Slow, окружение Python и кэш? История TableScan и документы сохранятся.",
+    "cs": "Odstranit modely Slow, prostředí Python a mezipaměť? Historie TableScan a dokumenty zůstanou zachovány."
+  },
+  "Slow mode operation failed. Open details and retry.": {
+    "en": "Slow mode operation failed. Open details and retry.",
+    "ru": "Не удалось завершить операцию со Slow mode. Откройте подробности и повторите попытку.",
+    "cs": "Operace s režimem Slow selhala. Otevřete podrobnosti a zkuste to znovu."
+  },
+  "Slow mode removal is still running. Wait for it to finish before closing TableScan.": {
+    "en": "Slow mode removal is still running. Wait for it to finish before closing TableScan.",
+    "ru": "Удаление Slow mode ещё идёт. Дождитесь его завершения перед закрытием TableScan.",
+    "cs": "Odstraňování režimu Slow stále probíhá. Před zavřením TableScan počkejte na dokončení."
   }
 }

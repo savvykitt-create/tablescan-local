@@ -3510,7 +3510,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event) -> None:
         if self.slow_settings.is_installing():
             self._navigate_section(2)
-            QMessageBox.information(self, tr('Slow mode'), tr('Slow mode installation is still running. Cancel it in Settings or wait for it to finish before closing TableScan.'))
+            QMessageBox.information(self, tr('Slow mode'), tr('Slow mode removal is still running. Wait for it to finish before closing TableScan.') if self.slow_settings.removing else tr('Slow mode installation is still running. Cancel it in Settings or wait for it to finish before closing TableScan.'))
             event.ignore()
             return
         if not self._close_requested:

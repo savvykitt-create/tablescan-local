@@ -85,6 +85,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" packaging\windows\TableScanLocal.iss'
+      - name: Test Windows installer and complete uninstall
+        if: runner.os == 'Windows'
+        run: python packaging/windows/smoke_uninstall.py
       - name: Save verified packages for publication
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

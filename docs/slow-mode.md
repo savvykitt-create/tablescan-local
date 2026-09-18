@@ -201,3 +201,21 @@ are unchanged. A manually supplied stricter oneDNN ISA limit is preserved.
 The related upstream investigation is [oneDNN #5689](https://github.com/uxlfoundation/oneDNN/issues/5689).
 This mitigation is tested with native Windows CPU generation; full handwriting
 accuracy and performance remain separate validation tasks.
+
+## Removal
+
+Choose **Settings → Slow mode → Remove Slow mode** to delete the optional models,
+isolated Python environment and download cache. This also removes incomplete
+installation files. Finish recognition or cancel installation first. Your TableScan
+history, templates and documents remain available. Slow mode can be installed again
+from the same settings page.
+
+On Windows, uninstall **TableScan Local** from Windows Settings to remove the
+application and its Slow runtime, preferences, history, templates and internal
+copies of imported documents. Original documents and files exported to your own
+folders are preserved. Close TableScan before uninstalling. If cleanup fails, the
+uninstaller stops so that you can resolve the error and retry.
+
+Python installed separately by the user is preserved. A private Python installed
+by TableScan is removed with its own uninstaller. Custom data directories retain
+unrelated files; only TableScan-owned files and subdirectories are removed.
