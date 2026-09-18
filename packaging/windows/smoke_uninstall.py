@@ -40,6 +40,21 @@ with tempfile.TemporaryDirectory(prefix='tablescan-uninstall-test-') as director
                 'Include_launcher=0', 'Include_test=0', 'Include_doc=0', 'Include_tcltk=0',
                 'Include_pip=1', 'PrependPath=0', 'Shortcuts=0', 'AssociateFiles=0'], env) == 0
     assert registered_private_python(slow)
+    import hashlib
+    import winreg
+    from tablescan_local.cleanup import PYTHON_CACHED_SHA256
+    cache_hashes = []
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                       r'Software\Microsoft\Windows\CurrentVersion\Uninstall') as parent:
+        for index in range(winreg.QueryInfoKey(parent)[0]):
+            with winreg.OpenKey(parent, winreg.EnumKey(parent, index)) as key:
+                try:
+                    candidate = Path(winreg.QueryValueEx(key, 'BundleCachePath')[0])
+                    if candidate.is_file():
+                        cache_hashes.append(hashlib.sha256(candidate.read_bytes()).hexdigest())
+                except FileNotFoundError:
+                    pass
+    assert PYTHON_CACHED_SHA256 in cache_hashes, cache_hashes
     # Exercise migration from v1.0.2, which did not retain the downloaded installer.
     package.unlink()
     original = root / 'original.pdf' 

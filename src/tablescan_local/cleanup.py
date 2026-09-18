@@ -14,6 +14,10 @@ SLOW_FILES = {'runtime', 'python', 'models', 'cache', 'self-test', 'runtime.json
               'setup.log', 'setup-pending', 'setup-cancelled',
               'python-3.12.10-amd64.exe', 'python-3.12.10-amd64.part',
               'python-macos.tar.gz', 'python-macos.tar.part'}
+# WiX Burn's cached engine from the SHA-pinned CPython 3.12.10 x64 bundle.
+# Its attached MSI container is removed and original PE signature fields restored.
+PYTHON_CACHED_SHA256 = '8515944637be89aab89d2dc5d247bc21331e9c4179dc25e2fc24df51a9eda934'
+
 STORE_FILES = {'jobs', 'templates', 'template-samples', 'tablescan.db',
                'tablescan.db-wal', 'tablescan.db-shm', 'tablescan.db-journal',
                'preferences.ini', '.default-templates-installed'}
@@ -86,7 +90,7 @@ def uninstall_private_python(root):
                 except FileNotFoundError:
                     pass
     for candidate in candidates:
-        if candidate.is_file() and hashlib.sha256(candidate.read_bytes()).hexdigest() == PYTHON_SHA256:
+        if candidate.is_file() and hashlib.sha256(candidate.read_bytes()).hexdigest() in {PYTHON_SHA256, PYTHON_CACHED_SHA256}:
             result = subprocess.run([str(candidate), '/uninstall', '/quiet', '/norestart'],
                                     creationflags=subprocess.CREATE_NO_WINDOW)
             if result.returncode != 0 or registered_private_python(root):

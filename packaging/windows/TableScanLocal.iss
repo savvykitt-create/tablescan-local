@@ -44,6 +44,13 @@ Type: filesandordirs; Name: "{app}\tools\__pycache__"
 ConfirmUninstall=Remove TableScan Local completely, including Slow mode, settings, history and internal document copies? Original documents and exported files will be kept.
 
 [Code]
+procedure CleanupFailed(MessageText: String);
+begin
+  Log(MessageText);
+  SuppressibleMsgBox(MessageText, mbError, MB_OK, IDOK);
+  Abort;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
@@ -55,8 +62,8 @@ begin
     if UninstallSilent then Arguments := Arguments + ' --silent';
     if not Exec(ExpandConstant('{app}\{#MyAppExeName}'), Arguments,
       ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-      RaiseException('Could not start data cleanup. Reinstall TableScan Local and retry uninstall.');
+      CleanupFailed('Could not start data cleanup. Reinstall TableScan Local and retry uninstall.');
     if ResultCode <> 0 then
-      RaiseException('Data cleanup failed. Close TableScan and any Slow installer, then retry uninstall.');
+      CleanupFailed('Data cleanup failed. Close TableScan and any Slow installer, then retry uninstall.');
   end;
 end;
