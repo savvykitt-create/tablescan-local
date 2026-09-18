@@ -39,6 +39,12 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: no
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\tools\__pycache__"
+Type: filesandordirs; Name: "{app}\_internal\tablescan_local\setup\__pycache__"
+Type: dirifempty; Name: "{app}\tools"
+Type: dirifempty; Name: "{app}\_internal\tablescan_local\setup"
+Type: dirifempty; Name: "{app}\_internal\tablescan_local"
+Type: dirifempty; Name: "{app}\_internal"
+Type: dirifempty; Name: "{app}"
 
 [Messages]
 ConfirmUninstall=Remove TableScan Local completely, including Slow mode, settings, history and internal document copies? Original documents and exported files will be kept.

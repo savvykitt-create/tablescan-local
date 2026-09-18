@@ -57,7 +57,11 @@ with tempfile.TemporaryDirectory(prefix='tablescan-uninstall-test-') as director
     assert PYTHON_CACHED_SHA256 in cache_hashes, cache_hashes
     # Exercise migration from v1.0.2, which did not retain the downloaded installer.
     package.unlink()
-    original = root / 'original.pdf' 
+    for folder in ['tools', '_internal/tablescan_local/setup']:
+        cache = destination / folder / '__pycache__'
+        cache.mkdir(parents=True, exist_ok=True)
+        (cache / 'slow_runtime.cpython-312.pyc').write_bytes(b'fixture')
+    original = root / 'original.pdf'
     original.write_text('keep')
     export = root / 'export.xlsx'
     export.write_text('keep')
@@ -73,6 +77,7 @@ with tempfile.TemporaryDirectory(prefix='tablescan-uninstall-test-') as director
     assert run([uninstaller, *flags], env) == 0
     assert not data.exists() and not slow.exists()
     assert not executable.exists()
+    assert not destination.exists(), list(destination.rglob('*'))
     assert not registered_private_python(slow)
     assert original.read_text() == export.read_text() == 'keep'
     # Also verify the actual default Qt/Slow locations used by a clean install.
