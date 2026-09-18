@@ -154,3 +154,16 @@ def test_user_declines_removal(roots, monkeypatch, qtbot):
     card.start_remove()
     assert card.worker is None
     assert (slow / 'setup-cancelled').exists()
+
+
+def test_uninstall_cleans_real_store_and_persisted_queue(roots, qtbot):
+    from tablescan_local.storage import LocalStore
+    from tablescan_local.analysis_queue import AnalysisQueue
+    _, data = roots
+    store = LocalStore(data)
+    queue = AnalysisQueue(store, lambda entry: None)
+    queue.persist()
+    assert (data / 'analysis-queue.json').exists()
+    store.connection.close()
+    cleanup.uninstall_data()
+    assert not data.exists()

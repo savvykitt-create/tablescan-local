@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix='tablescan-uninstall-test-') as director
     uninstaller = destination / 'unins000.exe'
     assert executable.exists() and uninstaller.exists()
     for path in [data / 'jobs/job/source.pdf', data / 'templates/template.json',
-                 data / 'preferences.ini', data / 'tablescan.db',
+                 data / 'preferences.ini', data / 'tablescan.db', data / 'analysis-queue.json',
                  slow / 'runtime/python.exe', slow / 'models/model.safetensors',
                  slow / 'cache/partial', slow / 'setup-cancelled']:
         path.parent.mkdir(parents=True, exist_ok=True)
