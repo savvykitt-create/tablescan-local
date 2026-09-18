@@ -60,4 +60,18 @@ with tempfile.TemporaryDirectory(prefix='tablescan-uninstall-test-') as director
     assert not executable.exists()
     assert not registered_private_python(slow)
     assert original.read_text() == export.read_text() == 'keep'
+    # Also verify the actual default Qt/Slow locations used by a clean install.
+    from tablescan_local.cleanup import application_data_root
+    from tablescan_local.slow_runtime import runtime_root
+    app.setApplicationName('TableScan Local')
+    app.setOrganizationName('TableScan Local')
+    default_data, default_slow = application_data_root(), runtime_root()
+    assert not default_data.exists() and not default_slow.exists(), 'CI profile must be clean'
+    default_data.mkdir(parents=True)
+    default_slow.mkdir(parents=True)
+    (default_data / 'preferences.ini').write_text('fixture')
+    (default_slow / 'setup-cancelled').touch()
+    assert run([installer, *flags, '/SP-', f'/DIR={destination}'], dict(os.environ)) == 0
+    assert run([uninstaller, *flags], dict(os.environ)) == 0
+    assert not default_data.exists() and not default_slow.exists()
 print('Windows installer and complete uninstall passed, including active-app refusal.')

@@ -79,12 +79,13 @@ def test_running_application_blocks_full_uninstall(roots):
         lock.unlock()
 
 
-def test_directory_link_does_not_delete_target(roots):
+@pytest.mark.parametrize("name", ["models", "python"])
+def test_directory_link_does_not_delete_target(roots, name):
     slow, data = roots
     original = data / 'original.pdf'
     original.write_text('keep')
     try:
-        (slow / 'models').symlink_to(data, target_is_directory=True)
+        (slow / name).symlink_to(data, target_is_directory=True)
     except OSError:
         pytest.skip('Symlink creation is unavailable')
     cleanup.remove_slow()

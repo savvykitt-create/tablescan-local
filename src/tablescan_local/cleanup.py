@@ -56,6 +56,9 @@ def locked(root, name):
 
 def registered_private_python(root):
     """Only the Python registration pointing into this Slow directory belongs to us."""
+    private = root / 'python'
+    if private.is_symlink() or getattr(private, 'is_junction', lambda: False)():
+        return False
     import winreg
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
