@@ -8,7 +8,16 @@ from PySide6.QtCore import QCoreApplication, QLockFile
 
 
 def run(args, env):
-    return subprocess.run([str(arg) for arg in args], env=env, timeout=180).returncode
+    # Inno's original uninstaller exits before the temporary child finishes.
+    # Start-Process -Wait waits for the entire process tree, unlike Popen.wait().
+    command_env = dict(env, TABLESCAN_TEST_EXE=str(args[0]),
+                       TABLESCAN_TEST_ARGS=subprocess.list2cmdline([str(arg) for arg in args[1:]]))
+    powershell = Path(os.environ['SystemRoot']) / 'System32/WindowsPowerShell/v1.0/powershell.exe'
+    script = ("$ErrorActionPreference = 'Stop'; $p = Start-Process "
+              '-FilePath $env:TABLESCAN_TEST_EXE '
+              '-ArgumentList $env:TABLESCAN_TEST_ARGS -Wait -PassThru; exit $p.ExitCode')
+    return subprocess.run([str(powershell), '-NoProfile', '-NonInteractive',
+                           '-Command', script], env=command_env, timeout=240).returncode
 
 
 app = QCoreApplication([])
