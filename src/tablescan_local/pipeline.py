@@ -13,7 +13,6 @@ from .domain import CellResult, FieldRegion, FieldResult, JobResult, NormalizedR
 from .imaging import cell_crop_bundle, crop_normalized, detect_crossed_rows, write_image
 from .ocr import LocalOcrEngine, is_complex_number, is_simple_number
 from .table_checks import flag_table_outliers
-from .writer_adapter import apply_writer_adaptation
 
 
 ProgressCallback = Callable[[int, int, str], None]
@@ -194,7 +193,6 @@ def process_page(
     excluded_rows.sort()
 
     page = PageResult(page_index, source_path, cells, fields, excluded_rows)
-    apply_writer_adaptation(page, template, getattr(engine, "_digit_verifier", None))
     flag_table_outliers(page, template)
     return page
 

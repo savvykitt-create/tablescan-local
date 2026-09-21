@@ -2140,11 +2140,6 @@ class ReviewPage(QWidget):
         value_row.addWidget(value_title)
         value_row.addWidget(self.correct_value, 1)
         edit_box.addLayout(value_row)
-        self.writer_suggestion_button = QPushButton(tr('Подставить вариант почерка'))
-        self.writer_suggestion_button.setToolTip(tr('Подставить предложенное значение для сверки; сохранится после подтверждения. Alt+A'))
-        self.writer_suggestion_button.setShortcut("Alt+A")
-        self.writer_suggestion_button.clicked.connect(self._use_writer_suggestion)
-        self.writer_suggestion_button.hide()
         actions = QHBoxLayout()
         self.confirm_button = QPushButton(tr('Подтвердить и далее') + '  [Enter]')
         self.confirm_button.setProperty("primary", True)
@@ -2175,10 +2170,6 @@ class ReviewPage(QWidget):
         self.details_toggle.toggled.connect(self._toggle_details)
         secondary.addWidget(self.details_toggle)
         edit_box.addLayout(secondary)
-        suggestion_size = self.writer_suggestion_button.sizePolicy()
-        suggestion_size.setRetainSizeWhenHidden(True)
-        self.writer_suggestion_button.setSizePolicy(suggestion_size)
-        edit_box.addWidget(self.writer_suggestion_button)
         self.confidence_label = QLabel()
         self.confidence_label.setWordWrap(True)
         self.confidence_label.setTextFormat(Qt.TextFormat.RichText)
@@ -2337,7 +2328,6 @@ class ReviewPage(QWidget):
         page = self.result.pages[self.current_page]
         if self.current_kind == "field":
             item = page.fields[self.current_index]
-            self.writer_suggestion_button.hide()
             region_index = next((i for i, region in enumerate(self.result.template.fields)
                                  if region.id == item.region_id), -1)
             self.canvas.set_active_field(region_index)
@@ -2353,11 +2343,6 @@ class ReviewPage(QWidget):
             self.exclude_column.blockSignals(False)
         else:
             item = page.cells[self.current_index]
-            suggestion = getattr(item, "writer_suggestion", "")
-            self.writer_suggestion_button.setText(
-                tr('Подставить вариант почерка: {p0}', p0=suggestion) if suggestion else tr('Подставить вариант почерка'),
-            )
-            self.writer_suggestion_button.setVisible(bool(suggestion and suggestion != item.final_text))
             self.canvas.set_active_cell(item.row, item.column)
             address = tr('Ячейка {p0}{p1}', p0=excel_column_name(item.column), p1=item.row + 1)
             self.address_label.setText(address)
@@ -2371,7 +2356,6 @@ class ReviewPage(QWidget):
             self.exclude_column.blockSignals(False)
         self.confirm_button.setEnabled(item.status != "excluded")
         self.correct_value.setEnabled(item.status != "excluded")
-        self.writer_suggestion_button.setEnabled(item.status != "excluded")
         if getattr(item, "status", "automatic") == "excluded":
             self.value_label.setText(tr('Пусто — исключено'))
         else:
@@ -2419,11 +2403,6 @@ class ReviewPage(QWidget):
             "unstable_consensus": tr('Недостаточно устойчивое согласие независимых этапов'),
             "digit_verifier_agrees": tr('Независимый распознаватель отдельных цифр согласен'),
             "digit_verifier_disagreement": tr('Дополнительный распознаватель цифр предложил другой вариант; основной консенсус сохранён'),
-            "writer_style_profile_used": tr('Ответ сравнивался с устойчивыми образцами почерка из других ячеек этой страницы'),
-            "writer_style_agrees": tr('Профиль почерка страницы независимо подтверждает выбранные цифры'),
-            "writer_style_selected": tr('Профиль почерка выбрал другой реально прочитанный OCR-вариант — проверьте его по изображению'),
-            "writer_style_ambiguous": tr('Форма цифры противоречит первичному OCR, но доказательств пока недостаточно для уверенного выбора'),
-            "writer_style_conflict_rejected": tr('Похожий образец почерка не принят: независимый распознаватель цифр подтвердил исходный ответ'),
             "isolated_digit_consensus": tr('All three models agree on the separately read disputed digit'),
             "isolated_digit_disagreement": tr('Separate reading of the disputed digit remains uncertain'),
             "split_consensus_used": tr('Independent models agree when reading the number in parts'),
@@ -2436,13 +2415,13 @@ class ReviewPage(QWidget):
         }
         audit_flags = {"numeric_verification_required", "high_accuracy_consensus", "constrained_decoder_used",
                        "crop_retry_contributed", "decimal_separator_detected", "digit_verifier_agrees",
-                       "multistage_cascade", "writer_style_profile_used", "writer_style_agrees",
+                       "multistage_cascade",
                        "value_rule_review_required"}
         def section(title: str, lines: list[str]) -> str:
             if not lines:
                 return ""
             return fmt('<p><b>{p0}</b></p><ul>', p0=escape(title)) + join_text('', (fmt('<li>{p0}</li>', p0=escape(line)) for line in lines)) + "</ul>"
-        concerns = [reasons.get(flag, tr('Дополнительная отметка: {p0}', p0=flag)) for flag in item.flags if flag not in audit_flags]
+        concerns = [reasons.get(flag, tr('Дополнительная отметка: {p0}', p0=flag)) for flag in item.flags if flag not in audit_flags and not flag.startswith("writer_style_")]
         checks = [reasons[flag] for flag in item.flags if flag in audit_flags]
         details = section(tr('Что проверить'), concerns or [tr('Сравните значение с фрагментом оригинала.')])
         rule_lines = []
@@ -2466,8 +2445,7 @@ class ReviewPage(QWidget):
             readings.append(tr('Другие прочтения: ') + item.alternatives)
         details += section(tr('Варианты прочтения'), readings)
         details += section(tr('Выполненные проверки'), checks)
-        details += section(tr('Технические сведения'), [tr('Оценка OCR: {p0:.0%}. Это оценка модели, а не измеренная точность.', p0=item.confidence)]
-                           + ([tr('Почерк: ') + item.writer_evidence] if getattr(item, "writer_evidence", "") else []))
+        details += section(tr('Технические сведения'), [tr('Оценка OCR: {p0:.0%}. Это оценка модели, а не измеренная точность.', p0=item.confidence)])
         self.confidence_label.setText(details)
         self.detail_scroll.verticalScrollBar().setValue(0)
         # Review always uses the same unmodified source page as the left canvas.
@@ -2508,14 +2486,6 @@ class ReviewPage(QWidget):
                         widget_item.setBackground(QColor(bg))
                         widget_item.setForeground(QColor(fg))
 
-
-    def _use_writer_suggestion(self) -> None:
-        if not self.result or self.current_kind != "cell" or self.current_index < 0:
-            return
-        item = self.result.pages[self.current_page].cells[self.current_index]
-        if item.writer_suggestion:
-            self.correct_value.setText(item.writer_suggestion)
-            self.correct_value.setFocus()
 
     def confirm_current(self) -> None:
         if not self.result or self.current_index < 0:
@@ -2648,7 +2618,6 @@ class ReviewPage(QWidget):
         self.correct_value.clear()
         self.correct_value.setEnabled(False)
         self.confirm_button.setEnabled(False)
-        self.writer_suggestion_button.hide()
         self.exclude_row.blockSignals(True)
         self.exclude_row.setChecked(False)
         self.exclude_row.setEnabled(False)
@@ -2702,7 +2671,7 @@ class ExportOptionsDialog(QDialog):
         set_theme_style(note, fmt('color: {p0}; padding-left: 25px;', p0=MUTED))
         layout.addWidget(note)
         layout.addWidget(self.extended)
-        note = QLabel(tr('Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями, оценками и вариантами почерка.'))
+        note = QLabel(tr('Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями и оценками.'))
         note.setWordWrap(True)
         set_theme_style(note, fmt('color: {p0}; padding-left: 25px;', p0=MUTED))
         layout.addWidget(note)

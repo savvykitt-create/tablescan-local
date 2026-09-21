@@ -66,7 +66,7 @@ def test_explicit_page_choice_stays_on_completed_page(qtbot):
     assert review.current_page == 1
     assert review.current_index == -1
     assert not review.confirm_button.isEnabled()
-    assert review.writer_suggestion_button.isHidden()
+    assert not hasattr(review, 'writer_suggestion_button')
     review.next_button.click()
     assert review.current_page == 0
 

@@ -98,17 +98,11 @@ Source: [ocr.py](../src/tablescan_local/ocr.py),
 
 ## 4. Page-level evidence
 
-The writer profile is a temporary comparison of stable digit examples from the
-current page. It excludes a cell from its own reference evidence and ranks
-existing alternatives. It writes a **suggestion requiring human confirmation**, not a new
-final transcription. No weights are trained or saved by this step.
-
-The pipeline then flags table outliers. These checks and current value constraints
+The pipeline flags table outliers. These checks and current value constraints
 can identify suspicious results; a plausible range is not evidence of the written
 digit. Human corrections do not become hidden training data for recognition.
 
-Source: [writer_adapter.py](../src/tablescan_local/writer_adapter.py),
-[pipeline.py](../src/tablescan_local/pipeline.py).
+Source: [pipeline.py](../src/tablescan_local/pipeline.py).
 
 ## 5. Slow mode agreement policy
 

@@ -207,7 +207,7 @@ def test_only_real_conflicts_need_review_and_all_can_be_confirmed(qtbot, monkeyp
     assert not review.confirm_all_button.isEnabled()
 
 
-def test_writer_style_suggestion_requires_explicit_confirmation(qtbot):
+def test_legacy_writer_suggestion_is_not_offered_or_applied(qtbot):
     template = TableTemplate(
         id="writer-suggestion", name="Writer suggestion",
         table_rect=NormalizedRect(0, 0, 1, 1), row_guides=[0, 1], column_guides=[0, 1],
@@ -226,10 +226,8 @@ def test_writer_style_suggestion_requires_explicit_confirmation(qtbot):
         JobResult("sample.pdf", template, [PageResult(0, "sample.pdf", [cell], [])]),
     )
 
-    assert review.writer_suggestion_button.isVisible()
-    review.writer_suggestion_button.click()
-
-    assert review.correct_value.text() == "49.1"
+    assert not hasattr(review, "writer_suggestion_button")
+    assert review.correct_value.text() == "99.1"
     assert cell.final_text == "99.1"
 
 
@@ -254,14 +252,3 @@ def test_manual_correction_overrides_rules_and_survives_export(qtbot, tmp_path):
     assert workbook.active['A1'].value == -135.123
     assert workbook.active['A1'].number_format == '0.000'
     workbook.close()
-
-
-def test_suggestion_does_not_move_actions(qtbot):
-    review = ReviewPage(); qtbot.addWidget(review)
-    review.resize(1400, 900); review.show()
-    qtbot.wait(10)
-    before = review.confirm_button.geometry()
-    review.writer_suggestion_button.show()
-    qtbot.wait(10)
-    assert review.confirm_button.geometry() == before
-    assert review.writer_suggestion_button.y() > review.confirm_button.y()

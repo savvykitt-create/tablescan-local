@@ -59,8 +59,7 @@ are an [optional release mode](docs/macos-release-signing.md).
    and the models automatically. Setup can be cancelled from Settings.
 4. **Review:** compare flagged values with their original crops. Edit and press
    **Enter** to confirm and continue, or **Alt+Right** to skip to the next disputed
-   value. Handwriting suggestions appear below the main actions; **Alt+A** copies
-   a suggestion into the editor for checking.
+   value.
 5. **Export:** after review, choose **Compact** for the original table layouts
    plus **Fields**, or **Extended** for layouts, normalized **Data** and **Audit**.
 
@@ -169,7 +168,7 @@ flowchart TD
     C -->|Text cell| L["PP-OCRv5 Server<br/>Read the cell crop"]
     C -->|Free-text field| M["PP-OCRv4 text detector<br/>then PP-OCRv5 Server<br/>Assemble text in spatial reading order"]
     C -->|Fixed metadata| N["Use the protocol's saved literal value"]
-    G --> O["Page-local handwriting suggestions<br/>Outlier and suspected crossing flags"]
+    G --> O["Outlier and suspected crossing flags"]
     K --> O
     L --> O
     M --> O
@@ -239,7 +238,7 @@ proposal; it does not confirm the measurement or remove the need for review.
 | **PP-OCRv5 English Mobile** — `en_PP-OCRv5_rec_mobile.onnx` | Additional numeric reading to compare with the main recognizer. | Numeric recognition in all modes. | Bundled; RapidOCR / ONNX Runtime, CPU. |
 | **PP-OCRv6 Medium** — `PP-OCRv6_medium_rec.onnx` | Third numeric recognizer for candidate discovery and corroboration. | High accuracy and Slow. | Bundled; RapidOCR / ONNX Runtime, CPU. |
 | **PP-OCRv4 text detector** — `ch_PP-OCRv4_det_infer.onnx` | Locates text lines inside a free-text metadata region before PP-OCRv5 reads them. It does not detect the table grid. | Free-text fields. | Included through RapidOCR; ONNX Runtime, CPU. |
-| **EMNIST digit CNN** — `emnist_digit_cnn.onnx` | Supporting check of safely segmented digits; cannot independently override strong multi-model OCR evidence. | High accuracy and its handwriting suggestions; also included in Slow's primary pass. | Bundled project-trained verifier; ONNX Runtime, CPU. |
+| **EMNIST digit CNN** — `emnist_digit_cnn.onnx` | Supporting check of safely segmented digits; cannot independently override strong multi-model OCR evidence. | High accuracy; also included in Slow's primary pass. | Bundled project-trained verifier; ONNX Runtime, CPU. |
 | **Qwen3.5-4B** | Reads the measurement table and proposes alternative values with row positions. | Optional Slow verification. | Apple Silicon: `mlx-community/Qwen3.5-4B-MLX-4bit` on MLX / Metal. Other platforms: `Qwen/Qwen3.5-4B` on Transformers / PyTorch, CPU or NVIDIA CUDA. |
 | **GLM-OCR** | Independently reads original rows where Qwen proposes a different admissible value. | Optional Slow verification, after Qwen. | Apple Silicon: `mlx-community/GLM-OCR-bf16` on MLX / Metal. Other platforms: `zai-org/GLM-OCR` on Transformers / PyTorch, CPU or NVIDIA CUDA. |
 
@@ -263,8 +262,7 @@ alongside the layouts.
 Compatibility percentages describe layout matching. OCR confidence and candidate
 ranking scores are not calibrated probabilities that a handwritten value is
 correct. For decoding details and source references, see the
-[technical algorithm guide](docs/recognition.md),
-[handwriting profile](docs/writer-profile.md) and [value rules](docs/VALUE_RULES.md).
+[technical algorithm guide](docs/recognition.md) and [value rules](docs/VALUE_RULES.md).
 
 ## Files, updates and development
 

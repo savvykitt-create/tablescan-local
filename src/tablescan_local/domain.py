@@ -345,6 +345,7 @@ class CellResult:
     candidate_confidences: dict[str, float] = field(default_factory=dict)
     candidate_scores: dict[str, float] = field(default_factory=dict)
     ranking_scores: dict[str, float] = field(default_factory=dict)
+    # Retained only for compatibility with previously saved results.
     writer_suggestion: str = ""
     writer_evidence: str = ""
     preview_crop_path: str = ""

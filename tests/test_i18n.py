@@ -100,7 +100,7 @@ def test_language_switch_preserves_review_input_selection_image_and_result(qtbot
         assert review.confirm_button.text() == button + "  [Enter]"
         assert review.address_label.text() == address
         assert address in review.crop_caption.text()
-        assert '12.7' in review.writer_suggestion_button.text()
+        assert not hasattr(review, 'writer_suggestion_button')
         assert review.details_toggle.isChecked()
         assert review.fields_table.item(0, 1).text() == 'Русский исходный текст'
         if code != 'ru':

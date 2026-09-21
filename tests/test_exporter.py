@@ -159,7 +159,7 @@ def test_export_keeps_raw_and_alternatives_as_literal_text(tmp_path):
     rows = list(wb["Audit"].values)
     record = next(r for r in rows[1:] if r[3] == "R2C2")
     assert record[4] == "=1+1"
-    assert record[-3] == "125 | I2.5"
+    assert record[rows[0].index("Alternative readings")] == "125 | I2.5"
     assert all(c.data_type != "f" for row in wb["Audit"] for c in row)
 
 
@@ -194,10 +194,10 @@ def test_confirmed_value_overrides_hard_rule_on_export(tmp_path):
     output = export_job(job, tmp_path / "valid.xlsx")
     rows = list(load_workbook(output)["Audit"].values)
     record = next(row for row in rows[1:] if row[3] == "R2C2")
-    assert record[-4] == "1 decimal place"
+    assert record[rows[0].index("Applied value rule")] == "1 decimal place"
 
 
-def test_export_records_writer_adaptation_evidence(tmp_path):
+def test_export_omits_retired_writer_suggestions_from_legacy_results(tmp_path):
     job = make_job()
     item = job.pages[0].cell(1, 1)
     item.writer_suggestion = "12.5"
@@ -205,8 +205,9 @@ def test_export_records_writer_adaptation_evidence(tmp_path):
     output = export_job(job, tmp_path / "writer-audit.xlsx")
     rows = list(load_workbook(output)["Audit"].values)
     record = next(row for row in rows[1:] if row[3] == "R2C2")
-    assert record[-2] == item.writer_suggestion
-    assert record[-1] == item.writer_evidence
+    assert "Writer style suggestion" not in rows[0]
+    assert "Writer adaptation evidence" not in rows[0]
+    assert item.writer_evidence not in record
 
 
 def test_compact_exports_original_layout_and_fields_for_every_page(tmp_path):

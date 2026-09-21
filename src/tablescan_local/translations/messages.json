@@ -1099,16 +1099,6 @@
     "cs": "Správná hodnota vybrané buňky nebo pole",
     "ru": "Правильное значение выбранной ячейки или поля"
   },
-  "Подставить вариант почерка": {
-    "en": "Use handwriting suggestion",
-    "cs": "Použít návrh podle rukopisu",
-    "ru": "Подставить вариант почерка"
-  },
-  "Подставить предложенное значение для сверки; сохранится после подтверждения. Alt+A": {
-    "en": "Insert the suggested value for review; it is saved only after confirmation. Alt+A",
-    "cs": "Vložit navrženou hodnotu ke kontrole; uloží se až po potvrzení. Alt+A",
-    "ru": "Подставить предложенное значение для сверки; сохранится после подтверждения. Alt+A"
-  },
   "Подтвердить и далее": {
     "en": "Confirm and continue",
     "cs": "Potvrdit a pokračovat",
@@ -1168,11 +1158,6 @@
     "en": "Field · {p0}",
     "cs": "Pole · {p0}",
     "ru": "Поле · {p0}"
-  },
-  "Подставить вариант почерка: {p0}": {
-    "en": "Use handwriting suggestion: {p0}",
-    "cs": "Použít návrh podle rukopisu: {p0}",
-    "ru": "Подставить вариант почерка: {p0}"
   },
   "Ячейка {p0}{p1}": {
     "en": "Cell {p0}{p1}",
@@ -1364,31 +1349,6 @@
     "cs": "Další rozpoznávač číslic navrhl jinou hodnotu; hlavní shoda byla zachována",
     "ru": "Дополнительный распознаватель цифр предложил другой вариант; основной консенсус сохранён"
   },
-  "Ответ сравнивался с устойчивыми образцами почерка из других ячеек этой страницы": {
-    "en": "The answer was compared with reliable handwriting samples from other cells on this page",
-    "cs": "Výsledek byl porovnán se spolehlivými vzory rukopisu z jiných buněk této stránky",
-    "ru": "Ответ сравнивался с устойчивыми образцами почерка из других ячеек этой страницы"
-  },
-  "Профиль почерка страницы независимо подтверждает выбранные цифры": {
-    "en": "The page’s handwriting profile independently supports the selected digits",
-    "cs": "Profil rukopisu stránky nezávisle potvrzuje vybrané číslice",
-    "ru": "Профиль почерка страницы независимо подтверждает выбранные цифры"
-  },
-  "Профиль почерка выбрал другой реально прочитанный OCR-вариант — проверьте его по изображению": {
-    "en": "The handwriting profile selected another observed OCR candidate — check it against the image",
-    "cs": "Profil rukopisu vybral jinou skutečně přečtenou variantu OCR — porovnejte ji s obrázkem",
-    "ru": "Профиль почерка выбрал другой реально прочитанный OCR-вариант — проверьте его по изображению"
-  },
-  "Форма цифры противоречит первичному OCR, но доказательств пока недостаточно для уверенного выбора": {
-    "en": "The digit shape conflicts with the primary OCR, but there is not enough evidence for a confident choice",
-    "cs": "Tvar číslice odporuje původnímu OCR, ale pro jistý výběr zatím není dost podkladů",
-    "ru": "Форма цифры противоречит первичному OCR, но доказательств пока недостаточно для уверенного выбора"
-  },
-  "Похожий образец почерка не принят: независимый распознаватель цифр подтвердил исходный ответ": {
-    "en": "A similar handwriting sample was rejected: the independent digit recognizer confirmed the original answer",
-    "cs": "Podobný vzor rukopisu nebyl přijat: nezávislý rozpoznávač číslic potvrdil původní výsledek",
-    "ru": "Похожий образец почерка не принят: независимый распознаватель цифр подтвердил исходный ответ"
-  },
   "Выполнена многоэтапная локальная проверка": {
     "en": "Multiple local verification stages were completed",
     "cs": "Bylo dokončeno několik fází lokálního ověřování",
@@ -1458,11 +1418,6 @@
     "en": "OCR score: {p0:.0%}. This is a model estimate, not measured accuracy.",
     "cs": "Skóre OCR: {p0:.0%}. Jde o odhad modelu, nikoli o změřenou přesnost.",
     "ru": "Оценка OCR: {p0:.0%}. Это оценка модели, а не измеренная точность."
-  },
-  "Почерк: ": {
-    "en": "Handwriting: ",
-    "cs": "Rukopis: ",
-    "ru": "Почерк: "
   },
   "Фрагмент оригинала · ": {
     "en": "Original crop · ",
@@ -1548,11 +1503,6 @@
     "en": "Reviewed values in the original table layout. Each page is a separate worksheet.",
     "cs": "Zkontrolované hodnoty v původním rozložení tabulky. Každá stránka bude na samostatném listu.",
     "ru": "Таблица с проверенными значениями в расположении оригинала. Каждая страница — отдельный лист."
-  },
-  "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями, оценками и вариантами почерка.": {
-    "en": "Also includes Data for analysis and Audit with original readings, corrections, scores and handwriting suggestions.",
-    "cs": "Navíc obsahuje list Data pro analýzu a Audit s původními čteními, opravami, skóre a návrhy podle rukopisu.",
-    "ru": "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями, оценками и вариантами почерка."
   },
   "Выбрать файл…": {
     "en": "Choose file…",
@@ -3443,5 +3393,10 @@
     "en": "Slow mode removal is still running. Wait for it to finish before closing TableScan.",
     "ru": "Удаление Slow mode ещё идёт. Дождитесь его завершения перед закрытием TableScan.",
     "cs": "Odstraňování režimu Slow stále probíhá. Před zavřením TableScan počkejte na dokončení."
+  },
+  "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями и оценками.": {
+    "en": "Also includes Data for analysis and Audit with original readings, corrections and scores.",
+    "ru": "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями и оценками.",
+    "cs": "Navíc obsahuje Data pro analýzu a Audit s původními výsledky, opravami a skóre."
   }
 }

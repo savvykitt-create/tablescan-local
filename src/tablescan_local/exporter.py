@@ -257,7 +257,6 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
         "Source file", "Page", "Kind", "Address", "Raw value", "Final value", "Confidence",
         "Flags", "Status", "Template", "Template version", "Model version", "Exported at UTC",
         "Decimal separator evidence", "Applied value rule", "Alternative readings",
-        "Writer style suggestion", "Writer adaptation evidence",
     ]
     audit_sheet.append(audit_headers)
     exported_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -267,7 +266,7 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
                 job.source_name, page.page_index + 1, "field", item.name, item.raw_text, item.final_text,
                 round(item.confidence, 4), ", ".join(item.flags), item.status, job.template.name,
                 job.template.template_version, job.model_version, exported_at,
-                _separator_evidence(item.raw_text, item.final_text, item.flags), "", item.alternatives, "", "",
+                _separator_evidence(item.raw_text, item.final_text, item.flags), "", item.alternatives,
             ])
         for item in page.cells:
             audit_sheet.append([
@@ -275,8 +274,6 @@ def export_job(job: JobResult, target: str | Path, *, mode: str = "extended") ->
                 item.raw_text, item.final_text, round(item.confidence, 4), ", ".join(item.flags), item.status,
                 job.template.name, job.template.template_version, job.model_version, exported_at,
                 _separator_evidence(item.raw_text, item.final_text, item.flags), item.applied_rule, item.alternatives,
-                item.writer_suggestion,
-                item.writer_evidence,
             ])
 
     for sheet in (data_sheet, audit_sheet):
