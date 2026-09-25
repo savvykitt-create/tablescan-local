@@ -15,6 +15,7 @@ class LocalStore:
     def install_default_templates(self) -> None:
         """Seed bundled forms once; retain user edits and intentional deletions."""
         marker = self.root / '.default-templates-installed'
+        self._upgrade_unchanged_default_templates()
         if marker.exists():
             return
         bundled = Path(__file__).parent / 'default_templates'
@@ -24,6 +25,25 @@ class LocalStore:
             if template.family_id not in existing_families:
                 self.save_template(template, bundled / f'{path.stem}.pdf')
         marker.write_text('installed\n', encoding='utf-8')
+
+    def _upgrade_unchanged_default_templates(self) -> None:
+        """Add fixed headers only to untouched factory templates, never edits/jobs."""
+        bundled = Path(__file__).parent / 'default_templates'
+        defaults = {item.id: item for item in (
+            TableTemplate.from_dict(json.loads(path.read_text(encoding='utf-8')))
+            for path in bundled.glob('*.json'))}
+        for saved in self.load_templates():
+            default = defaults.get(saved.id)
+            if not default or saved.schema_version >= 4:
+                continue
+            before, after = saved.to_dict(), default.to_dict()
+            for key in ('reference_source_path', 'schema_version', 'template_version', 'fixed_cells'):
+                before.pop(key, None); after.pop(key, None)
+            if before == after and not saved.fixed_cells:
+                saved.fixed_cells = list(default.fixed_cells)
+                saved.schema_version = 4
+                saved.template_version = max(saved.template_version, default.template_version)
+                self.save_template(saved)
 
     def __init__(self, root: Path) -> None:
         self.root = root

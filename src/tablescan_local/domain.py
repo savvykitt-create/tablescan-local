@@ -113,6 +113,13 @@ class FieldRegion:
 
 
 @dataclass(slots=True)
+class FixedCell:
+    row: int
+    column: int
+    value: str
+
+
+@dataclass(slots=True)
 class TableTemplate:
     id: str
     name: str
@@ -132,6 +139,18 @@ class TableTemplate:
     reference_source_path: str = ""
     reference_page_aspect: float | None = None
     auto_fit_rows: bool = False
+    fixed_cells: list[FixedCell] = field(default_factory=list)
+
+    def fixed_value(self, row: int, column: int) -> str | None:
+        return next((cell.value for cell in self.fixed_cells
+                     if cell.row == row and cell.column == column), None)
+
+    def set_fixed_value(self, row: int, column: int, value: str | None) -> None:
+        self.fixed_cells = [cell for cell in self.fixed_cells
+                            if (cell.row, cell.column) != (row, column)]
+        if value is not None:
+            self.fixed_cells.append(FixedCell(row, column, value))
+        self.schema_version = max(4, self.schema_version)
 
     def __post_init__(self) -> None:
         if not self.family_id:
@@ -224,6 +243,8 @@ class TableTemplate:
         Generic headers and row identifiers are text, not measurements governed
         by the default numeric column format.
         """
+        if self.fixed_value(row, column) is not None:
+            return None, tr('Value from template')
         rule, name = self.value_constraints(row, column)
         if any(region.contains(row, column) for region in self.cell_rules):
             return rule, name
@@ -233,6 +254,14 @@ class TableTemplate:
 
     def validate_value_rules(self) -> None:
         self.ensure_column_rules()
+        addresses = set()
+        for cell in self.fixed_cells:
+            address = (cell.row, cell.column)
+            if (type(cell.row) is not int or type(cell.column) is not int
+                    or not 0 <= cell.row < self.rows or not 0 <= cell.column < self.columns
+                    or not isinstance(cell.value, str) or address in addresses):
+                raise ValueError(tr('Fixed cells must have unique addresses inside the grid and text values.'))
+            addresses.add(address)
         for rule in self.column_rules:
             rule.constraints().validate()
         for region in self.cell_rules:
@@ -287,10 +316,12 @@ class TableTemplate:
             reference_source_path=str(data.get("reference_source_path", "")),
             reference_page_aspect=(float(data["reference_page_aspect"]) if data.get("reference_page_aspect") is not None else None),
             auto_fit_rows=bool(data.get("auto_fit_rows", False)),
+            fixed_cells=[FixedCell(**item) for item in data.get("fixed_cells", [])],
         )
 
 
 NON_BLOCKING_OCR_FLAGS = frozenset({
+    "template_fixed_value",
     # These flags describe checks that contributed to a result.  They are
     # useful in the audit trail, but do not by themselves mean that two
     # plausible readings remain unresolved.

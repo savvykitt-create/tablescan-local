@@ -55,7 +55,7 @@ def detect_non_numeric_mark_rows(cells: list[CellResult], template: TableTemplat
     for row in range(template.rows):
         candidates = []
         for cell in cells:
-            if cell.row != row or cell.column < template.row_label_columns or not cell.applied_rule:
+            if cell.row != row or cell.column < template.row_label_columns or not cell.applied_rule or template.fixed_value(cell.row, cell.column) is not None:
                 continue
             constraints, _ = template.value_constraints(cell.row, cell.column)
             if constraints.value_format in {"numeric", "integer", "complex_numeric"}:
@@ -98,13 +98,17 @@ def process_page(
     # A shifted printed border can look exactly like a cancellation. Keep the
     # readings and require Review; only the reviewer may exclude a whole row.
     excluded_rows: list[int] = []
-    total = template.rows * template.columns + len(template.fields)
+    total = sum(template.fixed_value(r, c) is None and template.column_rules[c].role != "ignored"
+                for r in range(template.rows) for c in range(template.columns))
+    total += sum(region.source != "fixed" for region in template.fields)
     completed = 0
 
     fields: list[FieldResult] = []
     for region in template.fields:
-        crop = crop_normalized(image, region.rect)
-        crop_path = _write_crop(crop, crop_directory, f"page-{page_index + 1}-field-{region.id}.png")
+        crop_path = ""
+        if region.source != "fixed":
+            crop = crop_normalized(image, region.rect)
+            crop_path = _write_crop(crop, crop_directory, f"page-{page_index + 1}-field-{region.id}.png")
         if region.source == "fixed":
             value = region.fixed_value
             confidence = 1.0
@@ -121,13 +125,22 @@ def process_page(
             value, confidence, crop_path, sorted(set(flags)),
             alternatives="" if region.source == "fixed" else recognized.alternative,
         ))
-        completed += 1
-        if progress:
-            progress(completed, total, tr('Recognizing field {p0}', p0=region.name))
+        if region.source != "fixed":
+            completed += 1
+            if progress:
+                progress(completed, total, tr('Recognizing field {p0}', p0=region.name))
 
     cells: list[CellResult] = []
     for row in range(template.rows):
         for column in range(template.columns):
+            fixed = template.fixed_value(row, column)
+            if fixed is not None:
+                cells.append(CellResult(row, column, "", fixed, 1.0,
+                                        flags=["template_fixed_value"], applied_rule="Value from template"))
+                continue
+            if template.column_rules[column].role == "ignored":
+                cells.append(CellResult(row, column, "", "", 1.0, status="excluded"))
+                continue
             crop_variants, context_crop = cell_crop_bundle(image, template, row, column)
             crop = crop_variants[0]
             # Keep ownership-masked context as OCR diagnostic data. The review
@@ -139,45 +152,42 @@ def process_page(
                 if context_crop is not None else ""
             )
             rule = template.column_rules[column]
-            if rule.role == "ignored":
-                result = CellResult(row, column, "", "", 1.0, crop_path, [], "excluded")
-            else:
-                constraints, rule_name = template.cell_constraints(row, column)
-                active = constraints is not None
-                recognition_rule = constraints
-                if recognition_rule is None and row >= template.header_rows and template.is_label_cell(column):
-                    # A numeric recognizer still helps read digit-only identifiers.
-                    # This is an OCR hint, not permission to coerce their stored
-                    # text or reject a reviewer entering an alphanumeric label.
-                    recognition_rule = rule.constraints()
-                numeric = recognition_rule is not None and recognition_rule.value_format in {"numeric", "integer", "complex_numeric"}
-                recognized = engine.recognize_cell(
-                    crop,
-                    numeric=numeric,
-                    constraints=recognition_rule,
-                    retry_crops=crop_variants[1:] if numeric else None,
-                )
-                flags = list(recognized.flags or [])
-                crossed_data_cell = row in suspected_rows and column >= template.row_label_columns
-                if crossed_data_cell:
-                    flags.append("suspected_crossed_row")
-                result = CellResult(
-                    row=row,
-                    column=column,
-                    raw_text=recognized.raw_text,
-                    final_text=recognized.text,
-                    confidence=recognized.confidence,
-                    crop_path=crop_path,
-                    flags=sorted(set(flags)),
-                    status="automatic",
-                    alternatives=recognized.alternative,
-                    applied_rule=f"{rule_name}: {constraints.summary()}" if active else "",
-                    suggested_text="",
-                    candidate_confidences=dict(recognized.candidate_confidences),
-                    candidate_scores=dict(recognized.candidate_scores),
-                    ranking_scores=dict(recognized.ranking_scores),
-                    preview_crop_path=preview_crop_path,
-                )
+            constraints, rule_name = template.cell_constraints(row, column)
+            active = constraints is not None
+            recognition_rule = constraints
+            if recognition_rule is None and row >= template.header_rows and template.is_label_cell(column):
+                # A numeric recognizer still helps read digit-only identifiers.
+                # This is an OCR hint, not permission to coerce their stored
+                # text or reject a reviewer entering an alphanumeric label.
+                recognition_rule = rule.constraints()
+            numeric = recognition_rule is not None and recognition_rule.value_format in {"numeric", "integer", "complex_numeric"}
+            recognized = engine.recognize_cell(
+                crop,
+                numeric=numeric,
+                constraints=recognition_rule,
+                retry_crops=crop_variants[1:] if numeric else None,
+            )
+            flags = list(recognized.flags or [])
+            crossed_data_cell = row in suspected_rows and column >= template.row_label_columns
+            if crossed_data_cell:
+                flags.append("suspected_crossed_row")
+            result = CellResult(
+                row=row,
+                column=column,
+                raw_text=recognized.raw_text,
+                final_text=recognized.text,
+                confidence=recognized.confidence,
+                crop_path=crop_path,
+                flags=sorted(set(flags)),
+                status="automatic",
+                alternatives=recognized.alternative,
+                applied_rule=f"{rule_name}: {constraints.summary()}" if active else "",
+                suggested_text="",
+                candidate_confidences=dict(recognized.candidate_confidences),
+                candidate_scores=dict(recognized.candidate_scores),
+                ranking_scores=dict(recognized.ranking_scores),
+                preview_crop_path=preview_crop_path,
+            )
             cells.append(result)
             completed += 1
             if progress:
@@ -187,7 +197,7 @@ def process_page(
     # measurements should disappear. This also catches wavy cancellations.
     for row in detect_non_numeric_mark_rows(cells, template) if template.detect_crossed_rows else []:
         for cell in cells:
-            if cell.row != row or cell.column < template.row_label_columns:
+            if cell.row != row or cell.column < template.row_label_columns or template.fixed_value(cell.row, cell.column) is not None:
                 continue
             cell.flags = sorted(set([*cell.flags, "suspected_crossed_row", "non_numeric_mark_row"]))
     excluded_rows.sort()
@@ -208,12 +218,16 @@ def process_document(
 ) -> JobResult:
     from .template_fit import fit_document_template
     template = fit_document_template(template, images)
+    template.ensure_column_rules()
     slow_config = None
     if slow_mode:
         from .slow_mode import runtime_config
         slow_config = runtime_config()
-    engine = LocalOcrEngine(high_accuracy=high_accuracy or slow_mode)
-    model_version = engine.model_version
+    needs_ocr = (any(field.source != "fixed" for field in template.fields)
+                 or any(template.fixed_value(r, c) is None and template.column_rules[c].role != "ignored"
+                        for r in range(template.rows) for c in range(template.columns)))
+    engine = LocalOcrEngine(high_accuracy=high_accuracy or slow_mode) if needs_ocr else None
+    model_version = engine.model_version if engine else "template-values"
     pages = []
     for index, image in enumerate(images):
         page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None

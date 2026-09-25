@@ -371,7 +371,7 @@
       "require_decimal": false
     }
   ],
-  "schema_version": 3,
+  "schema_version": 4,
   "rotation_degrees": 0,
   "cell_rules": [
     {
@@ -639,9 +639,71 @@
       "color": "#4F46E5"
     }
   ],
-  "template_version": 2,
+  "template_version": 3,
   "family_id": "d36eaf7a-4774-5b46-83a7-c3860223a3e4",
   "reference_source_path": "",
   "reference_page_aspect": 1.4143337066069428,
-  "auto_fit_rows": true
+  "auto_fit_rows": true,
+  "fixed_cells": [
+    {
+      "row": 0,
+      "column": 0,
+      "value": "ID"
+    },
+    {
+      "row": 0,
+      "column": 1,
+      "value": "L1"
+    },
+    {
+      "row": 0,
+      "column": 2,
+      "value": "L2"
+    },
+    {
+      "row": 0,
+      "column": 3,
+      "value": "L3"
+    },
+    {
+      "row": 0,
+      "column": 4,
+      "value": "L4"
+    },
+    {
+      "row": 0,
+      "column": 5,
+      "value": "L5"
+    },
+    {
+      "row": 0,
+      "column": 6,
+      "value": "R1"
+    },
+    {
+      "row": 0,
+      "column": 7,
+      "value": "R2"
+    },
+    {
+      "row": 0,
+      "column": 8,
+      "value": "R3"
+    },
+    {
+      "row": 0,
+      "column": 9,
+      "value": "R4"
+    },
+    {
+      "row": 0,
+      "column": 10,
+      "value": "R5"
+    },
+    {
+      "row": 0,
+      "column": 11,
+      "value": "Notes"
+    }
+  ]
 }

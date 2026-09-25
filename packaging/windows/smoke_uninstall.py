@@ -39,6 +39,12 @@ with tempfile.TemporaryDirectory(prefix='tablescan-uninstall-test-') as director
                  slow / 'cache/partial', slow / 'setup-cancelled']:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text('fixture')
+    # An in-place update must preserve user data and the optional Slow runtime.
+    fixtures = {path: path.read_bytes() for folder in (data, slow)
+                for path in folder.rglob('*') if path.is_file()}
+    assert run([installer, *flags, '/SP-', f'/DIR={destination}'], env) == 0
+    assert all(path.read_bytes() == content for path, content in fixtures.items())
+    assert executable.exists() and uninstaller.exists()
     # Force the private bootstrap path, including its Windows registration and
     # cached installer. The CI Python used to run this script is not removed.
     from tablescan_local.slow_setup import download_python

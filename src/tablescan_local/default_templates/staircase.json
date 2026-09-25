@@ -479,7 +479,7 @@
       "require_decimal": false
     }
   ],
-  "schema_version": 3,
+  "schema_version": 4,
   "rotation_degrees": 0,
   "cell_rules": [
     {
@@ -879,9 +879,101 @@
       "color": "#4F46E5"
     }
   ],
-  "template_version": 2,
+  "template_version": 3,
   "family_id": "60f298f9-04b8-5b7b-8207-0c010028b748",
   "reference_source_path": "",
   "reference_page_aspect": 1.4143337066069428,
-  "auto_fit_rows": true
+  "auto_fit_rows": true,
+  "fixed_cells": [
+    {
+      "row": 0,
+      "column": 0,
+      "value": "ID"
+    },
+    {
+      "row": 0,
+      "column": 1,
+      "value": "L1"
+    },
+    {
+      "row": 0,
+      "column": 2,
+      "value": "L2"
+    },
+    {
+      "row": 0,
+      "column": 3,
+      "value": "L3"
+    },
+    {
+      "row": 0,
+      "column": 4,
+      "value": "L4"
+    },
+    {
+      "row": 0,
+      "column": 5,
+      "value": "L5"
+    },
+    {
+      "row": 0,
+      "column": 6,
+      "value": "L6"
+    },
+    {
+      "row": 0,
+      "column": 7,
+      "value": "L7"
+    },
+    {
+      "row": 0,
+      "column": 8,
+      "value": "L drop"
+    },
+    {
+      "row": 0,
+      "column": 9,
+      "value": "R1"
+    },
+    {
+      "row": 0,
+      "column": 10,
+      "value": "R2"
+    },
+    {
+      "row": 0,
+      "column": 11,
+      "value": "R3"
+    },
+    {
+      "row": 0,
+      "column": 12,
+      "value": "R4"
+    },
+    {
+      "row": 0,
+      "column": 13,
+      "value": "R5"
+    },
+    {
+      "row": 0,
+      "column": 14,
+      "value": "R6"
+    },
+    {
+      "row": 0,
+      "column": 15,
+      "value": "R7"
+    },
+    {
+      "row": 0,
+      "column": 16,
+      "value": "R drop"
+    },
+    {
+      "row": 0,
+      "column": 17,
+      "value": "Notes"
+    }
+  ]
 }

@@ -3398,5 +3398,155 @@
     "en": "Also includes Data for analysis and Audit with original readings, corrections and scores.",
     "ru": "Дополнительно: Data для анализа и Audit с исходными прочтениями, исправлениями и оценками.",
     "cs": "Navíc obsahuje Data pro analýzu a Audit s původními výsledky, opravami a skóre."
+  },
+  "Value from template": {
+    "en": "Value from template",
+    "ru": "Значение из шаблона",
+    "cs": "Hodnota ze šablony"
+  },
+  "Fixed cells must have unique addresses inside the grid and text values.": {
+    "en": "Fixed cells must have unique addresses inside the grid and text values.",
+    "ru": "Фиксированные ячейки должны иметь уникальные адреса внутри сетки и текстовые значения.",
+    "cs": "Pevné buňky musí mít jedinečné adresy v mřížce a textové hodnoty."
+  },
+  "Template values": {
+    "en": "Template values",
+    "ru": "Значения шаблона",
+    "cs": "Hodnoty šablony"
+  },
+  "Value from template; OCR skipped": {
+    "en": "Value from template; OCR skipped",
+    "ru": "Значение из шаблона; OCR пропущен",
+    "cs": "Hodnota ze šablony; OCR vynecháno"
+  },
+  "Select cells on the page and enter their constant value. These cells are excluded from OCR and filled from the template. Keep animal IDs and measurements in OCR mode.": {
+    "en": "Select cells on the page and enter their constant value. These cells are excluded from OCR and filled from the template. Keep animal IDs and measurements in OCR mode.",
+    "ru": "Выделите ячейки на странице и задайте постоянное значение. Они исключаются из OCR и заполняются из шаблона. ID животных и измерения оставляйте в режиме OCR.",
+    "cs": "Vyberte buňky na stránce a zadejte stálou hodnotu. Tyto buňky se vynechají z OCR a vyplní ze šablony. ID zvířat a měření ponechte v režimu OCR."
+  },
+  "No cells selected": {
+    "en": "No cells selected",
+    "ru": "Ячейки не выбраны",
+    "cs": "Nejsou vybrány žádné buňky"
+  },
+  "Constant value (may be empty)": {
+    "en": "Constant value (may be empty)",
+    "ru": "Постоянное значение (может быть пустым)",
+    "cs": "Stálá hodnota (může být prázdná)"
+  },
+  "Set template value": {
+    "en": "Set template value",
+    "ru": "Задать значение шаблона",
+    "cs": "Nastavit hodnotu šablony"
+  },
+  "Recognize with OCR": {
+    "en": "Recognize with OCR",
+    "ru": "Распознавать через OCR",
+    "cs": "Rozpoznávat pomocí OCR"
+  },
+  "Remove selected template value": {
+    "en": "Remove selected template value",
+    "ru": "Удалить выбранное значение шаблона",
+    "cs": "Odstranit vybranou hodnotu šablony"
+  },
+  "Selected cells: {count}": {
+    "en": "Selected cells: {count}",
+    "ru": "Выбрано ячеек: {count}",
+    "cs": "Vybrané buňky: {count}"
+  },
+  "Fixed cells: {count}. They remain in exports but are not analyzed.": {
+    "en": "Fixed cells: {count}. They remain in exports but are not analyzed.",
+    "ru": "Фиксированных ячеек: {count}. Они сохраняются в экспорте, но не анализируются.",
+    "cs": "Pevné buňky: {count}. Zůstávají v exportu, ale nejsou analyzovány."
+  },
+  "Application updates": {
+    "en": "Application updates",
+    "ru": "Обновление программы",
+    "cs": "Aktualizace aplikace"
+  },
+  "Installed version: {version}": {
+    "en": "Installed version: {version}",
+    "ru": "Установленная версия: {version}",
+    "cs": "Nainstalovaná verze: {version}"
+  },
+  "Updates come from TableScan GitHub releases. History, templates and Slow mode are kept.": {
+    "en": "Updates come from TableScan GitHub releases. History, templates and Slow mode are kept.",
+    "ru": "Обновления загружаются из релизов TableScan на GitHub. История, шаблоны и Slow mode сохраняются.",
+    "cs": "Aktualizace pocházejí z vydání TableScan na GitHubu. Historie, šablony a režim Slow zůstanou zachovány."
+  },
+  "Check for updates": {
+    "en": "Check for updates",
+    "ru": "Проверить обновления",
+    "cs": "Zkontrolovat aktualizace"
+  },
+  "Download update": {
+    "en": "Download update",
+    "ru": "Скачать обновление",
+    "cs": "Stáhnout aktualizaci"
+  },
+  "Cancel update download": {
+    "en": "Cancel update download",
+    "ru": "Отменить загрузку обновления",
+    "cs": "Zrušit stahování aktualizace"
+  },
+  "Checking GitHub releases…": {
+    "en": "Checking GitHub releases…",
+    "ru": "Проверяю релизы GitHub…",
+    "cs": "Kontroluji vydání na GitHubu…"
+  },
+  "Wait for analysis and other operations to finish before updating.": {
+    "en": "Wait for analysis and other operations to finish before updating.",
+    "ru": "Перед обновлением дождитесь завершения анализа и других операций.",
+    "cs": "Před aktualizací počkejte na dokončení analýzy a dalších operací."
+  },
+  "Downloading and verifying update…": {
+    "en": "Downloading and verifying update…",
+    "ru": "Загружаю и проверяю обновление…",
+    "cs": "Stahuji a ověřuji aktualizaci…"
+  },
+  "Cancelling update…": {
+    "en": "Cancelling update…",
+    "ru": "Отменяю обновление…",
+    "cs": "Ruším aktualizaci…"
+  },
+  "Update verified. Install and restart to finish.": {
+    "en": "Update verified. Install and restart to finish.",
+    "ru": "Обновление проверено. Для завершения установите его и перезапустите программу.",
+    "cs": "Aktualizace ověřena. Dokončete ji instalací a restartováním."
+  },
+  "Install and restart": {
+    "en": "Install and restart",
+    "ru": "Установить и перезапустить",
+    "cs": "Nainstalovat a restartovat"
+  },
+  "You have the latest version.": {
+    "en": "You have the latest version.",
+    "ru": "У вас последняя версия.",
+    "cs": "Máte nejnovější verzi."
+  },
+  "Version {version} is available.": {
+    "en": "Version {version} is available.",
+    "ru": "Доступна версия {version}.",
+    "cs": "Je dostupná verze {version}."
+  },
+  "Update failed: {error}": {
+    "en": "Update failed: {error}",
+    "ru": "Ошибка обновления: {error}",
+    "cs": "Aktualizace selhala: {error}"
+  },
+  "Update cancelled. The installed application was not changed.": {
+    "en": "Update cancelled. The installed application was not changed.",
+    "ru": "Обновление отменено. Установленная программа не изменена.",
+    "cs": "Aktualizace zrušena. Nainstalovaná aplikace nebyla změněna."
+  },
+  "Fill column headers": {
+    "en": "Fill column headers",
+    "ru": "Заполнить заголовки столбцов",
+    "cs": "Vyplnit záhlaví sloupců"
+  },
+  "Rotation will detect a new grid and clear fields, rules and template values. Continue?": {
+    "en": "Rotation will detect a new grid and clear fields, rules and template values. Continue?",
+    "ru": "Поворот определит новую сетку и удалит поля, правила и значения шаблона. Продолжить?",
+    "cs": "Otočení rozpozná novou mřížku a odstraní pole, pravidla a hodnoty šablony. Pokračovat?"
   }
 }

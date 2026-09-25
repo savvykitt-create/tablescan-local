@@ -1,5 +1,5 @@
 #define MyAppName "TableScan Local"
-#define MyAppVersion "1.0.5"
+#define MyAppVersion "1.0.6"
 #define MyAppPublisher "TableScan Local contributors"
 #define MyAppExeName "TableScanLocal.exe"
 
@@ -37,6 +37,8 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: IsUpdateRestart
+
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\tools\__pycache__"
 Type: filesandordirs; Name: "{app}\_internal\tablescan_local\setup\__pycache__"
@@ -50,6 +52,11 @@ Type: dirifempty; Name: "{app}"
 ConfirmUninstall=Remove TableScan Local completely, including Slow mode, settings, history and internal document copies? Original documents and exported files will be kept.
 
 [Code]
+function IsUpdateRestart: Boolean;
+begin
+  Result := ExpandConstant('{param:TABLESCANUPDATE|0}') = '1';
+end;
+
 procedure CleanupFailed(MessageText: String);
 begin
   Log(MessageText);

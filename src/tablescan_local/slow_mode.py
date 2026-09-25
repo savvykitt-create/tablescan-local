@@ -55,6 +55,7 @@ def runtime_config() -> dict:
 def eligible_cells(page: PageResult, template: TableTemplate):
     return [cell for cell in page.cells
             if cell.needs_review and cell.row not in page.excluded_rows
+            and template.fixed_value(cell.row, cell.column) is None
             and cell.row >= template.header_rows and cell.column >= template.row_label_columns
             and template.column_rules[cell.column].role != 'ignored'
             and template.value_constraints(cell.row, cell.column)[0].value_format in {'numeric', 'integer'}]
@@ -104,7 +105,18 @@ def apply_agreement(page, template, qwen, glm):
     return changed
 
 
+def mask_fixed_cells(image, template):
+    if not template.fixed_cells:
+        return image
+    masked = image.copy()
+    for cell in template.fixed_cells:
+        x, y, w, h = cell_rect(template, image.shape, cell.row, cell.column, 0)
+        masked[y:y+h, x:x+w] = 255
+    return masked
+
+
 def prepare_images(image, template, directory):
+    image = mask_fixed_cells(image, template)
     first = template.row_label_columns
     if first >= template.columns:
         raise ValueError(tr('В таблице нет столбцов измерений для slow mode.'))
@@ -126,6 +138,7 @@ def prepare_images(image, template, directory):
 
 
 def row_record(image, template, row, directory):
+    image = mask_fixed_cells(image, template)
     x, y, _, _ = cell_rect(template, image.shape, row, template.row_label_columns, 0)
     xx, yy, w, h = cell_rect(template, image.shape, row, template.columns - 1, 0)
     path = directory / f'row-{row+1}.png'

@@ -30,6 +30,7 @@ def flag_table_outliers(page: PageResult, template: TableTemplate) -> None:
         row_cells = [
             cell for cell in page.cells
             if cell.row == row and cell.column >= template.row_label_columns and cell.status != "excluded"
+            and template.fixed_value(cell.row, cell.column) is None
         ]
         groups: dict[str, list[tuple[object, float]]] = {}
         for cell in row_cells:

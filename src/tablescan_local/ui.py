@@ -467,6 +467,20 @@ class DocumentCanvas(QGraphicsView):
                 text.setPos(rect.left() + 5, rect.top() + 3); text.setBrush(color)
                 text.setScale(1.15); text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
+        if not self.read_only:
+            for cell in self.template.fixed_cells:
+                if not (0 <= cell.row < self.template.rows and 0 <= cell.column < self.template.columns):
+                    continue
+                left, right = self.template.column_guides[cell.column:cell.column + 2]
+                top, bottom = self.template.row_guides[cell.row:cell.row + 2]
+                rect = QRectF(left * width, top * height, (right-left) * width, (bottom-top) * height)
+                item = self.scene().addRect(rect, QPen(QColor("#94A3B8"), 1), QColor(241, 245, 249, 230))
+                item.setZValue(22); item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+                text = self.scene().addSimpleText(cell.value or "∅")
+                text.setBrush(QColor("#0F766E")); text.setZValue(23)
+                text.setScale(min(1.2, max(.2, (rect.width()-4) / max(1, text.boundingRect().width()))))
+                text.setPos(rect.left()+2, rect.top()+2); text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+
         if self.selection_enabled:
             static_pen = QPen(QColor("#CBD5E1"), 1)
             for normalized in self.template.column_guides:
@@ -501,6 +515,8 @@ class DocumentCanvas(QGraphicsView):
                     hover = self.scene().addRect(QRectF(left, top, right - left, bottom - top), QPen(Qt.PenStyle.NoPen))
                     rule, source = self.template.value_constraints(row, column)
                     tooltip = fmt('{p0}{p1}\n{p2}\n{p3}', p0=excel_column_name(column), p1=row + 1, p2=source, p3=rule.summary())
+                    if self.template.fixed_value(row, column) is not None:
+                        tooltip = tr("Value from template; OCR skipped")
                     hover.setToolTip(tooltip)
                     bind(hover, 'tooltip', 'setToolTip', (tooltip,))
                     hover.setAcceptHoverEvents(True)
@@ -940,6 +956,10 @@ class TablePage(QWidget):
         self.tabs.addTab(self._build_grid_tab(), tr('Сетка'))
         self.tabs.addTab(self._build_fields_tab(), tr('Поля'))
         self.tabs.addTab(self._build_cell_rules_tab(), tr('Правила'))
+        from .fixed_cells import FixedCellsPanel
+        self.fixed_panel = FixedCellsPanel(lambda: self.template, self.canvas)
+        self.fixed_panel.changed.connect(self.templateChanged.emit)
+        self.tabs.addTab(self.fixed_panel, tr('Template values'))
         self.tabs.currentChanged.connect(self._tab_changed)
         split.addWidget(self.tabs)
         split.setSizes([820, 440])
@@ -1620,7 +1640,8 @@ class TablePage(QWidget):
         self.canvas.show_grid = index == 0
         self.canvas.show_fields = index == 1
         self.canvas.show_rules = index == 2
-        self.canvas.set_selection_enabled(index == 2)
+        self.canvas.set_selection_enabled(index in {2, 3})
+        self.fixed_panel.refresh()
 
     def _save_common(self) -> None:
         if self._loading_form or not self.template:
@@ -2362,6 +2383,7 @@ class ReviewPage(QWidget):
             self.value_label.setText(item.final_text or tr('Пусто'))
         self.correct_value.setText(item.final_text)
         reasons = {
+            "template_fixed_value": tr("Value from template; OCR skipped"),
             "slow_mode_selected": tr('Qwen и GLM согласовали другое число. Сравните исправление с оригиналом.'),
             "required_cell_empty": tr("Missing required value"),
             "invalid_numeric_format": tr("Invalid numeric notation"),
@@ -2425,7 +2447,7 @@ class ReviewPage(QWidget):
         checks = [reasons[flag] for flag in item.flags if flag in audit_flags]
         details = section(tr('Что проверить'), concerns or [tr('Сравните значение с фрагментом оригинала.')])
         rule_lines = []
-        if self.current_kind == "cell" and getattr(item, "applied_rule", ""):
+        if self.current_kind == "cell" and getattr(item, "applied_rule", "") and "template_fixed_value" not in item.flags:
             rule, rule_name = self.result.template.value_constraints(item.row, item.column)
             rule_lines = [fmt("{p0}: {p1}", p0=rule_name, p1=rule.summary())]
         details += section(tr('Правило значения'), rule_lines)
@@ -2872,12 +2894,19 @@ class MainWindow(QMainWindow):
         language_note.setMaximumWidth(820)
         set_theme_style(language_note, f"color: {MUTED};")
         settings_layout.addWidget(language_note)
+        from .update_settings import UpdateSettings
+        self.update_settings = UpdateSettings(self, busy=self._has_background_work)
+        self.update_settings.installRequested.connect(self._install_app_update)
+        settings_layout.addWidget(self.update_settings)
         from .slow_settings import SlowSettings
         self.slow_settings = SlowSettings(self, busy=self._has_background_work)
         settings_layout.addWidget(self.slow_settings)
         settings_layout.addStretch()
 
-        for page in (document_workspace, templates_workspace, settings_page): self.main_stack.addWidget(page)
+        settings_scroll = QScrollArea()
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setWidget(settings_page)
+        for page in (document_workspace, templates_workspace, settings_scroll): self.main_stack.addWidget(page)
         body.addWidget(self.main_stack, 1)
         root_layout.addLayout(body, 1)
         self.setCentralWidget(root)
@@ -2894,6 +2923,30 @@ class MainWindow(QMainWindow):
         export_action.setShortcut("Ctrl+E")
         export_action.triggered.connect(self.export_current)
         self.addAction(export_action)
+
+    def _install_app_update(self, plan) -> None:
+        if self._has_background_work():
+            self.update_settings.status.setText(tr('Wait for analysis and other operations to finish before updating.'))
+            return
+        try:
+            if self.table_page.template and not self.table_page.prepare_current_settings():
+                return
+            if not self._flush_draft():
+                return
+            if self.template_editor.template:
+                if not self.template_editor.prepare_current_settings():
+                    return
+                current = self.template_editor.template
+                saved = next((item for item in self.store.load_templates() if item.id == current.id), None)
+                if saved is None or saved.to_dict() != current.to_dict():
+                    self.store.save_template_version(current, self.template_editor_reference)
+            self.analysis_queue.shutdown()
+            from .app_update import launch_installer
+            launch_installer(plan)
+        except Exception as exc:
+            self.update_settings.failed(str(exc))
+            return
+        self.close()
 
     def _change_language(self, _index: int) -> None:
         code = self.language_select.currentData()
@@ -3271,8 +3324,8 @@ class MainWindow(QMainWindow):
         image = self.template_editor.image
         if template is None or image is None:
             return
-        if template.fields or template.cell_rules:
-            answer = QMessageBox.question(self, tr('Rotate template'), tr('Rotation will detect a new grid and clear fields and rules. Continue?'))
+        if template.fields or template.cell_rules or template.fixed_cells:
+            answer = QMessageBox.question(self, tr('Rotate template'), tr('Rotation will detect a new grid and clear fields, rules and template values. Continue?'))
             if answer != QMessageBox.StandardButton.Yes:
                 return
         rotated = rotate_document([image], degrees)[0]
@@ -3283,6 +3336,7 @@ class MainWindow(QMainWindow):
         template.column_guides = detection.column_guides
         template.fields = []
         template.cell_rules = []
+        template.fixed_cells = []
         template.column_rules = []
         template.ensure_column_rules()
         template.reference_page_aspect = rotated.shape[1] / rotated.shape[0]

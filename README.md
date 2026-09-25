@@ -302,3 +302,33 @@ updated application preserves this data and optional downloaded models.
 
 Application code is licensed under [Apache-2.0](LICENSE). Dependencies and model
 weights retain their upstream licenses.
+
+### Fixed template cells
+
+In the template editor, open **Template values**, select cells on the page, and
+choose **Set template value**. A constant can also be empty. Gray cells retain
+their table positions and export values, but skip OCR, crop generation, numeric
+checks, and Slow-mode verification. Choose **Recognize with OCR** to restore
+recognition. **Fill column headers** fills only the first
+header row; it never fills animal IDs in the data rows.
+
+Bundled Von Frey, Plantar, and Staircase forms contain fixed column headings.
+Animal IDs, measurements, Date, Session, Operator, and free-text notes still use
+OCR. Existing untouched factory templates receive the fixed headings on upgrade;
+edited templates and previously analyzed documents are preserved. Fixed cell
+addresses are not repeated when the table grows, and shrinking past a fixed cell
+requires removing or correcting that address.
+
+### Updating the application
+
+Open **Settings → Application updates → Check for updates**, download the new
+version, then choose **Install and restart**. Checks run only when requested.
+The updater uses stable GitHub releases for Apple Silicon macOS and Windows x64,
+verifies the downloaded package against its GitHub SHA-256 digest, and installs
+it over the current application. History, saved templates, source copies, and
+Slow-mode models stay in their existing data directories. Active analyses must
+finish before installation. On macOS, a previous application copy is retained
+alongside the staging directory for rollback; the new bundle passes its OCR
+self-test before replacement. A writable installation directory is required.
+Source checkouts and other platforms should update through their normal build
+or package-management workflow.
