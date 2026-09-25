@@ -15,6 +15,7 @@ import onnxruntime as ort
 ort.disable_telemetry_events()
 
 from rapidocr_onnxruntime import RapidOCR
+from .ocr_runtime import accelerate_rapidocr
 from .candidate_ranking import CandidateEvidence, is_layout_preserving_view
 from .constraints import ValueConstraints
 from .digit_verifier import DigitVerifier, infer_numeric_geometry, segment_digits
@@ -118,17 +119,17 @@ class LocalOcrEngine:
 
     def __init__(self, high_accuracy: bool = False) -> None:
         models = Path(__file__).parent / "models"
-        self._engine = RapidOCR(rec_model_path=str(models / "ch_PP-OCRv5_rec_server.onnx"))
-        self._numeric_check = RapidOCR(rec_model_path=str(models / "en_PP-OCRv5_rec_mobile.onnx"))
+        self._engine = accelerate_rapidocr(RapidOCR(rec_model_path=str(models / "ch_PP-OCRv5_rec_server.onnx")))
+        self._numeric_check = accelerate_rapidocr(RapidOCR(rec_model_path=str(models / "en_PP-OCRv5_rec_mobile.onnx")))
         self._high_accuracy = high_accuracy
         self._precision_engine = None
         self._digit_verifier = None
         if high_accuracy:
-            self._precision_engine = RapidOCR(
+            self._precision_engine = accelerate_rapidocr(RapidOCR(
                 rec_model_path=str(models / "PP-OCRv6_medium_rec.onnx"),
                 rec_keys_path=str(models / "ppocrv6_dict.txt"),
                 rec_img_shape=[3, 48, 320],
-            )
+            ))
             self._digit_verifier = DigitVerifier()
             self.model_version = "ppocrv5+ppocrv6+en/numeric-template-cascade-v13-complete-evidence"
 

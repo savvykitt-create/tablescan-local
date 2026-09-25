@@ -9,7 +9,7 @@ from .components import connected_components
 
 import cv2
 import numpy as np
-import onnxruntime as ort
+from .ocr_runtime import AutoSession
 
 
 def hog_features(images: np.ndarray, batch_size: int = 4096) -> np.ndarray:
@@ -247,7 +247,7 @@ def segment_digits(crop: np.ndarray, text: str, separator_x: int | None = None, 
 class DigitVerifier:
     def __init__(self, model_path: str | Path | None = None) -> None:
         path = Path(model_path) if model_path else Path(__file__).parent / "models" / "emnist_digit_cnn.onnx"
-        self.session = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+        self.session = AutoSession(path)
         self.input_name = self.session.get_inputs()[0].name
         self.validation_accuracy = .99585
 

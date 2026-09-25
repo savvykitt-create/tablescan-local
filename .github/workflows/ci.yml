@@ -39,6 +39,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0
       - run: python -m pip install -c packaging/constraints.txt -e ".[dev]"
+      - name: Install Windows OCR acceleration runtime
+        if: runner.os == 'Windows'
+        run: python packaging/install_ocr_acceleration.py
       - name: Test on Linux
         if: runner.os == 'Linux'
         run: QT_QPA_PLATFORM=offscreen pytest

@@ -49,7 +49,21 @@ def collect(output: Path) -> Path:
         if name in seen:
             continue
         seen.add(name)
-        distribution = metadata.distribution(name)
+        try:
+            distribution = metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            if name != "onnxruntime":
+                raise
+            # GPU wheels provide the same import package as the CPU wheel.
+            for replacement in ("onnxruntime-directml", "onnxruntime-gpu"):
+                try:
+                    distribution = metadata.distribution(replacement)
+                    name = replacement
+                    break
+                except metadata.PackageNotFoundError:
+                    continue
+            else:
+                raise
         pending.extend(distribution.requires or [])
         files = []
         for item in distribution.files or []:

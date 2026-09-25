@@ -19,7 +19,8 @@ def test_license_inventory_contains_runtime_and_detects_missing_text(tmp_path):
     destination = collector.collect(tmp_path / "licenses")
     manifest = json.loads((destination / "manifest.json").read_text())
     names = {component["name"] for component in manifest["components"]}
-    assert {"pyside6", "onnxruntime", "numpy", "pillow", "pypdfium2", "cpython", "rapidocr-onnxruntime"} <= names
+    assert {"pyside6", "numpy", "pillow", "pypdfium2", "cpython", "rapidocr-onnxruntime"} <= names
+    assert names & {"onnxruntime", "onnxruntime-directml", "onnxruntime-gpu"}
     collector.verify(destination)
     first = manifest["components"][0]["files"][0]
     (destination / first["path"]).unlink()
@@ -75,3 +76,30 @@ def test_missing_signing_secrets_stops_release_before_keychain_mutations(monkeyp
     monkeypatch.setattr(setup, "run", lambda *_: pytest.fail("Must not mutate keychains without credentials"))
     with pytest.raises(RuntimeError, match="needs repository secrets"):
         setup.main()
+
+
+def test_license_inventory_uses_replacement_onnx_wheel(tmp_path, monkeypatch):
+    collector = module('collect_licenses', 'collect_licenses.py')
+    original = collector.metadata.distribution
+    for runtime_name in ('onnxruntime', 'onnxruntime-directml', 'onnxruntime-gpu'):
+        try:
+            ort_distribution = original(runtime_name)
+            break
+        except collector.metadata.PackageNotFoundError:
+            continue
+    else:
+        pytest.fail('No ONNX runtime installed')
+
+    def distribution(name):
+        if name == 'onnxruntime':
+            raise collector.metadata.PackageNotFoundError(name)
+        if name == 'onnxruntime-directml':
+            return ort_distribution
+        return original(name)
+
+    monkeypatch.setattr(collector.metadata, 'distribution', distribution)
+    destination = collector.collect(tmp_path / 'licenses')
+    manifest = json.loads((destination / 'manifest.json').read_text())
+    names = {component['name'] for component in manifest['components']}
+    assert 'onnxruntime-directml' in names
+    assert 'onnxruntime' not in names

@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 import os
 
-from PyInstaller.utils.hooks import collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
 
 
 project_root = Path(SPECPATH).parent
@@ -17,7 +17,7 @@ rapid_data = collect_data_files("rapidocr_onnxruntime")
 a = Analysis(
     [str(project_root / "tablescan_local_app.py")],
     pathex=[str(project_root / "src")],
-    binaries=[],
+    binaries=collect_dynamic_libs("onnxruntime"),
     datas=rapid_data + [
         (str(project_root / "src/tablescan_local/translations"), "tablescan_local/translations"),
         (str(project_root / "src/tablescan_local/assets"), "tablescan_local/assets"),
@@ -66,7 +66,7 @@ if sys.platform == "darwin":
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "1.0.4",
-            "CFBundleVersion": "1.0.4",
+            "CFBundleShortVersionString": "1.0.5",
+            "CFBundleVersion": "1.0.5",
         },
     )

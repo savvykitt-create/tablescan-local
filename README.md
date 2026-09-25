@@ -234,13 +234,39 @@ proposal; it does not confirm the measurement or remove the need for review.
 
 | Model or component | Role | When used | Runtime / distribution |
 | --- | --- | --- | --- |
-| **PP-OCRv5 Server** — `ch_PP-OCRv5_rec_server.onnx` | Main recognizer for printed text and handwritten/numeric candidates. | Fast, High accuracy and the primary pass of Slow. | Bundled; RapidOCR / ONNX Runtime, CPU. |
-| **PP-OCRv5 English Mobile** — `en_PP-OCRv5_rec_mobile.onnx` | Additional numeric reading to compare with the main recognizer. | Numeric recognition in all modes. | Bundled; RapidOCR / ONNX Runtime, CPU. |
-| **PP-OCRv6 Medium** — `PP-OCRv6_medium_rec.onnx` | Third numeric recognizer for candidate discovery and corroboration. | High accuracy and Slow. | Bundled; RapidOCR / ONNX Runtime, CPU. |
-| **PP-OCRv4 text detector** — `ch_PP-OCRv4_det_infer.onnx` | Locates text lines inside a free-text metadata region before PP-OCRv5 reads them. It does not detect the table grid. | Free-text fields. | Included through RapidOCR; ONNX Runtime, CPU. |
-| **EMNIST digit CNN** — `emnist_digit_cnn.onnx` | Supporting check of safely segmented digits; cannot independently override strong multi-model OCR evidence. | High accuracy; also included in Slow's primary pass. | Bundled project-trained verifier; ONNX Runtime, CPU. |
+| **PP-OCRv5 Server** — `ch_PP-OCRv5_rec_server.onnx` | Main recognizer for printed text and handwritten/numeric candidates. | Fast, High accuracy and the primary pass of Slow. | Bundled; RapidOCR / ONNX Runtime, automatic GPU/CPU. |
+| **PP-OCRv5 English Mobile** — `en_PP-OCRv5_rec_mobile.onnx` | Additional numeric reading to compare with the main recognizer. | Numeric recognition in all modes. | Bundled; RapidOCR / ONNX Runtime, automatic GPU/CPU. |
+| **PP-OCRv6 Medium** — `PP-OCRv6_medium_rec.onnx` | Third numeric recognizer for candidate discovery and corroboration. | High accuracy and Slow. | Bundled; RapidOCR / ONNX Runtime, automatic GPU/CPU. |
+| **PP-OCRv4 text detector** — `ch_PP-OCRv4_det_infer.onnx` | Locates text lines inside a free-text metadata region before PP-OCRv5 reads them. It does not detect the table grid. | Free-text fields. | Included through RapidOCR; ONNX Runtime, automatic GPU/CPU. |
+| **EMNIST digit CNN** — `emnist_digit_cnn.onnx` | Supporting check of safely segmented digits; cannot independently override strong multi-model OCR evidence. | High accuracy; also included in Slow's primary pass. | Bundled project-trained verifier; ONNX Runtime, automatic GPU/CPU. |
 | **Qwen3.5-4B** | Reads the measurement table and proposes alternative values with row positions. | Optional Slow verification. | Apple Silicon: `mlx-community/Qwen3.5-4B-MLX-4bit` on MLX / Metal. Other platforms: `Qwen/Qwen3.5-4B` on Transformers / PyTorch, CPU or NVIDIA CUDA. |
 | **GLM-OCR** | Independently reads original rows where Qwen proposes a different admissible value. | Optional Slow verification, after Qwen. | Apple Silicon: `mlx-community/GLM-OCR-bf16` on MLX / Metal. Other platforms: `zai-org/GLM-OCR` on Transformers / PyTorch, CPU or NVIDIA CUDA. |
+
+Ordinary OCR (Fast, High accuracy, and the primary pass of Slow) automatically
+tries a locally available ONNX accelerator: CUDA when the CUDA runtime is
+installed, or DirectML on Windows. Ordinary OCR on macOS remains on CPU.
+Unsupported operations remain on CPU. If accelerator initialization or inference fails, that model session falls
+back to CPU; a failed inference is repeated once. Models initialize acceleration
+on first use. Image preparation and recognition rules still run on CPU.
+
+GPU availability does not guarantee lower latency: small cell crops can be faster
+on CPU. Floating-point differences can also change confidence scores and borderline candidates. Set
+`TABLESCAN_OCR_DEVICE=cpu` before launching to force the original CPU path.
+
+CoreML is currently excluded: local checks of the shipped dynamic-shape models
+found changed digits with the NeuralNetwork format, and model compilation failures
+and a native process abort with MLProgram. The ordinary OCR CPU fallback cannot
+catch a native abort. This does not affect Slow mode's separate MLX/Metal backend.
+
+Windows release builds install DirectML using
+`python packaging/install_ocr_acceleration.py` **after** the normal dependency
+installation and before testing/freezing. Run that same step for a Windows source
+checkout; rerun it after reinstalling dependencies. It replaces the CPU ONNX wheel
+because the CPU, CUDA, and DirectML wheels share the same Python module. CUDA
+source environments need a compatible `onnxruntime-gpu` installation in place of
+`onnxruntime`, plus its required CUDA/cuDNN libraries. Installing the separate Slow
+runtime does not change the ordinary OCR runtime. CPU-only environments continue
+to work without additional downloads.
 
 The page-local handwriting profile is an algorithm using existing models and
 examples from the current page, not an additional downloaded model. The standard

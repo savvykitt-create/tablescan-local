@@ -1,5 +1,5 @@
 #define MyAppName "TableScan Local"
-#define MyAppVersion "1.0.4"
+#define MyAppVersion "1.0.5"
 #define MyAppPublisher "TableScan Local contributors"
 #define MyAppExeName "TableScanLocal.exe"
 
