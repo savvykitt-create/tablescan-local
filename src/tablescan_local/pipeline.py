@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .i18n import tr, fmt, join_text
 import tempfile
+import time
 from math import ceil
 from pathlib import Path
 from typing import Callable
@@ -131,42 +132,54 @@ def process_page(
                 progress(completed, total, tr('Recognizing field {p0}', p0=region.name))
 
     cells: list[CellResult] = []
-    for row in range(template.rows):
-        for column in range(template.columns):
-            fixed = template.fixed_value(row, column)
-            if fixed is not None:
-                cells.append(CellResult(row, column, "", fixed, 1.0,
-                                        flags=["template_fixed_value"], applied_rule="Value from template"))
-                continue
-            if template.column_rules[column].role == "ignored":
-                cells.append(CellResult(row, column, "", "", 1.0, status="excluded"))
-                continue
-            crop_variants, context_crop = cell_crop_bundle(image, template, row, column)
-            crop = crop_variants[0]
-            # Keep ownership-masked context as OCR diagnostic data. The review
-            # workspace independently crops the original loaded page, so masks
-            # cannot replace or distort the source shown to the reviewer.
-            crop_path = _write_crop(crop, crop_directory, f"page-{page_index + 1}-r{row + 1}-c{column + 1}.png")
-            preview_crop_path = (
-                _write_crop(context_crop, crop_directory, f"page-{page_index + 1}-r{row + 1}-c{column + 1}-context.png")
-                if context_crop is not None else ""
-            )
-            rule = template.column_rules[column]
-            constraints, rule_name = template.cell_constraints(row, column)
-            active = constraints is not None
-            recognition_rule = constraints
-            if recognition_rule is None and row >= template.header_rows and template.is_label_cell(column):
-                # A numeric recognizer still helps read digit-only identifiers.
-                # This is an OCR hint, not permission to coerce their stored
-                # text or reject a reviewer entering an alphanumeric label.
-                recognition_rule = rule.constraints()
-            numeric = recognition_rule is not None and recognition_rule.value_format in {"numeric", "integer", "complex_numeric"}
-            recognized = engine.recognize_cell(
-                crop,
-                numeric=numeric,
-                constraints=recognition_rule,
-                retry_crops=crop_variants[1:] if numeric else None,
-            )
+    active_cell = [1, 1]
+    def requests():
+        for row in range(template.rows):
+            for column in range(template.columns):
+                fixed = template.fixed_value(row, column)
+                if fixed is not None:
+                    cells.append(CellResult(row, column, "", fixed, 1.0,
+                                            flags=["template_fixed_value"], applied_rule="Value from template"))
+                    continue
+                if template.column_rules[column].role == "ignored":
+                    cells.append(CellResult(row, column, "", "", 1.0, status="excluded"))
+                    continue
+                crop_variants, context_crop = cell_crop_bundle(image, template, row, column)
+                crop = crop_variants[0]
+                # Keep ownership-masked context as OCR diagnostic data. The review
+                # workspace independently crops the original loaded page, so masks
+                # cannot replace or distort the source shown to the reviewer.
+                crop_path = _write_crop(crop, crop_directory, f"page-{page_index + 1}-r{row + 1}-c{column + 1}.png")
+                preview_crop_path = (
+                    _write_crop(context_crop, crop_directory, f"page-{page_index + 1}-r{row + 1}-c{column + 1}-context.png")
+                    if context_crop is not None else ""
+                )
+                rule = template.column_rules[column]
+                constraints, rule_name = template.cell_constraints(row, column)
+                active = constraints is not None
+                recognition_rule = constraints
+                if recognition_rule is None and row >= template.header_rows and template.is_label_cell(column):
+                    # A numeric recognizer still helps read digit-only identifiers.
+                    # This is an OCR hint, not permission to coerce their stored
+                    # text or reject a reviewer entering an alphanumeric label.
+                    recognition_rule = rule.constraints()
+                numeric = recognition_rule is not None and recognition_rule.value_format in {"numeric", "integer", "complex_numeric"}
+                active_cell[:] = [row + 1, column + 1]
+                yield (row, column, crop_path, preview_crop_path, active, rule_name, constraints), dict(
+                    crop=crop, numeric=numeric, constraints=recognition_rule,
+                    retry_crops=crop_variants[1:] if numeric else None,
+                )
+
+    from .parallel_ocr import CellWorkers
+    workers = getattr(engine, '_cell_workers', None)
+    def heartbeat():
+        if progress:
+            progress(completed, total, tr('Recognizing cell {p0}, {p1}', p0=active_cell[0], p1=active_cell[1]))
+    stream = (workers.map(requests(), engine, heartbeat) if isinstance(workers, CellWorkers) else
+              ((metadata, engine.recognize_cell(**args)) for metadata, args in requests()))
+    try:
+        for metadata, recognized in stream:
+            row, column, crop_path, preview_crop_path, active, rule_name, constraints = metadata
             flags = list(recognized.flags or [])
             crossed_data_cell = row in suspected_rows and column >= template.row_label_columns
             if crossed_data_cell:
@@ -192,6 +205,9 @@ def process_page(
             completed += 1
             if progress:
                 progress(completed, total, tr('Recognizing cell {p0}, {p1}', p0=row + 1, p1=column + 1))
+    finally:
+        stream.close()
+    cells.sort(key=lambda cell: (cell.row, cell.column))
 
     # Repeated OCR failures are a reason to inspect a row, never proof that
     # measurements should disappear. This also catches wavy cancellations.
@@ -216,6 +232,7 @@ def process_document(
     high_accuracy: bool = True,
     slow_mode: bool = False,
 ) -> JobResult:
+    started = time.monotonic()
     from .template_fit import fit_document_template
     template = fit_document_template(template, images)
     template.ensure_column_rules()
@@ -228,25 +245,58 @@ def process_document(
                         for r in range(template.rows) for c in range(template.columns)))
     engine = LocalOcrEngine(high_accuracy=high_accuracy or slow_mode) if needs_ocr else None
     model_version = engine.model_version if engine else "template-values"
+    from .resource_policy import resources, cpu_workers
+    from .parallel_ocr import CellWorkers
+    from .ocr_runtime import acceleration_provider
+    from .numeric_decoder import _native_search
+    state = resources()
+    count = 1
+    pool = None
+    # Test adapters/custom engines retain their own recognition semantics.
+    from .ocr import LocalOcrEngine as NativeEngine
+    if isinstance(engine, NativeEngine) and (high_accuracy or slow_mode):
+        cells = sum(template.fixed_value(r, c) is None and template.column_rules[c].role != 'ignored'
+                    for r in range(template.rows) for c in range(template.columns)) * len(images)
+        count = cpu_workers(state, cells, accelerated=acceleration_provider() is not None)
+        if count > 1:
+            pool = CellWorkers(count)
+            engine._cell_workers = pool
+    performance = {'resources': state.to_dict(), 'cpu_workers': count,
+                   'ocr_provider_available': (acceleration_provider() or ('CPUExecutionProvider',))[0],
+                   'decoder': 'native' if _native_search else 'python', 'primary_pages_seconds': []}
     pages = []
-    for index, image in enumerate(images):
-        page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
-        pages.append(process_page(image, source_path, index, template, engine, progress, page_crop_root))
+    try:
+        for index, image in enumerate(images):
+            page_started = time.monotonic()
+            page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
+            pages.append(process_page(image, source_path, index, template, engine, progress, page_crop_root))
+            performance['primary_pages_seconds'].append(time.monotonic() - page_started)
+    finally:
+        if pool:
+            performance['cpu_fallbacks'] = pool.fallbacks
+            performance['cpu_parallel_cells'] = pool.completed
+            pool.close()
     # ONNX sessions must not compete with the much larger Slow models for RAM.
     # Finish primary OCR first, then release all sessions before starting Qwen/GLM.
     del engine
     if slow_mode:
         import gc
-        from .slow_mode import refine_page
+        from .slow_mode import refine_page, model_session
         gc.collect()
-        for index, (image, page) in enumerate(zip(images, pages)):
-            if progress:
-                progress(0, 1, str(tr('Preparing Slow verification')))
-            page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
-            directory = (page_crop_root or Path(tempfile.mkdtemp(prefix='tablescan-slow-'))) / 'slow-mode'
-            refine_page(image, page, template, directory, slow_config, progress)
-            flag_table_outliers(page, template)
-    return JobResult(source_path, template, pages, model_version + ('+slow-qwen-glm-v1' if slow_mode else ''))
+        with model_session():
+            for index, (image, page) in enumerate(zip(images, pages)):
+                if progress:
+                    progress(0, 1, str(tr('Preparing Slow verification')))
+                page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
+                directory = (page_crop_root or Path(tempfile.mkdtemp(prefix='tablescan-slow-'))) / 'slow-mode'
+                refine_page(image, page, template, directory, slow_config, progress)
+                flag_table_outliers(page, template)
+    performance['total_seconds'] = time.monotonic() - started
+    if crop_root:
+        import json
+        crop_root.mkdir(parents=True, exist_ok=True)
+        (crop_root / 'performance.json').write_text(json.dumps(performance, indent=2), encoding='utf-8')
+    return JobResult(source_path, template, pages, model_version + ('+slow-qwen-glm-v1' if slow_mode else ''), performance)
 
 
 

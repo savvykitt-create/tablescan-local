@@ -1,5 +1,7 @@
 """Serial background OCR with durable, per-document settings snapshots."""
 import json
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
@@ -22,16 +24,39 @@ class AnalysisQueue(QObject):
         self.active = None
         self.closing = False
         self._resume_after_stop = False
+        self._started_clock = None
+        self._heartbeat = QTimer(self)
+        self._heartbeat.setInterval(5000)
+        self._heartbeat.timeout.connect(self._save_elapsed)
         if self.path.exists():
             self.entries = json.loads(self.path.read_text(encoding='utf-8'))
             for entry in self.entries:
                 if entry['status'] in ('running', 'cancelling'):
                     entry['status'] = 'interrupted'
+                    entry['timing_incomplete'] = True
                 if entry['status'] in {'review', 'ready', 'exported'} and 'slow_diagnostics' not in entry:
                     saved = self.store.load_job(entry['job_id'])
                     if saved and saved[1]:
                         entry['slow_diagnostics'] = [page.slow_mode for page in saved[1].pages]
         QTimer.singleShot(0, self.start_next)
+
+    def elapsed(self, entry):
+        if entry is self.active and self._started_clock is not None and entry['status'] in ('running', 'cancelling'):
+            return max(0, time.monotonic() - self._started_clock)
+        return entry.get('elapsed_seconds')
+
+    def _save_elapsed(self):
+        if self.active and self._started_clock is not None:
+            self.active['elapsed_seconds'] = self.elapsed(self.active)
+            try:
+                self.persist()
+            except OSError:
+                pass  # Completion reports write failures; a heartbeat must not stop OCR.
+
+    @staticmethod
+    def _clear_timing(entry):
+        for key in ('started_at', 'finished_at', 'elapsed_seconds', 'timing_incomplete', 'performance', 'slow_diagnostics'):
+            entry.pop(key, None)
 
     def persist(self):
         temporary = self.path.with_suffix('.tmp')
@@ -67,24 +92,38 @@ class AnalysisQueue(QObject):
         entry = next((e for e in self.entries if e['status'] == 'queued'), None)
         if entry is None:
             return
+        self._clear_timing(entry)
+        entry.update(started_at=datetime.now(timezone.utc).isoformat(timespec='seconds'), elapsed_seconds=0.0)
+        started_clock = time.monotonic()
         try:
             worker = self.worker_factory(entry)
-            entry.pop('slow_diagnostics', None)
             entry['status'] = 'running'
             self.persist()
         except Exception as exc:
-            entry.update(status='failed', message=str(exc))
+            entry.update(status='failed', message=str(exc),
+                         finished_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                         elapsed_seconds=max(0, time.monotonic() - started_clock))
+            try:
+                self.persist()
+            except OSError:
+                pass
             self.changed.emit()
             QTimer.singleShot(0, self.start_next)
             return
         self.active, self.worker = entry, worker
+        self._started_clock = started_clock
+        self._heartbeat.start()
         worker.progress.connect(self._progress)
         worker.completed.connect(self._completed)
         worker.failed.connect(lambda message: self._terminal('failed', message))
         worker.cancelled.connect(self._cancelled)
         worker.finished.connect(self._finished)
         self.changed.emit()
-        worker.start()
+        try:
+            worker.start()
+        except Exception as exc:
+            self._terminal('failed', str(exc))
+            self._finished()
 
     def _progress(self, value, maximum, message):
         percent = round(100 * value / max(1, maximum))
@@ -115,12 +154,20 @@ class AnalysisQueue(QObject):
         if preparation:
             self.active.update(template=result.template.to_dict(), preparation=preparation)
         self.active['slow_diagnostics'] = [page.slow_mode for page in result.pages]
+        self.active['performance'] = result.performance
         incomplete = any(page.slow_mode.get('status') in {'failed', 'partial'} for page in result.pages)
         message = str(tr('Для части ячеек slow mode не завершён. Основные результаты сохранены; спорные значения требуют проверки.')) if incomplete else ''
         self._terminal('review' if result.unresolved_count else 'ready', message)
         self.resultSaved.emit(self.active['job_id'], result)
 
     def _terminal(self, status, message=''):
+        if self._started_clock is not None:
+            self.active.update(finished_at=datetime.now(timezone.utc).isoformat(timespec='seconds'),
+                               elapsed_seconds=max(0, time.monotonic() - self._started_clock))
+            self._started_clock = None
+            self._heartbeat.stop()
+        if status == 'queued':
+            self._clear_timing(self.active)
         self.active.update(status=status, message=message)
         try:
             self.persist()
@@ -145,6 +192,8 @@ class AnalysisQueue(QObject):
         if self.active['status'] in ('running', 'cancelling'):
             self._terminal('interrupted')
         self.worker = self.active = None
+        self._started_clock = None
+        self._heartbeat.stop()
         self._resume_after_stop = False
         self.changed.emit()
         QTimer.singleShot(0, self.start_next)
@@ -207,6 +256,7 @@ class AnalysisQueue(QObject):
                     # Wait for the interrupted thread to finish before retrying it.
                     self._resume_after_stop = True
             elif entry['status'] in ('cancelled', 'interrupted', 'failed'):
+                self._clear_timing(entry)
                 entry.update(status='queued', progress=0, message='')
         self.persist()
         self.changed.emit()
@@ -216,6 +266,7 @@ class AnalysisQueue(QObject):
         entry = next((e for e in self.entries if e['job_id'] == job_id), None)
         if entry and entry['status'] in ('failed', 'cancelled', 'interrupted'):
             self.closing = False
+            self._clear_timing(entry)
             entry.update(status='queued', message='', progress=0)
             self.persist()
             self.changed.emit()

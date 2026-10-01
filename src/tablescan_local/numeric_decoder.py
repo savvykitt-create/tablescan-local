@@ -9,13 +9,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import exp, inf, log, log10, log1p
+from functools import lru_cache
 
 import numpy as np
 
 from .constraints import ValueConstraints
 
+try:
+    from ._beam_native import search as _native_search
+except ImportError:
+    _native_search = None
+
 
 NEG_INF = -inf
+
+
+@lru_cache(maxsize=8)
+def _prefix_cache(value_format, minimum, maximum, decimal_places, allowed_values):
+    # Only rule-dependent booleans are shared across views/cells. Probabilities,
+    # beams and model evidence are always new. Immutable keys detect rule edits.
+    return {"": True}
 
 
 def _log_add(*values: float) -> float:
@@ -116,6 +129,11 @@ class NumericPrefixGrammar:
         self.rule = rule
         self.allowed = tuple(dict.fromkeys(self.normalize(value) for value in rule.allowed_values))
         self.maximum_integer_digits = self._maximum_integer_digits()
+        self.prefix_cache = _prefix_cache(rule.value_format, rule.minimum, rule.maximum,
+                                          rule.decimal_places, tuple(rule.allowed_values))
+        if len(self.prefix_cache) > 16384:
+            self.prefix_cache.clear()
+            self.prefix_cache[''] = True
 
     @staticmethod
     def normalize(text: str) -> str:
@@ -189,10 +207,35 @@ def ctc_prefix_beam_search(
     if grammar.allowed:
         glyphs.update("".join(rule.allowed_values))
     indices = [(index, character) for index, character in enumerate(characters) if character in glyphs]
-    blank_index = 0
+    # Ignore nonnumeric vocabulary columns before conversion/logarithms. This
+    # selects original probabilities; it does not renormalize or prune paths.
+    columns = [0, *(i for i, _ in indices)]
+    rows = np.log(np.clip(probabilities[:, columns].astype(np.float64), 1e-30, 1.0)).tolist()
+    glyphs = [c for _, c in indices]
+    search = _native_search or _python_search
+    beams = search(rows, glyphs, grammar, beam_width)
+
+    normalized: dict[str, float] = {}
+    for prefix, (prob_blank, prob_nonblank) in beams.items():
+        text = grammar.normalize(prefix)
+        if not grammar.complete_allowed(text):
+            continue
+        score = _log_add(prob_blank, prob_nonblank)
+        normalized[text] = max(normalized.get(text, NEG_INF), score)
+    if not normalized:
+        return []
+    ordered = sorted(normalized.items(), key=lambda item: item[1], reverse=True)[:result_limit]
+    timesteps = max(1, probabilities.shape[0])
+    return [
+        CtcCandidate(text, score, max(0.0, min(1.0, exp(score / timesteps))))
+        for text, score in ordered
+    ]
+
+
+def _python_search(rows, characters, grammar, beam_width):
+    """Portable reference path, also used to verify the optional extension."""
     beams: dict[str, tuple[float, float]] = {"": (0.0, NEG_INF)}
-    clipped = np.clip(probabilities.astype(np.float64, copy=False), 1e-30, 1.0)
-    prefix_cache: dict[str, bool] = {"": True}
+    prefix_cache = grammar.prefix_cache
 
     def prefix_allowed(prefix: str) -> bool:
         allowed = prefix_cache.get(prefix)
@@ -201,8 +244,7 @@ def ctc_prefix_beam_search(
             prefix_cache[prefix] = allowed
         return allowed
 
-    for timestep in range(clipped.shape[0]):
-        row = np.log(clipped[timestep])
+    for row in rows:
         next_beams: dict[str, tuple[float, float]] = {}
 
         def add(prefix: str, blank: float = NEG_INF, nonblank: float = NEG_INF) -> None:
@@ -210,8 +252,8 @@ def ctc_prefix_beam_search(
             next_beams[prefix] = (_log_add(old_blank, blank), _log_add(old_nonblank, nonblank))
 
         for prefix, (prob_blank, prob_nonblank) in beams.items():
-            add(prefix, blank=_log_add(prob_blank, prob_nonblank) + float(row[blank_index]))
-            for index, character in indices:
+            add(prefix, blank=_log_add(prob_blank, prob_nonblank) + float(row[0]))
+            for index, character in enumerate(characters, 1):
                 probability = float(row[index])
                 if prefix.endswith(character):
                     # Repeating a token without an intervening blank collapses
@@ -233,18 +275,4 @@ def ctc_prefix_beam_search(
         )[:beam_width]
         beams = dict(ranked)
 
-    normalized: dict[str, float] = {}
-    for prefix, (prob_blank, prob_nonblank) in beams.items():
-        text = grammar.normalize(prefix)
-        if not grammar.complete_allowed(text):
-            continue
-        score = _log_add(prob_blank, prob_nonblank)
-        normalized[text] = max(normalized.get(text, NEG_INF), score)
-    if not normalized:
-        return []
-    ordered = sorted(normalized.items(), key=lambda item: item[1], reverse=True)[:result_limit]
-    timesteps = max(1, probabilities.shape[0])
-    return [
-        CtcCandidate(text, score, max(0.0, min(1.0, exp(score / timesteps))))
-        for text, score in ordered
-    ]
+    return beams

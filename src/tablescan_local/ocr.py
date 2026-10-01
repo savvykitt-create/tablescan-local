@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from math import exp
 from pathlib import Path
+import os
 
 from .components import connected_components
 
@@ -119,8 +120,10 @@ class LocalOcrEngine:
 
     def __init__(self, high_accuracy: bool = False) -> None:
         models = Path(__file__).parent / "models"
-        self._engine = accelerate_rapidocr(RapidOCR(rec_model_path=str(models / "ch_PP-OCRv5_rec_server.onnx")))
-        self._numeric_check = accelerate_rapidocr(RapidOCR(rec_model_path=str(models / "en_PP-OCRv5_rec_mobile.onnx")))
+        threads = max(1, int(os.environ.get('TABLESCAN_ORT_THREADS', '1')))
+        options = dict(intra_op_num_threads=threads, inter_op_num_threads=1) if 'TABLESCAN_ORT_THREADS' in os.environ else {}
+        self._engine = accelerate_rapidocr(RapidOCR(rec_model_path=str(models / "ch_PP-OCRv5_rec_server.onnx"), **options))
+        self._numeric_check = accelerate_rapidocr(RapidOCR(rec_model_path=str(models / "en_PP-OCRv5_rec_mobile.onnx"), **options))
         self._high_accuracy = high_accuracy
         self._precision_engine = None
         self._digit_verifier = None
@@ -129,6 +132,7 @@ class LocalOcrEngine:
                 rec_model_path=str(models / "PP-OCRv6_medium_rec.onnx"),
                 rec_keys_path=str(models / "ppocrv6_dict.txt"),
                 rec_img_shape=[3, 48, 320],
+                **options,
             ))
             self._digit_verifier = DigitVerifier()
             self.model_version = "ppocrv5+ppocrv6+en/numeric-template-cascade-v13-complete-evidence"

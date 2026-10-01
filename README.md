@@ -87,7 +87,11 @@ library as a separate template and makes it available to the other batch files.
 
 Analyses run sequentially. You can prepare another batch or review completed
 results while processing continues. The **Analysis queue** shows progress,
-preparation details and colored statuses. **×** removes a task and stops it if
+preparation details, colored statuses, start and finish times, and elapsed time.
+Times use your local time zone. Elapsed time updates during analysis and describes
+the latest attempt, excluding time spent waiting in the queue. After a crash,
+an unknown finish time stays blank and **≥** marks the last recorded duration.
+**×** removes a task and stops it if
 running; saved results remain in file history. **Cancel all** stops unfinished
 work, and **Resume all** restarts cancelled, interrupted or failed tasks from
 the beginning. Tasks removed with **×** are not resumed.
@@ -102,11 +106,25 @@ workbooks are preserved by adding a numeric suffix to duplicate names.
 Quitting the application interrupts unfinished analyses. They remain stopped
 until you resume them. Closing only the queue window keeps processing running.
 
+Open **Diagnostics** from the top bar or for a selected queue task to inspect
+available RAM, CPU cores, decoder, parallel worker usage, per-page timings and
+recorded Qwen/GLM devices, loading times and model reuse. The configured Slow
+backend is separate from the device actually used. Copy or save the diagnostic
+report locally as JSON. Source paths and recognized cell values are omitted.
+
 ## Printable laboratory forms
 
 **Von Frey, Plantar and Staircase** protocols are included. Their editable Excel
 forms start with 20 animals, numbered IDs, distinct L/R header colors and a wide
 Notes column. Insert or delete complete data rows before printing.
+
+**Staircase portrait (30 animals)** is an additional A4 portrait form with all
+30 animals on one page, preserving L1–L7, L drop, R1–R7, R drop and Notes.
+Its [Excel workbook](src/tablescan_local/default_templates/staircase_portrait.xlsx),
+[printable PDF](src/tablescan_local/default_templates/staircase_portrait.pdf) and
+[OCR template](src/tablescan_local/default_templates/staircase_portrait.json)
+are included. Existing installations receive this additional template once,
+without replacing edited templates or restoring deleted ones.
 
 The protocol fits any detected animal count within the **200 total grid-row
 limit**, including the header: with one header row, 1–199 animals. Counts such as

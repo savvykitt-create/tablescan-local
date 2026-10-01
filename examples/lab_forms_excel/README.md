@@ -4,6 +4,13 @@ The Von Frey, Plantar and Staircase workbooks start with 20 animals. ID numberin
 uses formulas; L and R headers have distinct colors, and Notes provides space for
 free text. Date, Session and Operator are outside the measurement grid.
 
+The additional **Staircase portrait (30 animals)** form starts with 30 animals
+and prints on one A4 portrait sheet. It uses the same measurement columns and
+rules as Staircase, with a separate layout template. In the downloadable archive,
+choose `Excel/staircase_portrait.xlsx`, `PDF/staircase_portrait.pdf` and
+`templates/staircase_portrait.json`. Its editable data rows are 7–36; the header
+is worksheet row 6. Select the portrait protocol when recognizing this layout.
+
 ## Change the number of animals
 
 Save your own copy. Insert or delete complete worksheet data rows **inside the
@@ -18,7 +25,8 @@ scaled to one page; use sufficient paper size and scan resolution for legibility
 
 ## Print, scan and recognize
 
-1. Check print preview: landscape A4 is the default, with 10 mm margins and one
+1. Check print preview: landscape A4 is the default (portrait for the new
+   30-animal Staircase form), with 10 mm margins and one
    page in each direction. All metadata and outer borders must be visible.
 2. Fill the printed form by hand. Blank measurements mean missing values, not zero.
 3. Scan the complete page. In TableScan Local, select the matching built-in

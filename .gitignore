@@ -14,6 +14,8 @@ docs/V0.6.0_REQUIREMENTS.md
 docs/V0.6_UI_SPEC.md
 docs/design/
 *.egg-info/
+*.so
+*.pyd
 *.db
 *.db-*
 *.sqlite

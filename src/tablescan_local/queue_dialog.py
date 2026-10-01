@@ -11,28 +11,32 @@ class AnalysisQueueDialog(QDialog):
     reviewRequested = Signal(str)
     prepareRequested = Signal(list)
     exportReadyRequested = Signal()
+    diagnosticsRequested = Signal(str)
 
     def __init__(self, queue, parent=None):
         super().__init__(parent)
         self.queue = queue
         self.setWindowTitle(tr('Analysis queue'))
-        self.resize(1180, 450)
+        self.resize(1380, 500)
         self.setModal(False)
         layout = QVBoxLayout(self)
         layout.addWidget(QLabel(tr('Analyses run one at a time. You can prepare other tables and review completed results.')))
-        self.table = QTableWidget(0, 7)
-        self.table.setHorizontalHeaderLabels([tr('File'), tr('Analysis mode'), tr('Status'), tr('Progress'), tr('Preparation'), tr('Details'), ''])
+        self.table = QTableWidget(0, 10)
+        self.table.setHorizontalHeaderLabels([tr('File'), tr('Analysis mode'), tr('Status'), tr('Progress'), tr('Preparation'), tr('Details'), tr('Started'), tr('Finished'), tr('Duration'), ''])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         from PySide6.QtWidgets import QHeaderView
         self.table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
-        self.table.setColumnWidth(6, 44)
+        self.table.setColumnWidth(9, 44)
+        self.table.setColumnWidth(6, 165)
+        self.table.setColumnWidth(7, 165)
+        self.table.setColumnWidth(8, 112)
         self.table.setColumnWidth(0, 180)
         self.table.setColumnWidth(1, 150)
-        self.table.setColumnWidth(2, 150)
+        self.table.setColumnWidth(2, 125)
         self.table.setColumnWidth(3, 80)
-        self.table.setColumnWidth(4, 250)
+        self.table.setColumnWidth(4, 170)
         self.table.itemSelectionChanged.connect(self.update_buttons)
         self.table.itemDoubleClicked.connect(lambda _: self.open_review())
         layout.addWidget(self.table)
@@ -45,6 +49,9 @@ class AnalysisQueueDialog(QDialog):
         self.review_button.clicked.connect(self.open_review)
         actions.addWidget(self.cancel_button)
         actions.addWidget(self.retry_button)
+        self.diagnostics_button = QPushButton(tr('Diagnostics'))
+        self.diagnostics_button.clicked.connect(lambda: self.diagnosticsRequested.emit(self.selected_id() or ''))
+        actions.addWidget(self.diagnostics_button)
         self.cancel_all_button = QPushButton(tr('Cancel all'))
         self.cancel_all_button.clicked.connect(lambda: self._bulk_action(queue.cancel_all))
         self.resume_all_button = QPushButton(tr('Resume all'))
@@ -71,7 +78,38 @@ class AnalysisQueueDialog(QDialog):
         review_actions.addWidget(self.review_button)
         layout.addLayout(review_actions)
         queue.changed.connect(self.refresh)
+        self.clock_timer = QTimer(self)
+        self.clock_timer.setInterval(1000)
+        self.clock_timer.timeout.connect(self.refresh_times)
         self.refresh()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.refresh_times()
+        self.clock_timer.start()
+
+    def hideEvent(self, event):
+        self.clock_timer.stop()
+        super().hideEvent(event)
+
+    def refresh_times(self):
+        from .diagnostics_dialog import duration_text, local_timestamp
+        entries = {e['job_id']: e for e in self.queue.entries}
+        for row in range(self.table.rowCount()):
+            item = self.table.item(row, 0)
+            entry = entries.get(item.data(Qt.ItemDataRole.UserRole)) if item else None
+            if not entry:
+                continue
+            values = [local_timestamp(entry.get('started_at')), local_timestamp(entry.get('finished_at')),
+                      duration_text(self.queue.elapsed(entry), entry.get('timing_incomplete', False))]
+            for column, value in enumerate(values, 6):
+                item = self.table.item(row, column)
+                if item is None:
+                    item = QTableWidgetItem(value)
+                    self.table.setItem(row, column, item)
+                else:
+                    item.setText(value)
+                item.setToolTip(tr('Times use your local time zone. Duration covers the latest attempt; ≥ marks the last recorded time before an interruption.'))
 
     def selected_id(self):
         row = self.table.currentRow()
@@ -122,17 +160,18 @@ class AnalysisQueueDialog(QDialog):
                     background, foreground = colors[entry['status']]
                     item.setBackground(QColor(background))
                     item.setForeground(QColor(foreground))
-            button = self.table.cellWidget(row, 6)
+            button = self.table.cellWidget(row, 9)
             if button is None or button.property('job_id') != entry['job_id']:
                 button = QPushButton('×')
                 button.setProperty('job_id', entry['job_id'])
                 button.setAccessibleName(tr('Remove from queue: {p0}', p0=Path(entry['source_path']).name))
                 button.setToolTip(tr('Remove from queue and stop this analysis if running. Saved results stay in file history.'))
                 button.clicked.connect(lambda _, job_id=entry['job_id']: QTimer.singleShot(0, lambda: self._bulk_action(lambda: self.queue.remove(job_id))))
-                self.table.setCellWidget(row, 6, button)
+                self.table.setCellWidget(row, 9, button)
             if entry['job_id'] == selected:
                 self.table.selectRow(row)
         self.table.blockSignals(False)
+        self.refresh_times()
         self.update_buttons()
 
     def update_buttons(self):

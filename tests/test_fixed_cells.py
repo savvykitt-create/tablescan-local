@@ -119,11 +119,11 @@ def test_existing_untouched_defaults_upgrade_but_edits_remain(tmp_path):
     edited = templates[0]; edited.name = 'My protocol'; store.save_template(edited)
     store.install_default_templates()
     after = store.load_templates()
-    assert len(after) == 3
+    assert len(after) == 4
     assert next(t for t in after if t.id == edited.id).fixed_cells == []
     assert all(t.fixed_cells for t in after if t.id != edited.id)
     store.install_default_templates()
-    assert len(store.load_templates()) == 3
+    assert len(store.load_templates()) == 4
 
 
 def test_editor_sets_and_removes_constants_and_auto_fills_headers(qtbot):

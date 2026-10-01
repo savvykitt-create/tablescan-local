@@ -18,6 +18,7 @@ FALLBACKS = {
        ("pyside6", "pyside6-addons", "pyside6-essentials", "shiboken6")},
     ("rapidocr-onnxruntime", "1.4.4"): "rapidocr-1.4.4",
     ("flatbuffers", "25.12.19"): "flatbuffers-25.12.19",
+    ("cython", "3.3.0"): "cython-3.3.0",
 }
 
 
@@ -31,7 +32,7 @@ def collect(output: Path) -> Path:
     snapshots = json.loads((upstream / "sources.json").read_text(encoding="utf-8"))
     components, copied_groups = [], {}
     config = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    pending = list(config["project"]["dependencies"]) + ["pyinstaller"]
+    pending = list(config["project"]["dependencies"]) + ["pyinstaller", "Cython"]
     environment = default_environment()
     environment["extra"] = ""
     seen = set()

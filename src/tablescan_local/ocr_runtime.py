@@ -37,10 +37,17 @@ class AutoSession:
     def __init__(self, model_path, options=None, *, cpu_session=None):
         self.model_path = str(model_path)
         self.options = options if options is not None else ort.SessionOptions()
+        if options is None and 'TABLESCAN_ORT_THREADS' in os.environ:
+            self.options.intra_op_num_threads = max(1, int(os.environ['TABLESCAN_ORT_THREADS']))
+            self.options.inter_op_num_threads = 1
+        no_spin = os.environ.get('TABLESCAN_ORT_NO_SPIN') == '1'
+        if no_spin:
+            self.options.add_session_config_entry('session.intra_op.allow_spinning', '0')
+            self.options.add_session_config_entry('session.inter_op.allow_spinning', '0')
         self.provider = acceleration_provider()
         self._pending = self.provider is not None
         self._accelerated = False
-        self._session = cpu_session if cpu_session is not None else self._cpu()
+        self._session = cpu_session if cpu_session is not None and not no_spin else self._cpu()
 
     def _cpu(self):
         return ort.InferenceSession(self.model_path, sess_options=self.options, providers=[CPU])

@@ -6,6 +6,9 @@
 *.yaml text eol=lf
 *.toml text eol=lf
 *.onnx binary
-
+*.pdf binary
+*.xlsx binary
 # Preserve upstream license bytes so recorded SHA-256 hashes also match on Windows.
 packaging/licenses/** -text
+# Keep the reviewed upstream license snapshot byte-for-byte intact.
+packaging/licenses/cython-3.3.0/LICENSE.txt whitespace=-blank-at-eof

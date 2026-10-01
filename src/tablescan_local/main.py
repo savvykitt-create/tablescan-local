@@ -8,7 +8,7 @@ import numpy as np
 from .ui import create_application, InstanceAlreadyRunning
 
 
-def self_test() -> int:
+def self_test(*, parallel=False) -> int:
     """Load the packaged OCR runtime and run one in-memory recognition pass."""
     from .slow_setup import download_context
     if not download_context().get_ca_certs():
@@ -33,6 +33,24 @@ def self_test() -> int:
     )
     if recovered.text != "34.7" or "separator_reclassified_from_one" not in recovered.flags:
         raise RuntimeError(f"Template decimal self-test failed: {recovered.text!r}")
+    if parallel:
+        from .parallel_ocr import CellWorkers
+        from .numeric_decoder import _native_search
+        if _native_search is None:
+            raise RuntimeError('Native decoder missing from performance build')
+        tasks = [(i, dict(crop=image, numeric=True, constraints=ValueConstraints(
+            'numeric', minimum=0, maximum=200, decimal_places=1))) for i in range(2)]
+        pool = CellWorkers(2)
+        try:
+            results = list(pool.map(tasks, LocalOcrEngine(high_accuracy=True)))
+            if pool.completed == 0:
+                raise RuntimeError('Packaged CPU worker did not complete a cell')
+            if [key for key, _ in results] != [0, 1] or any(
+                value.text != precise.text or value.flags != precise.flags for _, value in results
+            ):
+                raise RuntimeError('Packaged parallel OCR parity failed')
+        finally:
+            pool.close()
     return 0
 
 
@@ -84,6 +102,8 @@ def main() -> int:
         return slow_mode_self_test()
     if "--self-test" in sys.argv:
         return self_test()
+    if "--parallel-self-test" in sys.argv:
+        return self_test(parallel=True)
     try:
         app, window = create_application(lock_store=True)
     except InstanceAlreadyRunning as exc:

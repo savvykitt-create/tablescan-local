@@ -2751,6 +2751,8 @@ class MainWindow(QMainWindow):
         self.queue_dialog.reviewRequested.connect(lambda job_id: self.open_recent(job_id, prefer_result=True))
         self.queue_dialog.prepareRequested.connect(self.prepare_batch)
         self.queue_dialog.exportReadyRequested.connect(self.export_ready_files)
+        self.queue_dialog.diagnosticsRequested.connect(self.show_diagnostics)
+        self.diagnostics_dialog = None
         self.analysis_queue.changed.connect(self._queue_changed)
         self.analysis_queue.resultSaved.connect(self._queue_result_saved)
         self._queue_changed()
@@ -2782,6 +2784,9 @@ class MainWindow(QMainWindow):
         self.queue_button = QPushButton(tr('Analysis queue'))
         self.queue_button.clicked.connect(self.show_analysis_queue)
         top_layout.addWidget(self.queue_button)
+        self.diagnostics_button = QPushButton(tr('Diagnostics'))
+        self.diagnostics_button.clicked.connect(lambda: self.show_diagnostics())
+        top_layout.addWidget(self.diagnostics_button)
         self.theme_select = QComboBox()
         self.theme_select.addItem(tr('Светлая тема'), "light")
         self.theme_select.addItem(tr('Тёмная тема'), "dark")
@@ -3286,6 +3291,17 @@ class MainWindow(QMainWindow):
             self.review_page.set_result(images, result)
         self._navigate(2 if result is not None else 1)
         self._queue_changed()
+
+    def show_diagnostics(self, job_id=''):
+        from .diagnostics_dialog import DiagnosticsDialog
+        if self.diagnostics_dialog is None:
+            self.diagnostics_dialog = DiagnosticsDialog(self.analysis_queue, self)
+        self.diagnostics_dialog.refresh()
+        if job_id:
+            self.diagnostics_dialog.jobs.setCurrentIndex(self.diagnostics_dialog.jobs.findData(job_id))
+        self.diagnostics_dialog.show()
+        self.diagnostics_dialog.raise_()
+        self.diagnostics_dialog.activateWindow()
 
     def show_analysis_queue(self):
         self.queue_dialog.show()

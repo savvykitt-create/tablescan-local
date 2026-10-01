@@ -474,6 +474,7 @@ class JobResult:
     template: TableTemplate
     pages: list[PageResult]
     model_version: str = "rapidocr-onnxruntime-1.4"
+    performance: dict[str, Any] = field(default_factory=dict)
 
     @property
     def source_name(self) -> str:
@@ -489,6 +490,7 @@ class JobResult:
             "template": self.template.to_dict(),
             "pages": [page.to_dict() for page in self.pages],
             "model_version": self.model_version,
+            "performance": self.performance,
         }
 
     @classmethod
@@ -498,4 +500,5 @@ class JobResult:
             template=TableTemplate.from_dict(data["template"]),
             pages=[PageResult.from_dict(item) for item in data.get("pages", [])],
             model_version=data.get("model_version", "unknown"),
+            performance=dict(data.get("performance", {})),
         )

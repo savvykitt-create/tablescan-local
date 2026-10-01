@@ -1,4 +1,4 @@
-"""Package the three printable workbooks and importable OCR templates."""
+"""Package printable workbooks, PDFs and importable OCR templates."""
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
 import sys
@@ -11,8 +11,9 @@ output = root / 'release' / f'TableScan-Forms-{__version__}.zip'
 output.parent.mkdir(exist_ok=True)
 source = root / 'src/tablescan_local/default_templates'
 with ZipFile(output, 'w', ZIP_DEFLATED) as archive:
-    for key in ('von_frey', 'plantar', 'staircase'):
+    for key in ('von_frey', 'plantar', 'staircase', 'staircase_portrait'):
         archive.write(source / f'{key}.xlsx', f'Excel/{key}.xlsx')
+        archive.write(source / f'{key}.pdf', f'PDF/{key}.pdf')
         archive.write(source / f'{key}.json', f'templates/{key}.json')
     archive.write(root / 'examples/lab_forms_excel/README.md', 'README.md')
 print(output)

@@ -24,6 +24,7 @@ a = Analysis(
         (str(project_root / "src/tablescan_local/models"), "tablescan_local/models"),
         (str(project_root / "src/tablescan_local/default_templates"), "tablescan_local/default_templates"),
         (str(project_root / "src/tablescan_local/slow_runner.py"), "tablescan_local"),
+        (str(project_root / "src/tablescan_local/resource_policy.py"), "tablescan_local"),
         (str(project_root / "packaging/install_slow_mode.py"), "tablescan_local/setup"),
         (str(project_root / "src/tablescan_local/slow_runtime.py"), "tablescan_local/setup"),
         (str(project_root / "LICENSE"), "."),

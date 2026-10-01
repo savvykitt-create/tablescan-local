@@ -133,7 +133,7 @@ def test_remove_running_job_stops_it_and_ignores_late_completion(qtbot, tmp_path
     a = add_job(store, tmp_path, 'a.png'); b = add_job(store, tmp_path, 'b.png')
     queue.enqueue(*a, template()); queue.enqueue(*b, template())
     dialog = AnalysisQueueDialog(queue); qtbot.addWidget(dialog)
-    dialog.table.cellWidget(0, 6).click()
+    dialog.table.cellWidget(0, 9).click()
     qtbot.waitUntil(lambda: workers[0].interrupted)
     assert len(queue.entries) == 1 and dialog.table.rowCount() == 1
     workers[0].completed.emit(JobResult(a[1], template(), [PageResult(0, a[1], [], [])]))

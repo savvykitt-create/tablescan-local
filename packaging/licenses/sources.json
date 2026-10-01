@@ -1600,5 +1600,11 @@
     "file": "qt-6.11.2/qtdeclarative/tests/manual/quickcontrols/testbench/fonts/LICENSE.txt",
     "source": "https://raw.githubusercontent.com/qt/qtdeclarative/4e3399c26ec57246c08de019cfcbda8d23604cfa/tests/manual/quickcontrols/testbench/fonts/LICENSE.txt",
     "sha256": "e882ddf66dd8808b5dc6b8e4eebd80696b3f7064ff2edeae2ea7db2fedffeb7f"
+  },
+  {
+    "group": "cython-3.3.0",
+    "file": "cython-3.3.0/LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/cython/cython/3.3.0/LICENSE.txt",
+    "sha256": "3e4af21da9cb8a50d6a8f32225d7630fbf94a263e89945489d4863585f4aca4e"
   }
 ]

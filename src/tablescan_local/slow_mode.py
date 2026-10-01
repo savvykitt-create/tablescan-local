@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 
 import cv2
@@ -20,6 +22,79 @@ from .i18n import tr
 
 MODELS = MODEL_SETS['mlx']  # Compatibility for earlier audit consumers.
 POLICY = 'disputed-qwen-glm-v2-cell-recovery-exclusion-guard'
+_session = ContextVar('tablescan_slow_session', default=None)
+
+
+class _RequestProcess:
+    """One response's completion, independent of the reusable process lifetime."""
+    def __init__(self, process, done):
+        self.process, self.done = process, done
+        self.returncode = None
+
+    def poll(self):
+        if self.done.exists():
+            try:
+                self.returncode = 0 if json.loads(self.done.read_text())['ok'] else 1
+            except (OSError, ValueError, KeyError):
+                self.returncode = 1
+        else:
+            self.returncode = self.process.poll()
+        return self.returncode
+
+    def terminate(self):
+        self.process.terminate()
+
+    def kill(self):
+        self.process.kill()
+
+    def wait(self, **kwargs):
+        return self.process.wait(**kwargs)
+
+
+class ModelSession:
+    def __init__(self):
+        self.process = None
+        self.log = None
+
+    def dispatch(self, python, runner, request, output, directory, env):
+        if self.process is None or self.process.poll() is not None:
+            self.close()
+            self.log = (directory / 'runtime.log').open('w', encoding='utf-8')
+            self.process = start_worker([python, '-X', 'faulthandler', str(runner), '--serve'], self.log, env, input_pipe=True)
+        done = output.with_suffix('.done.json')
+        done.unlink(missing_ok=True)
+        self.process.stdin.write(json.dumps({'request': str(request), 'output': str(output)}) + '\n')
+        self.process.stdin.flush()
+        return _RequestProcess(self.process, done)
+
+    def close(self):
+        if self.process is not None:
+            if self.process.poll() is None:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    self.process.kill(); self.process.wait()
+            if self.process.stdin:
+                try:
+                    self.process.stdin.close()
+                except OSError:
+                    pass
+            self.process = None
+        if self.log:
+            self.log.close(); self.log = None
+
+
+@contextmanager
+def model_session():
+    """Keep isolated model workers within one document, never across user jobs."""
+    session = ModelSession()
+    token = _session.set(session)
+    try:
+        yield session
+    finally:
+        _session.reset(token)
+        session.close()
 
 
 def runtime_config() -> dict:
@@ -162,7 +237,7 @@ def recover_cells(kind, image, template, cells, directory, config, progress=None
     return {r['id']: row_values(r['raw'], 1) for r in results}, {r['id']: r.get('execution', {}) for r in results}
 
 
-def start_worker(command, log, env, *, process_tree=False):
+def start_worker(command, log, env, *, process_tree=False, input_pipe=False):
     """Undo PyInstaller's process-wide DLL search override only while spawning."""
     kernel = None
     if sys.platform == 'win32' and getattr(sys, 'frozen', False):
@@ -171,6 +246,7 @@ def start_worker(command, log, env, *, process_tree=False):
         kernel.SetDllDirectoryW(None)
     try:
         return subprocess.Popen(command, stdout=log, stderr=log, env=env,
+                                **({'stdin': subprocess.PIPE, 'text': True, 'encoding': 'utf-8'} if input_pipe else {}),
                                 creationflags=(subprocess.CREATE_NO_WINDOW | (subprocess.CREATE_NEW_PROCESS_GROUP if process_tree else 0)) if sys.platform == 'win32' else 0,
                                 start_new_session=process_tree and sys.platform != 'win32')
     finally:
@@ -193,6 +269,7 @@ def run_model(kind, records, directory, config, progress=None):
         if name.startswith(('_PYI', 'DYLD_', 'QT_')) or name in {'PYTHONHOME', 'PYTHONPATH'}:
             env.pop(name, None)
     env.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', TOKENIZERS_PARALLELISM='false',
+               PYTHONDONTWRITEBYTECODE='1',
                PYTHONUTF8='1', PYTHONIOENCODING='utf-8')
     # Frozen Windows apps prepend bundled DLL paths. External Python must use its own.
     bundle = getattr(sys, '_MEIPASS', None)
@@ -204,7 +281,9 @@ def run_model(kind, records, directory, config, progress=None):
     timeout = (max(7200, len(records) * 600) if config.get('backend') == 'transformers'
                else max(600, len(records) * 45))
     with (directory / f'{kind}.log').open('w', encoding='utf-8') as log:
-        process = start_worker([config['python'], '-X', 'faulthandler', str(runner), str(request), str(output)], log, env)
+        session = _session.get()
+        process = (session.dispatch(config['python'], runner, request, output, directory, env) if session else
+                   start_worker([config['python'], '-X', 'faulthandler', str(runner), str(request), str(output)], log, env))
         try:
             while process.poll() is None:
                 if progress:
@@ -253,6 +332,8 @@ def run_model(kind, records, directory, config, progress=None):
     result = json.loads(output.read_text(encoding='utf-8'))
     if len(result) != len(records) or [r['id'] for r in result] != [r['id'] for r in records]:
         raise ValueError('Incomplete slow-mode response')
+    if result and 'execution' in result[0]:
+        result[0]['execution']['request_seconds'] = time.monotonic() - started
     return result
 
 

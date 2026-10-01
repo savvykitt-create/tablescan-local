@@ -108,6 +108,35 @@ out of version control. Automated tests use synthetic or temporary data.
 Bundled ONNX weights are runtime components; their
 [origins and checksums](../src/tablescan_local/models/README.md) are documented.
 
+## Adaptive performance
+
+Installing from source compiles an optional Cython CTC decoder when a C compiler
+is available (Xcode Command Line Tools on macOS, MSVC on Windows). Builds without
+a compiler retain the Python decoder. Both use the same beam width, probabilities,
+grammar and stable tie-breaking; no recognition passes are removed.
+
+High accuracy and Slow analysis can use up to six isolated CPU cell workers.
+The budget depends on available RAM, physical cores and document size; at least
+3 GiB or 20% of total memory is reserved, with a further 768 MiB allowance per
+worker. Small jobs, GPU OCR and unknown/low-memory systems stay sequential.
+Workers preserve ONNX's numerical/thread settings but disable idle thread-pool
+busy-waiting. They are stopped under memory pressure or on
+cancellation; unfinished cells fall back to the original sequential engine after
+a worker failure. Document queue ordering remains unchanged.
+
+Slow analysis owns one external runtime per document. Qwen/GLM weights may remain
+loaded between requests only while memory permits. Loading another model checks
+both host RAM and CUDA VRAM. Low-memory systems evict weights between stages;
+all models are released at document completion or cancellation. Prompts and
+generation caches are not shared between requests. Existing Slow installations
+work without downloading models or reinstalling their environment.
+
+Saved results include `performance` metadata (decoder, initial resource snapshot,
+worker budget, fallback count, primary page durations and total time). The same
+summary is written to `crops/performance.json`. Slow execution evidence records
+model reuse, load time, inference time in the response files, and request time.
+Local performance tests and source-document benchmarks belong in ignored `qa/`.
+
 ## Further reading
 
 - [Localization](LOCALIZATION.md)

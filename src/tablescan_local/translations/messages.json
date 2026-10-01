@@ -3548,5 +3548,185 @@
     "en": "Rotation will detect a new grid and clear fields, rules and template values. Continue?",
     "ru": "Поворот определит новую сетку и удалит поля, правила и значения шаблона. Продолжить?",
     "cs": "Otočení rozpozná novou mřížku a odstraní pole, pravidla a hodnoty šablony. Pokračovat?"
+  },
+  "Diagnostics": {
+    "en": "Diagnostics",
+    "cs": "Diagnostika",
+    "ru": "Диагностика"
+  },
+  "Current resources and recorded analysis measurements. Model devices are shown only after execution.": {
+    "en": "Current resources and recorded analysis measurements. Model devices are shown only after execution.",
+    "cs": "Aktuální prostředky a uložená měření analýzy. Zařízení modelů se zobrazí až po jejich spuštění.",
+    "ru": "Текущие ресурсы и сохранённые показатели анализа. Устройство модели показывается только после её запуска."
+  },
+  "Analysis": {
+    "en": "Analysis",
+    "cs": "Analýza",
+    "ru": "Анализ"
+  },
+  "Copy diagnostic report": {
+    "en": "Copy diagnostic report",
+    "cs": "Kopírovat diagnostiku",
+    "ru": "Скопировать диагностику"
+  },
+  "Save diagnostic report…": {
+    "en": "Save diagnostic report…",
+    "cs": "Uložit diagnostiku…",
+    "ru": "Сохранить диагностику…"
+  },
+  "Close": {
+    "en": "Close",
+    "cs": "Zavřít",
+    "ru": "Закрыть"
+  },
+  "Device only": {
+    "en": "Device only",
+    "cs": "Pouze zařízení",
+    "ru": "Только устройство"
+  },
+  "Measurement": {
+    "en": "Measurement",
+    "cs": "Ukazatel",
+    "ru": "Показатель"
+  },
+  "Value": {
+    "en": "Value",
+    "cs": "Hodnota",
+    "ru": "Значение"
+  },
+  "Device": {
+    "en": "Device",
+    "cs": "Zařízení",
+    "ru": "Устройство"
+  },
+  "Application version": {
+    "en": "Application version",
+    "cs": "Verze aplikace",
+    "ru": "Версия приложения"
+  },
+  "Physical CPU cores": {
+    "en": "Physical CPU cores",
+    "cs": "Fyzická jádra CPU",
+    "ru": "Физические ядра CPU"
+  },
+  "Available / total RAM": {
+    "en": "Available / total RAM",
+    "cs": "Dostupná / celková RAM",
+    "ru": "Доступная / общая RAM"
+  },
+  "Memory reserve": {
+    "en": "Memory reserve",
+    "cs": "Paměťová rezerva",
+    "ru": "Резерв памяти"
+  },
+  "Numeric decoder": {
+    "en": "Numeric decoder",
+    "cs": "Dekodér čísel",
+    "ru": "Декодер чисел"
+  },
+  "Configured Slow runtime": {
+    "en": "Configured Slow runtime",
+    "cs": "Nastavené prostředí Slow",
+    "ru": "Настроенная среда Slow"
+  },
+  "Not installed": {
+    "en": "Not installed",
+    "cs": "Nenainstalováno",
+    "ru": "Не установлен"
+  },
+  "Started": {
+    "en": "Started",
+    "cs": "Zahájeno",
+    "ru": "Начало"
+  },
+  "Finished": {
+    "en": "Finished",
+    "cs": "Dokončeno",
+    "ru": "Окончание"
+  },
+  "Duration": {
+    "en": "Duration",
+    "cs": "Doba běhu",
+    "ru": "Длительность"
+  },
+  "CPU worker budget": {
+    "en": "CPU worker budget",
+    "cs": "Limit procesů CPU",
+    "ru": "Лимит процессов CPU"
+  },
+  "Cells processed in parallel": {
+    "en": "Cells processed in parallel",
+    "cs": "Paralelně zpracované buňky",
+    "ru": "Ячейки, обработанные параллельно"
+  },
+  "Sequential fallbacks": {
+    "en": "Sequential fallbacks",
+    "cs": "Návraty k sériovému zpracování",
+    "ru": "Возвраты к последовательной обработке"
+  },
+  "OCR total": {
+    "en": "OCR total",
+    "cs": "Celková doba OCR",
+    "ru": "Общее время OCR"
+  },
+  "Page {p0}: primary OCR": {
+    "en": "Page {p0}: primary OCR",
+    "cs": "Strana {p0}: základní OCR",
+    "ru": "Страница {p0}: первичное OCR"
+  },
+  "Recorded measurements": {
+    "en": "Recorded measurements",
+    "cs": "Uložená měření",
+    "ru": "Сохранённые показатели"
+  },
+  "Not available yet": {
+    "en": "Not available yet",
+    "cs": "Zatím není k dispozici",
+    "ru": "Пока недоступны"
+  },
+  "Page {p0}: Slow models": {
+    "en": "Page {p0}: Slow models",
+    "cs": "Strana {p0}: modely Slow",
+    "ru": "Страница {p0}: модели Slow"
+  },
+  "Model reused": {
+    "en": "Model reused",
+    "cs": "Model znovu použit",
+    "ru": "Модель использована повторно"
+  },
+  "Yes": {
+    "en": "Yes",
+    "cs": "Ano",
+    "ru": "Да"
+  },
+  "No": {
+    "en": "No",
+    "cs": "Ne",
+    "ru": "Нет"
+  },
+  "Model loading": {
+    "en": "Model loading",
+    "cs": "Načítání modelu",
+    "ru": "Загрузка модели"
+  },
+  "Request time": {
+    "en": "Request time",
+    "cs": "Doba požadavku",
+    "ru": "Время запроса"
+  },
+  "Times use your local time zone. Duration covers the latest attempt; ≥ marks the last recorded time before an interruption.": {
+    "en": "Times use your local time zone. Duration covers the latest attempt; ≥ marks the last recorded time before an interruption.",
+    "cs": "Časy jsou v místním časovém pásmu. Doba běhu platí pro poslední pokus; ≥ označuje poslední uloženou dobu před přerušením.",
+    "ru": "Время указано в вашем часовом поясе. Длительность относится к последней попытке; ≥ обозначает последнее сохранённое время работы перед прерыванием."
+  },
+  "Primary OCR device": {
+    "en": "Primary OCR device",
+    "cs": "Zařízení základního OCR",
+    "ru": "Устройство первичного OCR"
+  },
+  "Available OCR provider": {
+    "en": "Available OCR provider",
+    "cs": "Dostupný poskytovatel OCR",
+    "ru": "Доступный провайдер OCR"
   }
 }

@@ -8,6 +8,14 @@ import sys
 import time
 from pathlib import Path
 
+if __package__:
+    from .resource_policy import resources, can_keep_model, can_add_model, GIB
+else:
+    # This script also lives inside a signed macOS bundle. Importing a helper
+    # must not create __pycache__ there and invalidate the resource seal.
+    sys.dont_write_bytecode = True
+    from resource_policy import resources, can_keep_model, can_add_model, GIB
+
 
 def configure_cpu_environment():
     # Windows VMs can advertise AMX without a usable tile palette (oneDNN #5689).
@@ -139,8 +147,61 @@ class MlxEngine:
         return result.text
 
 
-def execute(request, output_path, device=None):
-    engine = MlxEngine(request) if request.get('backend', 'mlx') == 'mlx' else TransformersEngine(request, device)
+class EngineCache:
+    """Weights/process reuse only: prompts, outputs and KV state are per request."""
+    def __init__(self):
+        self.engines = {}
+
+    def clear(self):
+        self.engines.clear()
+        import gc
+        gc.collect()
+        # These modules are loaded only by the selected backend.
+        if 'mlx.core' in sys.modules:
+            sys.modules['mlx.core'].clear_cache()
+        if 'torch' in sys.modules and sys.modules['torch'].cuda.is_available():
+            sys.modules['torch'].cuda.empty_cache()
+
+    def acquire(self, request, device=None):
+        key = (request.get('backend', 'mlx'), request['kind'], request['model'],
+               device or request.get('device', 'auto'), request.get('cpu_dtype', 'bfloat16'))
+        reused = key in self.engines
+        start = time.monotonic()
+        if reused and len(self.engines) > 1 and not can_keep_model(resources()):
+            selected = self.engines.pop(key)
+            self.clear()
+            self.engines[key] = selected
+            del selected
+        if not reused:
+            state = resources()
+            weights = sum(p.stat().st_size for p in Path(request['model']).glob('*.safetensors'))
+            gpu_free = None
+            if any(engine.execution['device'] == 'cuda' for engine in self.engines.values()):
+                import torch
+                gpu_free, _ = torch.cuda.mem_get_info()
+            required = (12 if request['kind'] == 'qwen' else 4) * GIB
+            if self.engines and not can_add_model(state, weights, gpu_free=gpu_free, gpu_required=required):
+                self.clear()
+            engine = (MlxEngine(request) if key[0] == 'mlx' else TransformersEngine(request, device))
+            self.engines[key] = engine
+        engine = self.engines[key]
+        # Progress must target this request's status file, never the last page.
+        engine.request = request
+        engine.execution = {**engine.execution, 'model_reused': reused,
+                            'load_seconds': time.monotonic() - start}
+        return engine
+
+    def trim(self):
+        if not can_keep_model(resources()):
+            self.clear()
+
+
+def execute(request, output_path, device=None, cache=None):
+    start = time.monotonic()
+    engine = (cache.acquire(request, device) if cache else
+              MlxEngine(request) if request.get('backend', 'mlx') == 'mlx' else TransformersEngine(request, device))
+    if cache is None:
+        engine.execution.update(model_reused=False, load_seconds=time.monotonic() - start)
     write_status(request, engine.execution['device'], 'inference')
     records = []
     for record in request['records']:
@@ -150,21 +211,18 @@ def execute(request, output_path, device=None):
         start = time.monotonic()
         raw = engine.generate(image, task, limit)
         records.append({'id': record['id'], 'raw': raw, 'seconds': time.monotonic() - start,
-                        'execution': engine.execution})
+                        'execution': dict(engine.execution)})
         temporary = output_path.with_suffix('.tmp')
         temporary.write_text(json.dumps(records, ensure_ascii=False), encoding='utf-8')
         temporary.replace(output_path)
 
 
-def main():
-    os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', TOKENIZERS_PARALLELISM='false')
-    request_path, output_path = map(Path, sys.argv[1:3])
-    request = json.loads(request_path.read_text(encoding='utf-8'))
+def run_request(request, output_path, cache=None):
     if request.get('backend', 'mlx') not in {'mlx', 'transformers'}:
         raise ValueError('Unknown backend')
     retry_cpu = False
     try:
-        execute(request, output_path)
+        execute(request, output_path, **({'cache': cache} if cache else {}))
     except Exception as exc:
         if request.get('backend') == 'transformers' and request.get('device', 'auto') == 'auto':
             import torch
@@ -175,11 +233,53 @@ def main():
         # Leave the exception scope before collecting tensors retained by its traceback.
         import gc
         import torch
+        if cache:
+            cache.clear()
         gc.collect()
         torch.cuda.empty_cache()
         output_path.unlink(missing_ok=True)
         print('CUDA memory exhausted; retrying on CPU.', flush=True)
-        execute(request, output_path, device='cpu')
+        execute(request, output_path, device='cpu', **({'cache': cache} if cache else {}))
+
+
+def serve():
+    from contextlib import redirect_stdout, redirect_stderr
+    import traceback
+    cache = EngineCache()
+    try:
+        for line in sys.stdin:
+            command = json.loads(line)
+            request_path, output = Path(command['request']), Path(command['output'])
+            request = json.loads(request_path.read_text(encoding='utf-8'))
+            with (request_path.parent / (request['kind'] + '.log')).open('w', encoding='utf-8') as log:
+                with redirect_stdout(log), redirect_stderr(log):
+                    try:
+                        run_request(request, output, cache)
+                        cache.trim()
+                        outcome = {'ok': True, 'retained_models': len(cache.engines)}
+                    except Exception as exc:
+                        traceback.print_exc()
+                        outcome = {'ok': False, 'error': str(exc)}
+                    # Clear after leaving the exception scope; its traceback
+                    # otherwise keeps failed model tensors alive during GC.
+                    if not outcome['ok']:
+                        cache.clear()
+            done = output.with_suffix('.done.json')
+            temporary = done.with_suffix('.tmp')
+            temporary.write_text(json.dumps(outcome), encoding='utf-8')
+            temporary.replace(done)
+    finally:
+        cache.clear()
+
+
+def main():
+    os.environ.update(HF_HUB_OFFLINE='1', TRANSFORMERS_OFFLINE='1', TOKENIZERS_PARALLELISM='false')
+    if sys.argv[1:] == ['--serve']:
+        serve()
+        return
+    request_path, output_path = map(Path, sys.argv[1:3])
+    request = json.loads(request_path.read_text(encoding='utf-8'))
+    run_request(request, output_path)
 
 
 if __name__ == '__main__':
