@@ -55,9 +55,9 @@
       "name": "Date",
       "rect": {
         "x": 0.03515003958828187,
-        "y": 0.12132082866741317,
+        "y": 0.08420314432006692,
         "width": 0.16920902612826605,
-        "height": 0.032954087346024674
+        "height": 0.07007177169337092
       },
       "kind": "date",
       "recognition": "handwritten",
@@ -67,16 +67,17 @@
       "required": true,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB"
+      "color": "#2563EB",
+      "printed_label": "Date"
     },
     {
       "id": "von_frey-Session",
       "name": "Session",
       "rect": {
         "x": 0.2073590657165479,
-        "y": 0.12132082866741317,
+        "y": 0.08401756914981966,
         "width": 0.19692082343626285,
-        "height": 0.032954087346024674
+        "height": 0.07025734686361819
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -86,16 +87,17 @@
       "required": true,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB"
+      "color": "#2563EB",
+      "printed_label": "Session"
     },
     {
       "id": "von_frey-Operator",
       "name": "Operator",
       "rect": {
         "x": 0.40727988915281077,
-        "y": 0.12132082866741317,
+        "y": 0.08401756914981966,
         "width": 0.5441100554235946,
-        "height": 0.032954087346024674
+        "height": 0.07025734686361819
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -105,7 +107,8 @@
       "required": false,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB"
+      "color": "#2563EB",
+      "printed_label": "Operator"
     },
     {
       "id": "von_frey-assay",
@@ -189,16 +192,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "L2",
@@ -206,16 +209,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "L3",
@@ -223,16 +226,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "L4",
@@ -240,16 +243,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "L5",
@@ -257,16 +260,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "R1",
@@ -274,16 +277,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "R2",
@@ -291,16 +294,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "R3",
@@ -308,16 +311,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "R4",
@@ -325,16 +328,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "R5",
@@ -342,16 +345,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": null,
+      "maximum": 200,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": null,
+      "decimal_places": 1,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": false
+      "require_decimal": true
     },
     {
       "name": "Notes",
@@ -371,7 +374,7 @@
       "require_decimal": false
     }
   ],
-  "schema_version": 3,
+  "schema_version": 4,
   "rotation_degrees": 0,
   "cell_rules": [
     {
@@ -406,15 +409,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -428,15 +431,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -450,15 +453,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -472,15 +475,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -494,15 +497,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -516,15 +519,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -538,15 +541,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -560,15 +563,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -582,15 +585,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -604,15 +607,15 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": null,
-        "decimal_places": null,
+        "maximum": 200,
+        "decimal_places": 1,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": false
+        "require_decimal": true
       },
       "color": "#4F46E5"
     },
@@ -639,9 +642,71 @@
       "color": "#4F46E5"
     }
   ],
-  "template_version": 2,
+  "template_version": 4,
   "family_id": "d36eaf7a-4774-5b46-83a7-c3860223a3e4",
   "reference_source_path": "",
   "reference_page_aspect": 1.4143337066069428,
-  "auto_fit_rows": true
+  "auto_fit_rows": true,
+  "fixed_cells": [
+    {
+      "row": 0,
+      "column": 0,
+      "value": "ID"
+    },
+    {
+      "row": 0,
+      "column": 1,
+      "value": "L1"
+    },
+    {
+      "row": 0,
+      "column": 2,
+      "value": "L2"
+    },
+    {
+      "row": 0,
+      "column": 3,
+      "value": "L3"
+    },
+    {
+      "row": 0,
+      "column": 4,
+      "value": "L4"
+    },
+    {
+      "row": 0,
+      "column": 5,
+      "value": "L5"
+    },
+    {
+      "row": 0,
+      "column": 6,
+      "value": "R1"
+    },
+    {
+      "row": 0,
+      "column": 7,
+      "value": "R2"
+    },
+    {
+      "row": 0,
+      "column": 8,
+      "value": "R3"
+    },
+    {
+      "row": 0,
+      "column": 9,
+      "value": "R4"
+    },
+    {
+      "row": 0,
+      "column": 10,
+      "value": "R5"
+    },
+    {
+      "row": 0,
+      "column": 11,
+      "value": "Notes"
+    }
+  ]
 }

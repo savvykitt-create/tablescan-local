@@ -588,7 +588,7 @@ class LocalOcrEngine:
             flags.append("possible_border_digit")
         return OcrValue(value, confidence, " | ".join(ordered[1:5]), flags, raw_primary, ordered, dict(confidence_by_value))
 
-    def recognize_region(self, crop: np.ndarray, numeric: bool = False) -> OcrValue:
+    def recognize_region(self, crop: np.ndarray, numeric: bool = False, printed_label: str = "") -> OcrValue:
         if numeric:
             constraints = ValueConstraints("numeric") if getattr(self, "_high_accuracy", False) else None
             return self.recognize_cell(crop, numeric=True, constraints=constraints)
@@ -612,8 +612,21 @@ class LocalOcrEngine:
         if not result:
             return OcrValue("", 0.0, flags=["empty_prediction"])
         ordered = reading_order(result)
-        text = clean_text(" ".join(str(item[1]) for item in ordered))
-        confidence = min(float(item[2]) for item in ordered)
+        raw_text = clean_text(" ".join(str(item[1]) for item in ordered))
+        # Expanded form fields include their printed caption. Remove only an
+        # exact leading caption from one OCR box; keep handwriting beside it
+        # or below it, and preserve the complete reading for review.
+        readings = [(str(item[1]), float(item[2])) for item in ordered]
+        if printed_label:
+            pattern = re.compile(r"^\s*" + re.escape(printed_label) + r"(?=\s|:|$)\s*:?\s*", re.IGNORECASE)
+            for index, (value, score) in enumerate(readings):
+                cleaned, count = pattern.subn("", value, count=1)
+                if count:
+                    readings[index] = (cleaned, score)
+                    break
+        readings = [(value, score) for value, score in readings if value.strip()]
+        text = clean_text(" ".join(value for value, _ in readings))
+        confidence = min((score for _, score in readings), default=1.0)
         if numeric:
             text = clean_numeric(text)
         flags: list[str] = []
@@ -621,7 +634,7 @@ class LocalOcrEngine:
             flags.append("low_confidence")
         if numeric and text and not is_complex_number(text):
             flags.append("invalid_numeric_format")
-        return OcrValue(text, confidence, flags=flags)
+        return OcrValue(text, confidence, flags=flags, raw_text=raw_text)
 
     def detect_text_boxes(self, image: np.ndarray) -> list[tuple[list[list[float]], str, float]]:
         result, _ = self._engine(image)

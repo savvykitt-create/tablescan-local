@@ -1065,6 +1065,8 @@ class TablePage(QWidget):
         self.continue_button.setText(tr('Analysis queued or running') if running else tr('Add to analysis queue'))
 
     def set_saved_templates(self, templates: list[TableTemplate]) -> None:
+        from .template_matcher import latest_template_versions
+        templates = latest_template_versions(templates)
         selected_id = self.template.id if self.template else self.saved_template_select.currentData()
         self.saved_template_select.blockSignals(True)
         self.saved_template_select.clear()

@@ -331,12 +331,24 @@ checks, and Slow-mode verification. Choose **Recognize with OCR** to restore
 recognition. **Fill column headers** fills only the first
 header row; it never fills animal IDs in the data rows.
 
-Bundled Von Frey, Plantar, and Staircase forms contain fixed column headings.
+Bundled Von Frey, Plantar, and Staircase forms automatically apply fixed column
+headings when selected, including after fitting the grid to a scan. The template
+selector shows only the latest saved version of each family.
 Animal IDs, measurements, Date, Session, Operator, and free-text notes still use
 OCR. Existing untouched factory templates receive the fixed headings on upgrade;
 edited templates and previously analyzed documents are preserved. Fixed cell
 addresses are not repeated when the table grows, and shrinking past a fixed cell
 requires removing or correcting that address.
+
+Bundled Plantar measurements accept 0.0–35.0 and Von Frey measurements accept
+0.0–200.0, with exactly one decimal place (a comma or period is accepted).
+Missing measurements remain blank; out-of-range or incorrectly formatted
+readings require review. These are the bundled protocol limits and can be
+changed in a custom template. Date, Session and Operator regions include writing
+beside the printed caption as well as below it. An exact recognized caption is
+removed from the field value, while the complete OCR reading remains in the
+review details. Unmodified factory templates receive these updates;
+customized templates and existing analysis snapshots keep their saved settings.
 
 ### Updating the application
 

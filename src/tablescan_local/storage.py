@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from .domain import JobResult, TableTemplate
+from ._factory_template_hashes import PREVIOUS_FACTORY_TEMPLATES
 
 
 class LocalStore:
@@ -48,11 +49,15 @@ class LocalStore:
             if default and saved.template_version < default.template_version:
                 previous = saved.to_dict()
                 previous.pop('reference_source_path', None)
+                for region in previous['fields']:
+                    if not region.get('printed_label'):
+                        region.pop('printed_label', None)
                 fingerprint = hashlib.sha256(json.dumps(previous, sort_keys=True).encode()).hexdigest()
-                # Exact factory v1 portrait layout. Preserve edits, deleted
-                # templates and the immutable snapshots in existing analyses.
-                if fingerprint == '9b157f9723f786c2cc1a6176ce7125f245663274e67150c2b01826b1b32fdc66':
-                    self.save_template(default, bundled / 'staircase_portrait.pdf')
+                # Only exact shipped layouts may be replaced automatically.
+                # User edits and snapshots in existing jobs remain unchanged.
+                stem = PREVIOUS_FACTORY_TEMPLATES.get(fingerprint)
+                if stem:
+                    self.save_template(default, bundled / f'{stem}.pdf')
                     continue
             if not default or saved.schema_version >= 4:
                 continue

@@ -103,6 +103,7 @@ class FieldRegion:
     column_start: int | None = None
     column_end: int | None = None
     color: str = "#2563EB"
+    printed_label: str = ""
 
     def constraints(self) -> ValueConstraints:
         return ValueConstraints(value_format=self.kind, allow_empty=not self.required)

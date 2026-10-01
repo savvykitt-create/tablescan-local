@@ -61,9 +61,9 @@
       "name": "Date",
       "rect": {
         "x": 0.03515003958828187,
-        "y": 0.12132082866741317,
+        "y": 0.08420314432006692,
         "width": 0.11932779097387175,
-        "height": 0.032954087346024674
+        "height": 0.07007177169337092
       },
       "kind": "date",
       "recognition": "handwritten",
@@ -73,16 +73,17 @@
       "required": true,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB"
+      "color": "#2563EB",
+      "printed_label": "Date"
     },
     {
       "id": "staircase-Session",
       "name": "Session",
       "rect": {
         "x": 0.15747783056215361,
-        "y": 0.12132082866741317,
+        "y": 0.08401756914981966,
         "width": 0.12209897070467138,
-        "height": 0.032954087346024674
+        "height": 0.07025734686361819
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -92,16 +93,17 @@
       "required": true,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB"
+      "color": "#2563EB",
+      "printed_label": "Session"
     },
     {
       "id": "staircase-Operator",
       "name": "Operator",
       "rect": {
         "x": 0.282576801266825,
-        "y": 0.12132082866741317,
+        "y": 0.08401756914981966,
         "width": 0.6696049089469517,
-        "height": 0.032954087346024674
+        "height": 0.07025734686361819
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -111,7 +113,8 @@
       "required": false,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB"
+      "color": "#2563EB",
+      "printed_label": "Operator"
     },
     {
       "id": "staircase-assay",
@@ -879,7 +882,7 @@
       "color": "#4F46E5"
     }
   ],
-  "template_version": 3,
+  "template_version": 4,
   "family_id": "60f298f9-04b8-5b7b-8207-0c010028b748",
   "reference_source_path": "",
   "reference_page_aspect": 1.4143337066069428,

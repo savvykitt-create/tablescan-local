@@ -43,8 +43,8 @@ page layouts or row counts within one PDF require separate analysis jobs.
 
 | Form | Measurement columns |
 | --- | --- |
-| Von Frey | L1–L5 and R1–R5; nonnegative numbers |
-| Plantar | L1–L5 and R1–R5; nonnegative numbers |
+| Von Frey | L1–L5 and R1–R5; 0.0–200.0, exactly one decimal place |
+| Plantar | L1–L5 and R1–R5; 0.0–35.0, exactly one decimal place |
 | Staircase | L1–L7, L drop, R1–R7, R drop; nonnegative integers |
 
 Cell comments explain default rules but do not print. The blank source workbook

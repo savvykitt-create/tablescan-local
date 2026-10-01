@@ -1,6 +1,6 @@
 {
-  "id": "7e2f99c4-f262-58af-9456-09e6065d31cc",
-  "name": "Plantar",
+  "id": "0b9b8439-d0cd-5dca-8bcd-362511c9980c",
+  "name": "Von Frey",
   "table_rect": {
     "x": 0.03127474267616785,
     "y": 0.16573348264277715,
@@ -51,13 +51,13 @@
   "detect_crossed_rows": false,
   "fields": [
     {
-      "id": "plantar-Date",
+      "id": "von_frey-Date",
       "name": "Date",
       "rect": {
         "x": 0.03515003958828187,
-        "y": 0.08420314432006692,
+        "y": 0.12132082866741317,
         "width": 0.16920902612826605,
-        "height": 0.07007177169337092
+        "height": 0.032954087346024674
       },
       "kind": "date",
       "recognition": "handwritten",
@@ -67,17 +67,16 @@
       "required": true,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB",
-      "printed_label": "Date"
+      "color": "#2563EB"
     },
     {
-      "id": "plantar-Session",
+      "id": "von_frey-Session",
       "name": "Session",
       "rect": {
         "x": 0.2073590657165479,
-        "y": 0.08401756914981966,
+        "y": 0.12132082866741317,
         "width": 0.19692082343626285,
-        "height": 0.07025734686361819
+        "height": 0.032954087346024674
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -87,17 +86,16 @@
       "required": true,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB",
-      "printed_label": "Session"
+      "color": "#2563EB"
     },
     {
-      "id": "plantar-Operator",
+      "id": "von_frey-Operator",
       "name": "Operator",
       "rect": {
         "x": 0.40727988915281077,
-        "y": 0.08401756914981966,
+        "y": 0.12132082866741317,
         "width": 0.5441100554235946,
-        "height": 0.07025734686361819
+        "height": 0.032954087346024674
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -107,11 +105,10 @@
       "required": false,
       "column_start": null,
       "column_end": null,
-      "color": "#2563EB",
-      "printed_label": "Operator"
+      "color": "#2563EB"
     },
     {
-      "id": "plantar-assay",
+      "id": "von_frey-assay",
       "name": "Assay",
       "rect": {
         "x": 0.03365003958828187,
@@ -122,7 +119,7 @@
       "kind": "text",
       "recognition": "printed",
       "source": "fixed",
-      "fixed_value": "Plantar",
+      "fixed_value": "Von Frey",
       "export_mode": "repeat",
       "required": false,
       "column_start": null,
@@ -130,7 +127,7 @@
       "color": "#2563EB"
     },
     {
-      "id": "plantar-side-L",
+      "id": "von_frey-side-L",
       "name": "Side L",
       "rect": {
         "x": 0.03365003958828187,
@@ -149,7 +146,7 @@
       "color": "#2563EB"
     },
     {
-      "id": "plantar-side-R",
+      "id": "von_frey-side-R",
       "name": "Side R",
       "rect": {
         "x": 0.03365003958828187,
@@ -192,16 +189,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "L2",
@@ -209,16 +206,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "L3",
@@ -226,16 +223,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "L4",
@@ -243,16 +240,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "L5",
@@ -260,16 +257,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "R1",
@@ -277,16 +274,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "R2",
@@ -294,16 +291,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "R3",
@@ -311,16 +308,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "R4",
@@ -328,16 +325,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "R5",
@@ -345,16 +342,16 @@
       "value_format": "numeric",
       "decimal_separator": "dot_or_comma",
       "minimum": 0,
-      "maximum": 35,
+      "maximum": null,
       "allow_empty": true,
       "preserve_complex_notation": true,
-      "decimal_places": 1,
+      "decimal_places": null,
       "allowed_values": [],
       "expected_minimum": null,
       "expected_maximum": null,
       "suggest_missing_decimal": false,
       "prefer_expected_range": false,
-      "require_decimal": true
+      "require_decimal": false
     },
     {
       "name": "Notes",
@@ -378,7 +375,7 @@
   "rotation_degrees": 0,
   "cell_rules": [
     {
-      "id": "plantar-c0",
+      "id": "von_frey-c0",
       "name": "ID: sequential ID, integer >= 1",
       "row_start": 1,
       "row_end": 20,
@@ -400,7 +397,7 @@
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c1",
+      "id": "von_frey-c1",
       "name": "L1: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -409,20 +406,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c2",
+      "id": "von_frey-c2",
       "name": "L2: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -431,20 +428,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c3",
+      "id": "von_frey-c3",
       "name": "L3: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -453,20 +450,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c4",
+      "id": "von_frey-c4",
       "name": "L4: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -475,20 +472,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c5",
+      "id": "von_frey-c5",
       "name": "L5: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -497,20 +494,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c6",
+      "id": "von_frey-c6",
       "name": "R1: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -519,20 +516,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c7",
+      "id": "von_frey-c7",
       "name": "R2: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -541,20 +538,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c8",
+      "id": "von_frey-c8",
       "name": "R3: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -563,20 +560,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c9",
+      "id": "von_frey-c9",
       "name": "R4: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -585,20 +582,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c10",
+      "id": "von_frey-c10",
       "name": "R5: nonnegative number; blank = missing",
       "row_start": 1,
       "row_end": 20,
@@ -607,20 +604,20 @@
       "constraints": {
         "value_format": "numeric",
         "minimum": 0,
-        "maximum": 35,
-        "decimal_places": 1,
+        "maximum": null,
+        "decimal_places": null,
         "allowed_values": [],
         "expected_minimum": null,
         "expected_maximum": null,
         "allow_empty": true,
         "suggest_missing_decimal": false,
         "prefer_expected_range": false,
-        "require_decimal": true
+        "require_decimal": false
       },
       "color": "#4F46E5"
     },
     {
-      "id": "plantar-c11",
+      "id": "von_frey-c11",
       "name": "Notes: free text, blank allowed",
       "row_start": 1,
       "row_end": 20,
@@ -642,8 +639,8 @@
       "color": "#4F46E5"
     }
   ],
-  "template_version": 4,
-  "family_id": "dbe6a299-aab6-5439-b752-5bc3983ca492",
+  "template_version": 3,
+  "family_id": "d36eaf7a-4774-5b46-83a7-c3860223a3e4",
   "reference_source_path": "",
   "reference_page_aspect": 1.4143337066069428,
   "auto_fit_rows": true,

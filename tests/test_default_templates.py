@@ -103,7 +103,7 @@ def test_unchanged_portrait_upgrades_but_edits_and_saved_analyses_remain(tmp_pat
     store.save_draft('existing-analysis', old)
     store.install_default_templates()
     upgraded = next(t for t in store.load_templates() if t.id == old.id)
-    assert upgraded.columns == 17 and upgraded.template_version == 2
+    assert upgraded.columns == 17 and upgraded.template_version == 3
     assert Path(upgraded.reference_source_path).is_file()
     assert store.load_draft('existing-analysis').columns == 18
     edited = TableTemplate.from_dict(old_data)

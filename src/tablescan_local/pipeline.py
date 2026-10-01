@@ -116,7 +116,8 @@ def process_page(
             flags: list[str] = []
         else:
             numeric = region.kind in {"integer", "numeric", "complex_numeric"}
-            recognized = engine.recognize_region(crop, numeric=numeric)
+            options = {"printed_label": region.printed_label} if region.printed_label else {}
+            recognized = engine.recognize_region(crop, numeric=numeric, **options)
             value, confidence, flags = recognized.text, recognized.confidence, list(recognized.flags or [])
             if not region.required and not value:
                 flags = [flag for flag in flags if flag != "empty_prediction"]
