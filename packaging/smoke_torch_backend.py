@@ -4,9 +4,10 @@ Downloads only the pinned processors/configs, never production weights. Run in
 an isolated PyTorch environment so the desktop bundle cannot collect torch.
 """
 import gc
-import importlib.util
+import importlib
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 
@@ -15,10 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def module(name):
-    spec = importlib.util.spec_from_file_location(name, ROOT / 'src/tablescan_local' / f'{name}.py')
-    result = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(result)
-    return result
+    # Import as a package so the standalone worker's sibling dependencies are
+    # resolved in the isolated CPU environment too. No desktop install needed.
+    source = str(ROOT / 'src')
+    if source not in sys.path:
+        sys.path.insert(0, source)
+    return importlib.import_module(f'tablescan_local.{name}')
 
 
 def main():

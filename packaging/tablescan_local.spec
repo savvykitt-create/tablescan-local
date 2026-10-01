@@ -67,7 +67,7 @@ if sys.platform == "darwin":
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "1.0.6",
-            "CFBundleVersion": "1.0.6",
+            "CFBundleShortVersionString": "1.0.7",
+            "CFBundleVersion": "1.0.7",
         },
     )
