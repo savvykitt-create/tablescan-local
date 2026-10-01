@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .i18n import tr, fmt, join_text
 import json
+import hashlib
 import shutil
 import sqlite3
 from datetime import datetime, timezone
@@ -37,13 +38,22 @@ class LocalStore:
         addition.write_text('installed\n', encoding='utf-8')
 
     def _upgrade_unchanged_default_templates(self) -> None:
-        """Add fixed headers only to untouched factory templates, never edits/jobs."""
+        """Upgrade identified factory templates, preserving user edits and jobs."""
         bundled = Path(__file__).parent / 'default_templates'
         defaults = {item.id: item for item in (
             TableTemplate.from_dict(json.loads(path.read_text(encoding='utf-8')))
             for path in bundled.glob('*.json'))}
         for saved in self.load_templates():
             default = defaults.get(saved.id)
+            if default and saved.template_version < default.template_version:
+                previous = saved.to_dict()
+                previous.pop('reference_source_path', None)
+                fingerprint = hashlib.sha256(json.dumps(previous, sort_keys=True).encode()).hexdigest()
+                # Exact factory v1 portrait layout. Preserve edits, deleted
+                # templates and the immutable snapshots in existing analyses.
+                if fingerprint == '9b157f9723f786c2cc1a6176ce7125f245663274e67150c2b01826b1b32fdc66':
+                    self.save_template(default, bundled / 'staircase_portrait.pdf')
+                    continue
             if not default or saved.schema_version >= 4:
                 continue
             before, after = saved.to_dict(), default.to_dict()

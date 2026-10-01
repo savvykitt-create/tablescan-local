@@ -5,8 +5,9 @@ uses formulas; L and R headers have distinct colors, and Notes provides space fo
 free text. Date, Session and Operator are outside the measurement grid.
 
 The additional **Staircase portrait (30 animals)** form starts with 30 animals
-and prints on one A4 portrait sheet. It uses the same measurement columns and
-rules as Staircase, with a separate layout template. In the downloadable archive,
+and prints on one A4 portrait sheet. It uses the same numeric measurement columns
+and rules as Staircase, with wider cells and no Notes column, and has a separate
+layout template. In the downloadable archive,
 choose `Excel/staircase_portrait.xlsx`, `PDF/staircase_portrait.pdf` and
 `templates/staircase_portrait.json`. Its editable data rows are 7–36; the header
 is worksheet row 6. Select the portrait protocol when recognizing this layout.

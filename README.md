@@ -119,7 +119,8 @@ forms start with 20 animals, numbered IDs, distinct L/R header colors and a wide
 Notes column. Insert or delete complete data rows before printing.
 
 **Staircase portrait (30 animals)** is an additional A4 portrait form with all
-30 animals on one page, preserving L1–L7, L drop, R1–R7, R drop and Notes.
+30 animals on one page, with ID, L1–L7, L drop, R1–R7 and R drop.
+It omits Notes to give the numeric cells more room for handwritten digits.
 Its [Excel workbook](src/tablescan_local/default_templates/staircase_portrait.xlsx),
 [printable PDF](src/tablescan_local/default_templates/staircase_portrait.pdf) and
 [OCR template](src/tablescan_local/default_templates/staircase_portrait.json)
