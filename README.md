@@ -353,7 +353,12 @@ customized templates and existing analysis snapshots keep their saved settings.
 ### Updating the application
 
 Open **Settings → Application updates → Check for updates**, download the new
-version, then choose **Install and restart**. Checks run only when requested.
+version, then choose **Install and restart**.
+The app checks for updates in the background shortly after launch and every six
+hours while open. A persistent notification above the workspace opens the update
+settings when a newer compatible release is available. Network failures do not
+interrupt work. Automatic checks can be disabled in Settings; manual checks
+remain available. Downloads and installation always require user action.
 The updater uses stable GitHub releases for Apple Silicon macOS and Windows x64,
 verifies the downloaded package against its GitHub SHA-256 digest, and installs
 it over the current application. History, saved templates, source copies, and

@@ -111,6 +111,7 @@ def main() -> int:
         QMessageBox.warning(None, 'TableScan Local', str(exc))
         return 1
     window.show()
+    window.update_settings.start_automatic_checks()
     return app.exec()
 
 

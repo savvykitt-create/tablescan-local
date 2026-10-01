@@ -139,3 +139,61 @@ def test_update_action_waits_for_analysis(qtbot, monkeypatch):
     panel.perform_action()
     prepare.assert_not_called()
     assert panel.worker is None
+
+
+def test_background_notification_never_downloads_and_respects_preference(qtbot, monkeypatch, tmp_path):
+    from PySide6.QtCore import QSettings
+    from tablescan_local.update_settings import UpdateSettings
+    preferences = QSettings(str(tmp_path/'preferences.ini'), QSettings.Format.IniFormat)
+    check = Mock(return_value=release())
+    prepare = Mock()
+    monkeypatch.setattr(update, 'check_latest', check)
+    monkeypatch.setattr(update, 'prepare', prepare)
+    panel = UpdateSettings(preferences=preferences); qtbot.addWidget(panel)
+    notices = []
+    panel.updateAvailable.connect(notices.append)
+    panel.start_automatic_checks()
+    assert panel.check_timer.interval() == 10_000
+    panel._automatic_check()
+    qtbot.waitUntil(lambda: panel.worker is None)
+    assert notices == [release()]
+    assert panel.check_timer.interval() == 6 * 60 * 60 * 1000
+    prepare.assert_not_called()
+    panel.automatic.setChecked(False)
+    assert not panel.check_timer.isActive()
+    panel._automatic_check()
+    assert check.call_count == 1
+    other = UpdateSettings(preferences=preferences); qtbot.addWidget(other)
+    other.start_automatic_checks()
+    assert not other.check_timer.isActive()
+
+
+def test_background_failure_preserves_known_update_and_can_retry(qtbot, monkeypatch):
+    from tablescan_local.update_settings import UpdateSettings
+    panel = UpdateSettings(); qtbot.addWidget(panel)
+    panel.completed(release())
+    notices = []
+    panel.updateAvailable.connect(notices.append)
+    monkeypatch.setattr(update, 'check_latest', Mock(side_effect=OSError('offline')))
+    panel.check_updates(automatic=True)
+    qtbot.waitUntil(lambda: panel.worker is None)
+    assert panel.release == release() and not notices
+    assert panel.check.isEnabled()
+    monkeypatch.setattr(update, 'check_latest', lambda _: None)
+    panel.check_updates(automatic=True)
+    qtbot.waitUntil(lambda: panel.worker is None)
+    assert notices == [None] and panel.release is None
+
+
+def test_update_notice_is_visible_outside_settings_and_opens_updates(qtbot, monkeypatch, tmp_path):
+    from tablescan_local.ui import create_application
+    monkeypatch.setenv('TABLESCAN_DATA_DIR', str(tmp_path/'app-data'))
+    _app, window = create_application(); qtbot.addWidget(window)
+    assert window.update_notice.isHidden()
+    window.update_settings.completed(release())
+    assert not window.update_notice.isHidden()
+    assert release().version in window.update_notice.text()
+    window.update_notice.click()
+    assert window.main_stack.currentIndex() == 2
+    window.update_settings.completed(None)
+    assert window.update_notice.isHidden()

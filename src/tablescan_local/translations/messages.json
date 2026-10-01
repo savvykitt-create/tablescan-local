@@ -3728,5 +3728,15 @@
     "en": "Available OCR provider",
     "cs": "Dostupný poskytovatel OCR",
     "ru": "Доступный провайдер OCR"
+  },
+  "Automatically check for updates": {
+    "en": "Automatically check for updates",
+    "ru": "Автоматически проверять обновления",
+    "cs": "Automaticky kontrolovat aktualizace"
+  },
+  "Update {version} is available — open update settings": {
+    "en": "Update {version} is available — open update settings",
+    "ru": "Доступно обновление {version} — открыть настройки обновления",
+    "cs": "Je dostupná aktualizace {version} — otevřít nastavení aktualizací"
   }
 }

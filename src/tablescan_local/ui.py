@@ -2800,6 +2800,11 @@ class MainWindow(QMainWindow):
         self.theme_select.currentIndexChanged.connect(self._change_theme)
         top_layout.addWidget(self.theme_select)
         root_layout.addWidget(top)
+        self.update_notice = QPushButton()
+        self.update_notice.setProperty('primary', True)
+        self.update_notice.hide()
+        self.update_notice.clicked.connect(self._show_app_update)
+        root_layout.addWidget(self.update_notice)
 
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
@@ -2905,8 +2910,9 @@ class MainWindow(QMainWindow):
         set_theme_style(language_note, f"color: {MUTED};")
         settings_layout.addWidget(language_note)
         from .update_settings import UpdateSettings
-        self.update_settings = UpdateSettings(self, busy=self._has_background_work)
+        self.update_settings = UpdateSettings(self, busy=self._has_background_work, preferences=self.preferences)
         self.update_settings.installRequested.connect(self._install_app_update)
+        self.update_settings.updateAvailable.connect(self._update_available)
         settings_layout.addWidget(self.update_settings)
         from .slow_settings import SlowSettings
         self.slow_settings = SlowSettings(self, busy=self._has_background_work)
@@ -2914,6 +2920,7 @@ class MainWindow(QMainWindow):
         settings_layout.addStretch()
 
         settings_scroll = QScrollArea()
+        self.settings_scroll = settings_scroll
         settings_scroll.setWidgetResizable(True)
         settings_scroll.setWidget(settings_page)
         for page in (document_workspace, templates_workspace, settings_scroll): self.main_stack.addWidget(page)
@@ -2933,6 +2940,15 @@ class MainWindow(QMainWindow):
         export_action.setShortcut("Ctrl+E")
         export_action.triggered.connect(self.export_current)
         self.addAction(export_action)
+
+    def _update_available(self, release) -> None:
+        self.update_notice.setVisible(release is not None)
+        if release is not None:
+            self.update_notice.setText(tr('Update {version} is available — open update settings', version=release.version))
+
+    def _show_app_update(self) -> None:
+        self._navigate_section(2)
+        self.settings_scroll.ensureWidgetVisible(self.update_settings)
 
     def _install_app_update(self, plan) -> None:
         if self._has_background_work():
@@ -3578,6 +3594,7 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             self._close_requested = True
+            self.update_settings.stop_automatic_checks()
             self.queue_dialog.hide()
             self.setEnabled(False)
             self.save_status.setText(tr('Closing: stopping analyses…'))
