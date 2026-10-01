@@ -54,10 +54,10 @@
       "id": "plantar-Date",
       "name": "Date",
       "rect": {
-        "x": 0.03515003958828187,
-        "y": 0.08420314432006692,
-        "width": 0.16920902612826605,
-        "height": 0.07007177169337092
+        "x": 0.034719063157305434,
+        "y": 0.10232754380711111,
+        "width": 0.17007097899021886,
+        "height": 0.052115353625200964
       },
       "kind": "date",
       "recognition": "handwritten",
@@ -74,10 +74,10 @@
       "id": "plantar-Session",
       "name": "Session",
       "rect": {
-        "x": 0.2073590657165479,
-        "y": 0.08401756914981966,
-        "width": 0.19692082343626285,
-        "height": 0.07025734686361819
+        "x": 0.20692808928557146,
+        "y": 0.10232754380711111,
+        "width": 0.1977827762982157,
+        "height": 0.052115353625200964
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -94,10 +94,10 @@
       "id": "plantar-Operator",
       "name": "Operator",
       "rect": {
-        "x": 0.40727988915281077,
-        "y": 0.08401756914981966,
-        "width": 0.5441100554235946,
-        "height": 0.07025734686361819
+        "x": 0.40684891272183427,
+        "y": 0.10232754380711111,
+        "width": 0.1981786591169014,
+        "height": 0.052115353625200964
       },
       "kind": "text",
       "recognition": "handwritten",
@@ -642,7 +642,7 @@
       "color": "#4F46E5"
     }
   ],
-  "template_version": 4,
+  "template_version": 5,
   "family_id": "dbe6a299-aab6-5439-b752-5bc3983ca492",
   "reference_source_path": "",
   "reference_page_aspect": 1.4143337066069428,

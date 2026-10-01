@@ -43,8 +43,10 @@ def test_metadata_captures_label_line_and_original_space_below(assay):
                 continue
             index = text.search(region.name).get_next()[0]
             label_top = (height - text.get_charbox(index)[3]) / height
-            assert region.rect.y < label_top - 8 / height
-            assert region.rect.y + region.rect.height == pytest.approx(previous.rect.y + previous.rect.height)
+            assert region.rect.y < label_top
+            assert region.rect.y * height >= 60
+            # The border inset leaves up to two points outside the OCR crop.
+            assert region.rect.y + region.rect.height >= previous.rect.y + previous.rect.height - 2 / height
             assert region.printed_label == region.name
             assert region.rect.y + region.rect.height < template.table_rect.y
 

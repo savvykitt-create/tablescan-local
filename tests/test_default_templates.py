@@ -69,25 +69,26 @@ def test_portrait_printable_form_has_30_animals_and_matching_ocr_rules():
         assert fitted.fixed_value(0, col) == template.fixed_value(0, col)
     wb = load_workbook(root / 'staircase_portrait.xlsx')
     ws = wb.active
-    assert ws.max_row == 36 and ws.max_column == 17
+    assert ws.max_row == 37 and ws.max_column == 17
     assert ws.page_setup.orientation == 'portrait'
     assert ws.page_setup.fitToWidth == ws.page_setup.fitToHeight == 1
     assert ws.sheet_properties.pageSetUpPr.fitToPage
-    assert 'A$1:$Q$36' in str(ws.print_area)
-    assert ws['A36'].value == '=ROW()-6'
-    assert all(ws.cell(r, c).value is None for r in range(7, 37) for c in range(2, 18))
-    assert 'Notes' not in [ws.cell(6, c).value for c in range(1, 18)]
+    assert 'A$1:$Q$37' in str(ws.print_area)
+    assert ws['A37'].value == '=ROW()-7'
+    assert all(ws.cell(r, c).value is None for r in range(8, 38) for c in range(2, 18))
+    assert 'Notes' not in [ws.cell(7, c).value for c in range(1, 18)]
     assert all(cell.value is None for cell in ws[2])
     original = load_workbook(root / 'staircase.xlsx')
     for address in ('A6', 'B6', 'J6'):
-        assert ws[address].fill.fgColor.rgb[-6:] == original.active[address].fill.fgColor.rgb[-6:]
+        assert ws[address.replace('6','7')].fill.fgColor.rgb[-6:] == original.active[address].fill.fgColor.rgb[-6:]
     original.close()
     for field in template.fields:
         if field.source != 'fixed':
             assert field.rect.height * h >= 29
             assert field.rect.y + field.rect.height < template.table_rect.y
     operator = next(f for f in template.fields if f.name == 'Operator')
-    assert operator.rect.width * w > 280
+    r3 = next(i for i, rule in enumerate(template.column_rules) if rule.name == 'R3')
+    assert abs((operator.rect.x + operator.rect.width - template.column_guides[r3 + 1]) * w) < 2
     # Ordinary measurement cells grew from 22 to over 31 points.
     assert min((b-a)*w for a,b in zip(template.column_guides[1:-1], template.column_guides[2:])) > 31
     wb.close()
@@ -103,7 +104,7 @@ def test_unchanged_portrait_upgrades_but_edits_and_saved_analyses_remain(tmp_pat
     store.save_draft('existing-analysis', old)
     store.install_default_templates()
     upgraded = next(t for t in store.load_templates() if t.id == old.id)
-    assert upgraded.columns == 17 and upgraded.template_version == 3
+    assert upgraded.columns == 17 and upgraded.template_version == 4
     assert Path(upgraded.reference_source_path).is_file()
     assert store.load_draft('existing-analysis').columns == 18
     edited = TableTemplate.from_dict(old_data)
