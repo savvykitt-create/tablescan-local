@@ -972,6 +972,9 @@ class TablePage(QWidget):
         form = QFormLayout()
         form.setSpacing(12)
         self.saved_template_select = QComboBox()
+        # User selection applies the complete template, not just its label.
+        # activated does not fire when controls are populated programmatically.
+        self.saved_template_select.activated.connect(self._request_saved_template)
         self.template_name = QLineEdit("New template")
         self.rows_spin = QSpinBox()
         self.rows_spin.setRange(1, 200)
@@ -3445,6 +3448,7 @@ class MainWindow(QMainWindow):
             return
         template = next((item for item in self.store.load_templates() if item.id == template_id), None)
         if template is None:
+            self.table_page.set_saved_templates(self.store.load_templates())
             QMessageBox.warning(self, tr('Шаблон недоступен'), tr('Не удалось загрузить сохранённый шаблон.'))
             return
         current_rotation = self.template.rotation_degrees if self.template else 0
@@ -3452,6 +3456,7 @@ class MainWindow(QMainWindow):
         try:
             fitted = fit_document_template(template, images)
         except ValueError as exc:
+            self.table_page.set_saved_templates(self.store.load_templates())
             QMessageBox.warning(self, tr('Подгонка требует проверки'), str(exc))
             return
         self.images = images
