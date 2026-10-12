@@ -4008,5 +4008,245 @@
     "en": "or drop PDF, PNG, JPG, TIFF or HEIC/HEIF files here",
     "cs": "nebo sem přetáhněte soubory PDF, PNG, JPG, TIFF či HEIC/HEIF",
     "ru": "или перетащите сюда PDF, PNG, JPG, TIFF или HEIC/HEIF"
+  },
+  "Phone": {
+    "en": "Phone",
+    "ru": "Телефон",
+    "cs": "Telefon"
+  },
+  "Connecting…": {
+    "en": "Connecting…",
+    "ru": "Подключение…",
+    "cs": "Připojování…"
+  },
+  "Connected to your computer": {
+    "en": "Connected to your computer",
+    "ru": "Подключено к компьютеру",
+    "cs": "Připojeno k počítači"
+  },
+  "Connection unavailable": {
+    "en": "Connection unavailable",
+    "ru": "Нет соединения",
+    "cs": "Připojení není dostupné"
+  },
+  "Scan with your phone": {
+    "en": "Scan with your phone",
+    "ru": "Сканируйте телефоном",
+    "cs": "Skenujte telefonem"
+  },
+  "Take a photo. It will appear in TableScan on your computer.": {
+    "en": "Take a photo. It will appear in TableScan on your computer.",
+    "ru": "Сделайте снимок. Он появится в TableScan на компьютере.",
+    "cs": "Pořiďte snímek. Objeví se v TableScan na počítači."
+  },
+  "Take a photo": {
+    "en": "Take a photo",
+    "ru": "Сделать снимок",
+    "cs": "Pořídit snímek"
+  },
+  "Confirm the photo in your camera to send it. You can take the next page afterwards.": {
+    "en": "Confirm the photo in your camera to send it. You can take the next page afterwards.",
+    "ru": "Подтвердите снимок в камере, чтобы отправить его. Затем можно снять следующую страницу.",
+    "cs": "Potvrďte snímek ve fotoaparátu a odešlete jej. Poté můžete vyfotit další stránku."
+  },
+  "Reconnect": {
+    "en": "Reconnect",
+    "ru": "Подключиться снова",
+    "cs": "Znovu připojit"
+  },
+  "Your photos": {
+    "en": "Your photos",
+    "ru": "Ваши снимки",
+    "cs": "Vaše snímky"
+  },
+  "Your sent photos will appear here.": {
+    "en": "Your sent photos will appear here.",
+    "ru": "Здесь появятся отправленные снимки.",
+    "cs": "Zde se zobrazí odeslané snímky."
+  },
+  "Direct transfer to your computer. Keep this page open until every photo is saved.": {
+    "en": "Direct transfer to your computer. Keep this page open until every photo is saved.",
+    "ru": "Передача напрямую на компьютер. Не закрывайте страницу, пока все снимки не сохранятся.",
+    "cs": "Přenos přímo do počítače. Nechte stránku otevřenou, dokud se všechny snímky neuloží."
+  },
+  "Waiting to send": {
+    "en": "Waiting to send",
+    "ru": "Ожидает отправки",
+    "cs": "Čeká na odeslání"
+  },
+  "Sending…": {
+    "en": "Sending…",
+    "ru": "Отправка…",
+    "cs": "Odesílání…"
+  },
+  "Saved on computer": {
+    "en": "Saved on computer",
+    "ru": "Сохранено на компьютере",
+    "cs": "Uloženo v počítači"
+  },
+  "Not sent": {
+    "en": "Not sent",
+    "ru": "Не отправлено",
+    "cs": "Neodesláno"
+  },
+  "Photo": {
+    "en": "Photo",
+    "ru": "Снимок",
+    "cs": "Snímek"
+  },
+  "Retry": {
+    "en": "Retry",
+    "ru": "Повторить",
+    "cs": "Zkusit znovu"
+  },
+  "Not confirmed. Tap Retry; an already saved photo will not be duplicated.": {
+    "en": "Not confirmed. Tap Retry; an already saved photo will not be duplicated.",
+    "ru": "Сохранение не подтверждено. Нажмите «Повторить» — уже сохранённый снимок не будет продублирован.",
+    "cs": "Uložení není potvrzeno. Klepněte na Zkusit znovu; již uložený snímek se nevytvoří podruhé."
+  },
+  "Open a new connection in TableScan and scan its QR code again.": {
+    "en": "Open a new connection in TableScan and scan its QR code again.",
+    "ru": "Создайте новое подключение в TableScan и снова отсканируйте QR-код.",
+    "cs": "Vytvořte nové připojení v TableScan a znovu naskenujte jeho QR kód."
+  },
+  "This connection has ended. Start a new one in TableScan.": {
+    "en": "This connection has ended. Start a new one in TableScan.",
+    "ru": "Соединение завершено. Создайте новое в TableScan.",
+    "cs": "Toto připojení skončilo. Vytvořte nové v TableScan."
+  },
+  "Keep TableScan open and connect both devices to the same Wi-Fi network. Then tap Reconnect.": {
+    "en": "Keep TableScan open and connect both devices to the same Wi-Fi network. Then tap Reconnect.",
+    "ru": "Оставьте TableScan открытым и подключите оба устройства к одной сети Wi-Fi. Затем нажмите «Подключиться снова».",
+    "cs": "Nechte TableScan otevřený a připojte obě zařízení ke stejné Wi-Fi. Poté klepněte na Znovu připojit."
+  },
+  "This image could not be read. Take another photo or choose a supported image.": {
+    "en": "This image could not be read. Take another photo or choose a supported image.",
+    "ru": "Не удалось прочитать изображение. Сделайте новый снимок или выберите изображение поддерживаемого формата.",
+    "cs": "Obrázek nelze přečíst. Pořiďte nový snímek nebo vyberte podporovaný obrázek."
+  },
+  "Choose a photo smaller than 40 MB and 80 megapixels.": {
+    "en": "Choose a photo smaller than 40 MB and 80 megapixels.",
+    "ru": "Выберите снимок размером до 40 МБ и 80 мегапикселей.",
+    "cs": "Vyberte snímek do 40 MB a 80 megapixelů."
+  },
+  "Another photo is being saved. Tap Retry in a moment.": {
+    "en": "Another photo is being saved. Tap Retry in a moment.",
+    "ru": "Сейчас сохраняется другой снимок. Чуть позже нажмите «Повторить».",
+    "cs": "Právě se ukládá jiný snímek. Za chvíli klepněte na Zkusit znovu."
+  },
+  "The computer could not save this photo. Check its storage and tap Retry.": {
+    "en": "The computer could not save this photo. Check its storage and tap Retry.",
+    "ru": "Компьютер не смог сохранить снимок. Проверьте доступ к диску и нажмите «Повторить».",
+    "cs": "Počítač nemohl snímek uložit. Zkontrolujte jeho úložiště a klepněte na Zkusit znovu."
+  },
+  "The computer needs more free disk space. Free some space and tap Retry.": {
+    "en": "The computer needs more free disk space. Free some space and tap Retry.",
+    "ru": "На компьютере недостаточно места. Освободите место и нажмите «Повторить».",
+    "cs": "V počítači není dostatek místa. Uvolněte místo a klepněte na Zkusit znovu."
+  },
+  "This connection has received 200 photos. Start a new connection for more.": {
+    "en": "This connection has received 200 photos. Start a new connection for more.",
+    "ru": "Через это подключение получено 200 снимков. Для продолжения создайте новое подключение.",
+    "cs": "Přes toto připojení bylo přijato 200 snímků. Pro další snímky vytvořte nové připojení."
+  },
+  "Send or retry the waiting photos before taking more.": {
+    "en": "Send or retry the waiting photos before taking more.",
+    "ru": "Отправьте ожидающие снимки или повторите их отправку, прежде чем снимать дальше.",
+    "cs": "Nejprve odešlete čekající snímky nebo zopakujte jejich odeslání."
+  },
+  "Scan the QR code with your phone, take photos, and find them in Documents. No mobile app is required.": {
+    "en": "Scan the QR code with your phone, take photos, and find them in Documents. No mobile app is required.",
+    "ru": "Отсканируйте QR-код телефоном, сделайте снимки — они появятся в разделе «Документы». Приложение на телефоне не требуется.",
+    "cs": "Naskenujte QR kód telefonem a pořiďte snímky. Najdete je v Dokumentech. Mobilní aplikace není potřeba."
+  },
+  "Local network": {
+    "en": "Local network",
+    "ru": "Локальная сеть",
+    "cs": "Místní síť"
+  },
+  "Refresh networks": {
+    "en": "Refresh networks",
+    "ru": "Обновить сети",
+    "cs": "Obnovit sítě"
+  },
+  "Connect phone": {
+    "en": "Connect phone",
+    "ru": "Подключить телефон",
+    "cs": "Připojit telefon"
+  },
+  "Disconnect phone": {
+    "en": "Disconnect phone",
+    "ru": "Отключить телефон",
+    "cs": "Odpojit telefon"
+  },
+  "Phone connection is off.": {
+    "en": "Phone connection is off.",
+    "ru": "Подключение телефона выключено.",
+    "cs": "Připojení telefonu je vypnuté."
+  },
+  "Scan this QR code with your phone camera": {
+    "en": "Scan this QR code with your phone camera",
+    "ru": "Отсканируйте этот QR-код камерой телефона",
+    "cs": "Naskenujte tento QR kód fotoaparátem telefonu"
+  },
+  "Phone connection link": {
+    "en": "Phone connection link",
+    "ru": "Ссылка для подключения телефона",
+    "cs": "Odkaz pro připojení telefonu"
+  },
+  "Copy link": {
+    "en": "Copy link",
+    "ru": "Копировать ссылку",
+    "cs": "Kopírovat odkaz"
+  },
+  "Use the same trusted Wi-Fi network on both devices. Photos travel directly over your local network without encryption. Keep TableScan open; each connection lasts up to 2 hours.": {
+    "en": "Use the same trusted Wi-Fi network on both devices. Photos travel directly over your local network without encryption. Keep TableScan open; each connection lasts up to 2 hours.",
+    "ru": "Подключите оба устройства к одной доверенной сети Wi-Fi. Снимки передаются напрямую по локальной сети без шифрования. Не закрывайте TableScan; подключение действует до 2 часов.",
+    "cs": "Připojte obě zařízení ke stejné důvěryhodné Wi-Fi. Snímky se přenášejí přímo po místní síti bez šifrování. Nechte TableScan otevřený; připojení platí nejvýše 2 hodiny."
+  },
+  "If the phone cannot connect, select another local network above, leave guest Wi-Fi, or allow TableScan through your firewall on a private network.": {
+    "en": "If the phone cannot connect, select another local network above, leave guest Wi-Fi, or allow TableScan through your firewall on a private network.",
+    "ru": "Если телефон не подключается, выберите другую локальную сеть выше, выйдите из гостевой Wi-Fi или разрешите TableScan доступ через брандмауэр в частной сети.",
+    "cs": "Pokud se telefon nepřipojí, vyberte jinou místní síť, opusťte Wi-Fi pro hosty nebo povolte TableScan v bráně firewall pro privátní síť."
+  },
+  "Received photos: {count}": {
+    "en": "Received photos: {count}",
+    "ru": "Получено снимков: {count}",
+    "cs": "Přijaté snímky: {count}"
+  },
+  "Received photos": {
+    "en": "Received photos",
+    "ru": "Полученные снимки",
+    "cs": "Přijaté snímky"
+  },
+  "Open selected photo": {
+    "en": "Open selected photo",
+    "ru": "Открыть выбранный снимок",
+    "cs": "Otevřít vybraný snímek"
+  },
+  "Connect this computer to Wi-Fi or Ethernet, then refresh networks.": {
+    "en": "Connect this computer to Wi-Fi or Ethernet, then refresh networks.",
+    "ru": "Подключите компьютер к Wi-Fi или Ethernet, затем обновите список сетей.",
+    "cs": "Připojte počítač k Wi-Fi nebo Ethernetu a obnovte seznam sítí."
+  },
+  "Could not start the phone connection: {error}": {
+    "en": "Could not start the phone connection: {error}",
+    "ru": "Не удалось подключить телефон: {error}",
+    "cs": "Připojení telefonu se nepodařilo spustit: {error}"
+  },
+  "The phone connection expired. Connect again to get a new QR code.": {
+    "en": "The phone connection expired. Connect again to get a new QR code.",
+    "ru": "Срок подключения истёк. Подключитесь снова, чтобы получить новый QR-код.",
+    "cs": "Platnost připojení vypršela. Připojte se znovu a získejte nový QR kód."
+  },
+  "Phone connected. Photos are saved automatically in Documents.": {
+    "en": "Phone connected. Photos are saved automatically in Documents.",
+    "ru": "Телефон подключён. Снимки автоматически сохраняются в разделе «Документы».",
+    "cs": "Telefon je připojen. Snímky se automaticky ukládají do Dokumentů."
+  },
+  "Ready to receive. Scan the QR code with your phone camera.": {
+    "en": "Ready to receive. Scan the QR code with your phone camera.",
+    "ru": "Готово к приёму. Отсканируйте QR-код камерой телефона.",
+    "cs": "Připraveno k příjmu. Naskenujte QR kód fotoaparátem telefonu."
   }
 }

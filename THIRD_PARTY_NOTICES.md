@@ -40,3 +40,8 @@ The Transformers backend downloads Qwen/Qwen3.5-4B (Apache-2.0) and
 zai-org/GLM-OCR (MIT), at the revisions in `slow_runtime.py`. Its optional
 PyTorch/torchvision dependencies use BSD-style licenses. Their distributions
 and downloaded model directories contain the respective license notices.
+
+## QR code generation
+
+Phone pairing uses python-qrcode 8.2 (BSD-3-Clause). Its license text is included
+in the packaged third-party license inventory.

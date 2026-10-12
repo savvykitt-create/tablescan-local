@@ -15,7 +15,7 @@ def test_main_window_has_complete_workflow(monkeypatch, tmp_path, qtbot) -> None
     assert window.table_page.high_accuracy.isChecked()
     assert window.stack.count() == 4
     assert [button.text().split()[-1] for button in window.nav_buttons] == ["Files", "Alignment", "Review", "Export"]
-    assert [button.text().split()[-1] for button in window.section_buttons] == ["Documents", "Templates", "Settings"]
+    assert [button.text().split()[-1] for button in window.section_buttons] == ["Documents", "Templates", "Settings", "Phone"]
     labels = [window.template_library.list.item(i).text().splitlines()[0]
               for i in range(window.template_library.list.count())]
     assert labels == ["Plantar", "Staircase", "Staircase portrait (30 animals)", "Von Frey"]

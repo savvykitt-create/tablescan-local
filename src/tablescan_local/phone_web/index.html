@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>TableScan · Phone</title>
+  <link rel="stylesheet" href="/camera.css">
+  <script src="/camera.js" defer></script>
+</head>
+<body>
+  <main>
+    <header><span class="brand-mark" aria-hidden="true">▦</span><strong>TableScan</strong><span class="tag" data-copy="phone">Phone</span></header>
+    <section class="capture-card">
+      <div id="connection" class="connection" role="status" aria-live="polite" data-copy="connecting">Connecting…</div>
+      <h1 data-copy="title">Scan with your phone</h1>
+      <p class="intro" data-copy="intro">Take a photo. It will appear in TableScan on your computer.</p>
+      <label id="camera-button" class="camera-button disabled" for="camera">
+        <svg aria-hidden="true" viewBox="0 0 32 32" fill="none"><path d="M4 10h6l2-4h8l2 4h6v16H4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="17" r="5" stroke="currentColor" stroke-width="2"/></svg>
+        <span data-copy="take_photo">Take a photo</span>
+        <input id="camera" type="file" accept="image/*" capture="environment" disabled>
+      </label>
+      <p class="hint" data-copy="camera_hint">Confirm the photo in your camera to send it. You can take the next page afterwards.</p>
+      <button id="reconnect" class="secondary" type="button" hidden data-copy="reconnect">Reconnect</button>
+      <p id="notice" role="alert" hidden></p>
+    </section>
+    <section class="photos" aria-labelledby="photos-title">
+      <div class="section-heading"><h2 id="photos-title" data-copy="photos">Your photos</h2><span id="count">0</span></div>
+      <p id="empty" class="empty" data-copy="empty">Your sent photos will appear here.</p>
+      <ol id="receipts" aria-live="polite" aria-relevant="additions text"></ol>
+    </section>
+    <footer data-copy="privacy">Direct transfer to your computer. Keep this page open until every photo is saved.</footer>
+  </main>
+</body>
+</html>

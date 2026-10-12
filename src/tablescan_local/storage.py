@@ -3,6 +3,7 @@ from __future__ import annotations
 from .i18n import tr, fmt, join_text
 import json
 import hashlib
+import os
 import shutil
 import sqlite3
 from datetime import datetime, timezone
@@ -98,9 +99,28 @@ class LocalStore:
             )
             """
         )
+        self.connection.execute(
+            "CREATE TABLE IF NOT EXISTS phone_uploads ("
+            "upload_id TEXT PRIMARY KEY, sha256 TEXT NOT NULL, job_id TEXT NOT NULL)"
+        )
         self.connection.commit()
 
-    def import_source(self, source: str | Path) -> tuple[str, Path]:
+    def phone_receipt(self, upload_id: str, sha256: str) -> tuple[str, Path] | None:
+        row = self.connection.execute(
+            "SELECT p.sha256, p.job_id, j.stored_source_path FROM phone_uploads p "
+            "JOIN jobs j ON j.id = p.job_id WHERE p.upload_id = ?", (upload_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        if row[0] != sha256:
+            raise ValueError('Upload ID already belongs to another photo')
+        copied = Path(row[2])
+        if not copied.is_file():
+            raise OSError('The saved photo is unavailable')
+        return row[1], copied
+
+    def import_source(self, source: str | Path, *,
+                      phone_receipt: tuple[str, str] | None = None) -> tuple[str, Path]:
         source_path = Path(source)
         job_id = str(uuid4())
         job_dir = self.jobs_dir / job_id
@@ -108,12 +128,19 @@ class LocalStore:
         copied = job_dir / source_path.name
         try:
             shutil.copy2(source_path, copied)
+            if phone_receipt:
+                # The phone may release its in-memory photo after our receipt.
+                with copied.open('r+b') as stream:
+                    os.fsync(stream.fileno())
             now = datetime.now(timezone.utc).isoformat(timespec="seconds")
             with self.connection:
                 self.connection.execute(
                     "INSERT INTO jobs VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (job_id, source_path.name, str(source_path), str(copied), "imported", None, now, now),
+                    (job_id, source_path.name, str(copied if phone_receipt else source_path), str(copied), "imported", None, now, now),
                 )
+                if phone_receipt:
+                    self.connection.execute("INSERT INTO phone_uploads VALUES (?, ?, ?)",
+                                            (*phone_receipt, job_id))
         except Exception:
             shutil.rmtree(job_dir, ignore_errors=True)
             raise
@@ -227,5 +254,6 @@ class LocalStore:
         row = self.connection.execute("SELECT stored_source_path FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if row:
             shutil.rmtree(Path(row[0]).parent, ignore_errors=True)
+        self.connection.execute("DELETE FROM phone_uploads WHERE job_id = ?", (job_id,))
         self.connection.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
         self.connection.commit()

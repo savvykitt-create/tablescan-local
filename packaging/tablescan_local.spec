@@ -19,6 +19,7 @@ a = Analysis(
     pathex=[str(project_root / "src")],
     binaries=collect_dynamic_libs("onnxruntime") + collect_dynamic_libs("pi_heif"),
     datas=rapid_data + copy_metadata("pi-heif") + [
+        (str(project_root / "src/tablescan_local/phone_web"), "tablescan_local/phone_web"),
         (str(project_root / "src/tablescan_local/translations"), "tablescan_local/translations"),
         (str(project_root / "src/tablescan_local/assets"), "tablescan_local/assets"),
         (str(project_root / "src/tablescan_local/models"), "tablescan_local/models"),
@@ -67,7 +68,7 @@ if sys.platform == "darwin":
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "1.0.8",
-            "CFBundleVersion": "1.0.8",
+            "CFBundleShortVersionString": "1.0.9",
+            "CFBundleVersion": "1.0.9",
         },
     )

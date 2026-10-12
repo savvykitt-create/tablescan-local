@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tablescan-local"
-version = "1.0.8"
+version = "1.0.9"
 description = "Offline desktop OCR for handwritten laboratory tables"
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -21,6 +21,7 @@ dependencies = [
   "openpyxl>=3.1,<4",
   "rapidocr-onnxruntime>=1.4,<2",
   "psutil>=6,<8",
+  "qrcode==8.2",
 ]
 
 [project.optional-dependencies]
@@ -38,7 +39,7 @@ tablescan-local = "tablescan_local.main:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-tablescan_local = ["slow_runner.py", "models/*.onnx", "models/*.txt", "models/*.md", "assets/*.png", "assets/*.icns", "assets/*.ico", "assets/*.heic", "assets/*.txt", "translations/*.json", "translations/*.qm", "default_templates/*.json", "default_templates/*.pdf", "default_templates/*.xlsx"]
+tablescan_local = ["phone_web/*.html", "phone_web/*.css", "phone_web/*.js", "slow_runner.py", "models/*.onnx", "models/*.txt", "models/*.md", "assets/*.png", "assets/*.icns", "assets/*.ico", "assets/*.heic", "assets/*.txt", "translations/*.json", "translations/*.qm", "default_templates/*.json", "default_templates/*.pdf", "default_templates/*.xlsx"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

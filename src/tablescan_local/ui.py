@@ -1515,13 +1515,13 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(12, 34, 12, 18)
         sidebar_layout.setSpacing(10)
         self.section_buttons: list[QPushButton] = []
-        for index, (icon, label) in enumerate((("▱", tr('Документы')), ("▦", tr('Шаблоны')), ("⚙", tr('Настройки')))):
+        for index, (icon, label) in enumerate((("▱", tr('Документы')), ("▦", tr('Шаблоны')), ("⚙", tr('Настройки')), ("▯", tr('Phone')))):
             button = QPushButton(fmt('{p0}   {p1}', p0=icon, p1=label))
             button.setCheckable(True)
             button.setMinimumHeight(55)
             set_theme_style(button, fmt('QPushButton {{ text-align: left; border: 0; background: transparent; font-weight: 650; }}QPushButton:checked {{ color: {p0}; background: #EAF1FF; border-left: 3px solid {p1}; }}', p0=BLUE, p1=BLUE))
             button.clicked.connect(lambda _checked=False, page=index: self._navigate_section(page))
-            sidebar_layout.addWidget(button)
+            sidebar_layout.insertWidget(2 if index == 3 else index, button)
             self.section_buttons.append(button)
         sidebar_layout.addStretch()
         settings = QLabel(tr('●  Локально и офлайн\n\nⓘ  Исходные файлы не изменяются'))
@@ -1622,7 +1622,15 @@ class MainWindow(QMainWindow):
         self.settings_scroll = settings_scroll
         settings_scroll.setWidgetResizable(True)
         settings_scroll.setWidget(settings_page)
-        for page in (document_workspace, templates_workspace, settings_scroll): self.main_stack.addWidget(page)
+        from .phone_page import PhonePage
+        self.phone_page = PhonePage(self.store.root, self)
+        self.phone_page.photoImported.connect(self.refresh_recent)
+        self.phone_page.openRequested.connect(self.open_recent)
+        phone_scroll = QScrollArea()
+        phone_scroll.setWidgetResizable(True)
+        phone_scroll.setWidget(self.phone_page)
+        for page in (document_workspace, templates_workspace, settings_scroll, phone_scroll):
+            self.main_stack.addWidget(page)
         body.addWidget(self.main_stack, 1)
         root_layout.addLayout(body, 1)
         self.setCentralWidget(root)
@@ -2301,6 +2309,7 @@ class MainWindow(QMainWindow):
                 event.ignore()
                 return
             self._close_requested = True
+            self.phone_page.stop()
             self.update_settings.stop_automatic_checks()
             self.queue_dialog.hide()
             self.setEnabled(False)

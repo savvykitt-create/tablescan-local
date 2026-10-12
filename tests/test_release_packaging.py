@@ -19,7 +19,7 @@ def test_license_inventory_contains_runtime_and_detects_missing_text(tmp_path):
     destination = collector.collect(tmp_path / "licenses")
     manifest = json.loads((destination / "manifest.json").read_text())
     names = {component["name"] for component in manifest["components"]}
-    assert {"pyside6", "numpy", "pillow", "pypdfium2", "cpython", "rapidocr-onnxruntime"} <= names
+    assert {"pyside6", "numpy", "pillow", "qrcode", "pypdfium2", "cpython", "rapidocr-onnxruntime"} <= names
     assert names & {"onnxruntime", "onnxruntime-directml", "onnxruntime-gpu"}
     collector.verify(destination)
     first = manifest["components"][0]["files"][0]

@@ -23,9 +23,55 @@ def document_self_test() -> int:
     return 0
 
 
+def phone_self_test() -> int:
+    """Exercise bundled QR generation, web assets, HTTP upload and retry receipts."""
+    from http.client import HTTPConnection
+    import json
+    from pathlib import Path
+    from tempfile import TemporaryDirectory
+    from uuid import uuid4
+    from .phone_capture import PhoneReceiver, qr_matrix
+    from .phone_page import mobile_texts
+    from .storage import LocalStore
+    with TemporaryDirectory(prefix='tablescan-phone-selftest-') as folder:
+        receiver = PhoneReceiver(Path(folder), '127.0.0.1', mobile_texts())
+        try:
+            matrix = np.array(qr_matrix(receiver.url), dtype=np.uint8)
+            pixels = np.repeat(np.repeat((1 - matrix) * 255, 6, axis=0), 6, axis=1)
+            if cv2.QRCodeDetector().detectAndDecode(pixels)[0] != receiver.url:
+                raise RuntimeError('Packaged phone QR code could not be read')
+            upload = uuid4().hex
+            photo = (Path(__file__).parent / 'assets/heic-smoke.heic').read_bytes()
+            cases = [('GET', path, None) for path in ('/', '/camera.css', '/camera.js', '/copy.json', '/api/status')]
+            cases += [('PUT', '/api/photos/' + upload, photo)] * 2
+            for method, path, body in cases:
+                client = HTTPConnection('127.0.0.1', receiver.server.server_port, timeout=10)
+                try:
+                    client.request(method, path, body, {'Authorization': 'Bearer ' + receiver.token})
+                    response = client.getresponse()
+                    payload = response.read()
+                    if response.status != 200 or not payload:
+                        raise RuntimeError('Packaged phone transfer failed')
+                    if method == 'PUT' and not json.loads(payload).get('saved'):
+                        raise RuntimeError('Packaged phone receipt missing')
+                finally:
+                    client.close()
+            store = LocalStore(Path(folder))
+            try:
+                jobs = store.recent_jobs()
+                if len(jobs) != 1 or Path(jobs[0]['stored_source_path']).read_bytes() != photo:
+                    raise RuntimeError('Packaged phone original or duplicate protection failed')
+            finally:
+                store.connection.close()
+        finally:
+            receiver.stop()
+    return 0
+
+
 def self_test(*, parallel=False) -> int:
     """Load the packaged OCR runtime and run one in-memory recognition pass."""
     document_self_test()
+    phone_self_test()
     from .slow_setup import download_context
     if not download_context().get_ca_certs():
         raise RuntimeError("Python download certificates are missing from the application")
@@ -123,6 +169,8 @@ def main() -> int:
         return uninstall_main()
     if "--slow-mode-self-test" in sys.argv:
         return slow_mode_self_test()
+    if "--phone-self-test" in sys.argv:
+        return phone_self_test()
     if "--document-self-test" in sys.argv:
         return document_self_test()
     if "--self-test" in sys.argv:

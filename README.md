@@ -142,6 +142,36 @@ recorded Qwen/GLM devices, loading times and model reuse. The configured Slow
 backend is separate from the device actually used. Copy or save the diagnostic
 report locally as JSON. Source paths and recognized cell values are omitted.
 
+### Scan with a phone
+
+Open **Phone → Connect phone** in TableScan, then scan its QR code with your
+phone's camera and open the link. Both devices must be on the same reachable
+Wi-Fi network; the computer may also use Ethernet on that network. No phone app,
+account, cloud service or Bluetooth pairing is needed.
+
+Tap **Take a photo** on the phone page. The page requests the system's rear camera
+for each shot; the exact camera/picker choice depends on the browser. Confirm the
+photo to send it, and keep the page open until **Saved on computer** appears.
+Photos are added to **Documents** without replacing the document you are editing.
+Open a received photo to align its table and run recognition as usual.
+
+JPEG, PNG, TIFF, WebP and HEIC/HEIF originals are preserved. Each upload is limited
+to 40 MiB, 80 megapixels per frame and 8 frames. One connection accepts up to 200
+photos and expires after 2 hours. A failed or unconfirmed transfer can be retried
+without importing the same upload twice. Unsent photos remain in the browser's
+memory only: do not close or reload the page while any are waiting.
+
+Use a trusted local network: transfer uses local HTTP without encryption. The
+random QR link authorizes uploads; it does not grant access to your existing
+documents. **Disconnect phone**, closing TableScan, or expiration revokes the
+connection. The receiver stays off until you enable it. If a phone cannot connect,
+check the selected network address, guest-network isolation and the computer's
+firewall (allow TableScan on private networks). There is no internet relay.
+
+The page targets Safari on iPhone and Chrome on Android through HTML file capture.
+Desktop tests cover transport and storage; actual camera behavior requires a
+check on the relevant physical phone and browser.
+
 ## Printable laboratory forms
 
 **Von Frey, Plantar and Staircase** protocols are included. Their editable Excel
