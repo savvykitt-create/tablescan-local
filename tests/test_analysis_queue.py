@@ -70,6 +70,33 @@ def test_crash_restart_marks_active_interrupted_and_keeps_waiting_job(qtbot,tmp_
     restored.shutdown()
 
 
+def test_resume_retains_run_identity_and_fresh_analysis_gets_another(qtbot, tmp_path):
+    store = LocalStore(tmp_path / 'store')
+    workers = []
+    def factory(entry):
+        worker = FakeWorker()
+        workers.append(worker)
+        return worker
+    queue = AnalysisQueue(store, factory)
+    job = add_job(store, tmp_path, 'source.png')
+    queue.enqueue(*job, template())
+    original = queue.active['run_id']
+    assert json.loads(queue.path.read_text())[0]['run_id'] == original
+    queue.cancel(job[0])
+    workers[-1].cancelled.emit()
+    workers[-1].finished.emit()
+    queue.resume_all()
+    assert queue.active['run_id'] == original
+    queue.cancel(job[0])
+    workers[-1].cancelled.emit()
+    workers[-1].finished.emit()
+    queue.enqueue(*job, template())
+    assert queue.active['run_id'] != original
+    queue.cancel(job[0])
+    workers[-1].cancelled.emit()
+    workers[-1].finished.emit()
+
+
 @pytest.mark.parametrize('resume_before_terminal', [True, False])
 def test_cancel_all_hides_rows_and_resume_all_keeps_results_and_serial_order(qtbot, tmp_path, resume_before_terminal):
     from tablescan_local.queue_dialog import AnalysisQueueDialog
@@ -163,7 +190,7 @@ def test_close_automatically_cancels_and_exits_without_second_close(qtbot, tmp_p
         while True:
             report(1, 10, 'working')
             threading.Event().wait(.01)
-    monkeypatch.setattr(ui, 'process_document', process)
+    monkeypatch.setattr('tablescan_local.recognition_worker.process_document', process)
     notices = []
     monkeypatch.setattr(ui.QMessageBox, 'information', lambda *a: notices.append(a))
     paths = []
@@ -221,7 +248,7 @@ def test_complete_does_not_replace_current_document_and_each_review_opens(qtbot,
         if len(calls)==1:
             started.set();release.wait(5)
         return JobResult(path,t,[PageResult(0,path,[CellResult(1,1,Path(path).name,Path(path).name,1)],[])])
-    monkeypatch.setattr(ui,'process_document',process)
+    monkeypatch.setattr('tablescan_local.recognition_worker.process_document',process)
     paths=[]
     for name in ('a.png','b.png'):
         path=tmp_path/name;cv2.imwrite(str(path),np.full((100,100,3),255,np.uint8));paths.append(str(path))
@@ -253,7 +280,7 @@ def test_batch_failure_does_not_block_next_file(qtbot,tmp_path,monkeypatch):
     _,window=ui.create_application();qtbot.addWidget(window)
     bad=tmp_path/'bad.png';bad.write_bytes(b'broken')
     good=tmp_path/'good.png';cv2.imwrite(str(good),np.full((100,100,3),255,np.uint8))
-    monkeypatch.setattr(ui,'process_document',lambda images,path,t,*a,**k:JobResult(path,t,[PageResult(0,path,[],[])]))
+    monkeypatch.setattr('tablescan_local.recognition_worker.process_document',lambda images,path,t,*a,**k:JobResult(path,t,[PageResult(0,path,[],[])]))
     window.enqueue_files([str(bad),str(good)],template())
     qtbot.waitUntil(lambda:window.analysis_queue.entries[-1]['status']=='ready',timeout=5000)
     qtbot.waitUntil(lambda:window.analysis_queue.worker is None)
@@ -322,3 +349,36 @@ def test_model_status_updates_without_percentage_change(qtbot, tmp_path):
     worker.progress.emit(0, 1, 'Generated 16 tokens')
     worker.progress.emit(0, 1, 'Generated 16 tokens')
     assert notices == ['Loading model', 'Generated 16 tokens']
+
+
+def test_adaptive_mode_survives_queue_restart(qtbot,tmp_path):
+    store=LocalStore(tmp_path/'store')
+    queue=AnalysisQueue(store,lambda _:FakeWorker())
+    job=add_job(store,tmp_path,'adaptive.png')
+    queue.enqueue(*job,template(),high_accuracy=False,adaptive=True)
+    assert queue.active['adaptive'] and queue.active['high_accuracy']
+    restored=AnalysisQueue(store,lambda _:FakeWorker())
+    assert restored.entries[0]['adaptive'] and restored.entries[0]['status']=='interrupted'
+    restored.resume_all()
+    assert restored.active['adaptive']
+    queue.shutdown();restored.shutdown()
+
+
+def test_diagnostics_refresh_keeps_document_selector_open(qtbot,tmp_path):
+    from tablescan_local.diagnostics_dialog import DiagnosticsDialog
+    store=LocalStore(tmp_path/'store')
+    queue=AnalysisQueue(store,lambda _:FakeWorker())
+    job=add_job(store,tmp_path,'document.png')
+    queue.enqueue(*job,template())
+    dialog=DiagnosticsDialog(queue)
+    qtbot.addWidget(dialog)
+    dialog.show()
+    dialog.jobs.showPopup()
+    dialog.refresh()
+    assert dialog.jobs.view().isVisible()
+    dialog.jobs.hidePopup()
+    dialog.jobs.setCurrentIndex(1)
+    dialog.refresh()
+    assert dialog.jobs.currentData()==job[0]
+    assert dialog.report['analysis']['job_id']==job[0]
+    queue.shutdown()

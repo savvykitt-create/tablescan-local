@@ -74,6 +74,17 @@ def collect(output: Path) -> Path:
             if not source.is_file() or source.suffix.lower() in {".py", ".pyc", ".so", ".dll", ".dylib"}:
                 continue
             files.append(copy(source, output / name / f"{len(files):03d}-{source.name}", str(item)))
+        if name == "pi-heif":
+            # The wheel notice links to older releases; bundle full texts from
+            # the decoder releases actually shipped in the pinned wheel.
+            records = [record for record in snapshots if record["group"] == "heif-decoders"]
+            if not records:
+                raise RuntimeError("Missing HEIF decoder license snapshots")
+            for record in records:
+                source = upstream / record["file"]
+                if digest(source) != record["sha256"]:
+                    raise RuntimeError(f"License snapshot checksum mismatch: {source}")
+                files.append(copy(source, output / "upstream" / record["file"], record["source"]))
         if not files:
             group = FALLBACKS.get((name, distribution.version))
             if not group:

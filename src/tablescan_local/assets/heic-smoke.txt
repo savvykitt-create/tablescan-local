@@ -1,0 +1,7 @@
+Synthetic test image created for TableScan Local on 2026-10-12; no user data.
+Licensed under the project Apache-2.0 license.
+Generated with Pillow 12.3.0 and pillow-heif 1.8.1 (test generation only).
+Two 96x64 RGB frames: green (30,180,50), then red (230,20,30) left
+and blue (20,30,230) right. Second frame has EXIF orientation 6 and is
+designated primary_index=1. Saved as HEIF with save_all=True, quality=-1,
+chroma=444. Decoder output should show red above blue at 64x96, then green.

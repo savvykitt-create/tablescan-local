@@ -114,6 +114,17 @@ def test_details_are_collapsed_and_escape_recognized_text(qtbot):
     assert "Reading candidates" in review.confidence_label.text()
 
 
+def test_slow_outcome_is_visible_without_opening_details(qtbot):
+    review, result = make_review(qtbot)
+    cell = result.pages[0].cells[0]
+    cell.slow_mode_evidence = {'baseline': '00', 'qwen': '10', 'glm': '20', 'outcome': 'disagreement'}
+    review._cell_clicked(0, 0)
+    assert review.slow_summary.isVisible() and 'disagree' in review.slow_summary.text()
+    assert review.detail_scroll.isHidden() and cell.needs_review
+    review._cell_clicked(0, 1)
+    assert review.slow_summary.isHidden()
+
+
 def test_confirm_enter_advances_and_completion_clears_controls(qtbot):
     review, result = make_review(qtbot)
     for item in result.pages[0].cells[1:]:

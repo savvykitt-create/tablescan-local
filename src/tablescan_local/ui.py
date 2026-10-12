@@ -1,634 +1,43 @@
 from __future__ import annotations
+from collections.abc import Sequence
 from .i18n import localized_rule_name
 
 from .i18n import tr, fmt, join_text
 import json
 import os
-import sys
-from .i18n import escape_text as escape
-from .i18n import language, set_language, SUPPORTED_LANGUAGES, bind
+from .i18n import language, set_language, SUPPORTED_LANGUAGES
 from bisect import bisect_right
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-import cv2
 import numpy as np
-from PySide6.QtCore import QEvent, QLockFile, QObject, QPointF, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
-from PySide6.QtGui import QShortcut, QKeySequence, QColor, QIcon, QImage, QPainter, QPainterPath, QPainterPathStroker, QPen, QPixmap
-from PySide6.QtWidgets import QApplication, QGraphicsItem, QGraphicsLineItem, QGraphicsPixmapItem, QGraphicsRectItem, QGraphicsScene, QGraphicsView, QHBoxLayout, QHeaderView, QInputDialog, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QVBoxLayout
+from PySide6.QtCore import QEvent, QLockFile, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QInputDialog, QMessageBox, QScrollArea, QSplitter, QStackedWidget, QVBoxLayout
 
-from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QProgressDialog, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
+from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
 
+from .documents import document_file_filter
 from .domain import CellRuleRegion, ColumnRule, FieldRegion, JobResult, NormalizedRect, TableTemplate, excel_column_name
 from .constraints import ValueConstraints
 from .rule_editor import ValueRuleDialog, optional_number
 from . import __version__
 from .exporter import export_job
-from .imaging import GridDetection, crop_cell, crop_normalized, detect_grid, evenly_spaced_guides, load_document, rotate_document
-from .ocr import LocalOcrEngine, OcrValue, canonical_numeric, constrain_reading
-from .pipeline import process_document, suggest_standard_fields
+from .imaging import GridDetection, detect_grid, evenly_spaced_guides, open_document, rotate_document
+from .ocr import OcrValue, constrain_reading
+from .pipeline import suggest_standard_fields
+from .recognition_worker import RecognitionWorker
 from .storage import LocalStore
-from .theme import apply_theme, colors, set_theme_style
+from .theme import apply_theme, set_theme_style
 from .template_matcher import TemplateMatch, rank_templates
 from .template_fit import fit_document_template, fit_template
 from .analysis_queue import AnalysisQueue
 from .queue_dialog import AnalysisQueueDialog
-
-
-BLUE = "#4F46E5"
-LIGHT_BLUE = "#EFF6FF"
-AMBER = "#D97706"
-GREEN = "#15803D"
-BORDER = "#D7DCE3"
-TEXT = "#20242B"
-MUTED = "#68707C"
-SURFACE = "#F7F8FA"
-
-
-
-def pixmap_from_bgr(image: np.ndarray) -> QPixmap:
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    height, width, channels = rgb.shape
-    qimage = QImage(rgb.data, width, height, width * channels, QImage.Format.Format_RGB888).copy()
-    return QPixmap.fromImage(qimage)
-
-
-def notify(parent, message):
-    window = parent.window()
-    if not hasattr(window, "_toast"):
-        window._toast = QLabel(window)
-        window._toast.setWordWrap(True)
-        window._toast.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        set_theme_style(window._toast, "background: #0F766E; color: white; padding: 14px; border-radius: 8px;")
-        window._toast_timer = QTimer(window)
-        window._toast_timer.setSingleShot(True)
-        window._toast_timer.timeout.connect(window._toast.hide)
-    toast = window._toast
-    toast.setText(message)
-    toast.setFixedWidth(min(420, max(220, window.width() - 40)))
-    toast.adjustSize()
-    toast.move(window.width() - toast.width() - 24, window.height() - toast.height() - 24)
-    toast.show()
-    toast.raise_()
-    window._toast_timer.start(3500)
-
-
-class OverlayRectItem(QGraphicsRectItem):
-    def __init__(self, rect: QRectF, color: str, callback=None, label: str = "") -> None:
-        super().__init__(rect)
-        self.callback = callback
-        self.label = label
-        self.setPen(QPen(QColor(color), 2))
-        fill = QColor(color)
-        fill.setAlpha(20)
-        self.setBrush(fill)
-        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
-        self.setZValue(9 if not label else 10)
-        self.setAcceptHoverEvents(True)
-        self._resize_edges = ""
-
-    def shape(self):
-        if self.label:
-            return super().shape()
-        path = QPainterPath(); path.addRect(self.rect())
-        scale = self.scene().views()[0].transform().m11() if self.scene() and self.scene().views() else 1
-        stroke = QPainterPathStroker(); stroke.setWidth(12 / max(scale, .01))
-        return stroke.createStroke(path)
-
-    def _edges(self, point):
-        scale = self.scene().views()[0].transform().m11() if self.scene().views() else 1
-        margin = 8 / max(scale, .01)
-        rect = self.rect()
-        return (("l" if abs(point.x() - rect.left()) < margin else "r" if abs(point.x() - rect.right()) < margin else "") +
-                ("t" if abs(point.y() - rect.top()) < margin else "b" if abs(point.y() - rect.bottom()) < margin else ""))
-
-    def hoverMoveEvent(self, event):
-        edges = self._edges(event.pos())
-        cursor = Qt.CursorShape.SizeAllCursor
-        if len(edges) == 2:
-            cursor = Qt.CursorShape.SizeFDiagCursor if edges in {"lt", "rb"} else Qt.CursorShape.SizeBDiagCursor
-        elif edges:
-            cursor = Qt.CursorShape.SizeHorCursor if edges in {"l", "r"} else Qt.CursorShape.SizeVerCursor
-        self.setCursor(cursor)
-        super().hoverMoveEvent(event)
-
-    def mousePressEvent(self, event):
-        self._resize_edges = self._edges(event.pos())
-        self._original_rect = QRectF(self.rect())
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        bounds = self.mapRectFromScene(self.scene().sceneRect())
-        if self._resize_edges:
-            rect = QRectF(self._original_rect)
-            point = event.pos()
-            if "l" in self._resize_edges: rect.setLeft(max(bounds.left(), min(point.x(), rect.right() - 4)))
-            if "r" in self._resize_edges: rect.setRight(min(bounds.right(), max(point.x(), rect.left() + 4)))
-            if "t" in self._resize_edges: rect.setTop(max(bounds.top(), min(point.y(), rect.bottom() - 4)))
-            if "b" in self._resize_edges: rect.setBottom(min(bounds.bottom(), max(point.y(), rect.top() + 4)))
-            self.setRect(rect)
-            event.accept()
-        else:
-            super().mouseMoveEvent(event)
-            rect = self.mapRectToScene(self.rect())
-            image = self.scene().sceneRect()
-            self.moveBy(max(image.left() - rect.left(), min(0, image.right() - rect.right())),
-                        max(image.top() - rect.top(), min(0, image.bottom() - rect.bottom())))
-
-    def paint(self, painter, option, widget=None):
-        super().paint(painter, option, widget)
-        if self.isSelected():
-            scale = painter.worldTransform().m11()
-            size = 7 / max(scale, .01)
-            painter.setBrush(QColor("white"))
-            rect = self.rect()
-            for point in (rect.topLeft(), rect.topRight(), rect.bottomLeft(), rect.bottomRight()):
-                painter.drawRect(QRectF(point.x()-size/2, point.y()-size/2, size, size))
-
-    def mouseReleaseEvent(self, event) -> None:
-        super().mouseReleaseEvent(event)
-        if self.callback:
-            self.callback(self.mapRectToScene(self.rect()))
-
-
-class GuideLineItem(QGraphicsLineItem):
-    def __init__(self, orientation: str, position: float, extent: tuple[float, float], bounds: QRectF, callback) -> None:
-        self.orientation = orientation
-        self.bounds = bounds
-        self.callback = callback
-        if orientation == "vertical":
-            super().__init__(0, extent[0], 0, extent[1])
-            self.setPos(position, 0)
-        else:
-            super().__init__(extent[0], 0, extent[1], 0)
-            self.setPos(0, position)
-        self.setPen(QPen(QColor("#3B82F6"), 1, Qt.PenStyle.DashLine))
-        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsMovable | QGraphicsItem.GraphicsItemFlag.ItemIsSelectable | QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges)
-        self.setCursor(Qt.CursorShape.SizeHorCursor if orientation == "vertical" else Qt.CursorShape.SizeVerCursor)
-        self.setZValue(8)
-
-    def shape(self):
-        path = QPainterPath()
-        path.moveTo(self.line().p1()); path.lineTo(self.line().p2())
-        scale = self.scene().views()[0].transform().m11() if self.scene() and self.scene().views() else 1
-        stroke = QPainterPathStroker(); stroke.setWidth(12 / max(scale, .01))
-        return stroke.createStroke(path)
-
-    def itemChange(self, change, value):
-        if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and isinstance(value, QPointF):
-            if self.orientation == "vertical":
-                return QPointF(max(self.bounds.left(), min(self.bounds.right(), value.x())), 0)
-            return QPointF(0, max(self.bounds.top(), min(self.bounds.bottom(), value.y())))
-        return super().itemChange(change, value)
-
-    def mouseReleaseEvent(self, event) -> None:
-        super().mouseReleaseEvent(event)
-        self.callback(self.pos().x() if self.orientation == "vertical" else self.pos().y())
-
-
-class DocumentCanvas(QGraphicsView):
-    regionCreated = Signal(str, QRectF)
-    cellSelectionChanged = Signal(object)
-    geometryChanged = Signal()
-    fieldSelected = Signal(int)
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.setScene(QGraphicsScene(self))
-        self.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.SmoothPixmapTransform)
-        self.setBackgroundBrush(QColor(colors()["canvas"]))
-        self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.image: np.ndarray | None = None
-        self.template: TableTemplate | None = None
-        self.draw_kind = ""
-        self.draw_start: QPointF | None = None
-        self.preview_rect: QGraphicsRectItem | None = None
-        self.show_grid = True
-        self.show_fields = True
-        self.show_rules = False
-        self.active_rule = -1
-        self.active_field = -1
-        self.active_cell: tuple[int, int] | None = None
-        self.read_only = False
-        self._active_overlay = None
-        self.guide_callback = None
-        self.selection_enabled = False
-        self.selected_cells: set[tuple[int, int]] = set()
-        self.selection_anchor: tuple[int, int] | None = None
-        self._selection_drag_start: tuple[int, int] | None = None
-        self._selection_drag_base: set[tuple[int, int]] = set()
-        self._selection_subtract = False
-        self._selection_history: list[frozenset[tuple[int, int]]] = [frozenset()]
-        self._selection_history_index = 0
-
-    def set_document(self, image: np.ndarray, template: TableTemplate | None = None) -> None:
-        self.image = image
-        self.template = template
-        self.selected_cells = set()
-        self.active_cell = None
-        self.active_field = -1
-        self.selection_anchor = None
-        self._selection_history = [frozenset()]
-        self._selection_history_index = 0
-        self.redraw()
-        self.fit_document()
-
-    def set_active_cell(self, row: int | None, column: int | None = None) -> None:
-        """Highlight one result cell over the source image."""
-        if row is None or column is None or not self.template:
-            active = None
-        elif 0 <= row < self.template.rows and 0 <= column < self.template.columns:
-            active = (row, column)
-        else:
-            active = None
-        if active == self.active_cell:
-            return
-        self.active_cell = active
-        self.active_field = -1
-        self._update_active_overlay()
-
-    def set_active_field(self, index: int = -1) -> None:
-        self.active_cell = None
-        self.active_field = index
-        self._update_active_overlay()
-
-    def _update_active_overlay(self) -> None:
-        if self._active_overlay is not None:
-            self.scene().removeItem(self._active_overlay)
-            self._active_overlay = None
-        if self.image is None or not self.template:
-            return
-        height, width = self.image.shape[:2]
-        if self.active_cell is not None:
-            row, column = self.active_cell
-            left, right = self.template.column_guides[column:column + 2]
-            top, bottom = self.template.row_guides[row:row + 2]
-            rect = QRectF(left * width, top * height, (right - left) * width, (bottom - top) * height)
-        elif 0 <= self.active_field < len(self.template.fields):
-            rect = QRectF(*self.template.fields[self.active_field].rect.to_pixels(self.image.shape))
-        else:
-            return
-        color = QColor("#F97316")
-        fill = QColor(color)
-        fill.setAlpha(40)
-        pen = QPen(color, 2)
-        pen.setCosmetic(True)
-        self._active_overlay = self.scene().addRect(rect, pen, fill)
-        self._active_overlay.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-        self._active_overlay.setZValue(30)
-        if self.read_only:
-            self.ensureVisible(rect, 24, 24)
-
-    def refresh_theme(self) -> None:
-        self.setBackgroundBrush(QColor(colors()["canvas"]))
-
-    def fit_document(self) -> None:
-        if not self.scene() or self.scene().itemsBoundingRect().isEmpty():
-            return
-        target = self.scene().itemsBoundingRect()
-        if self.image is not None and self.template is not None:
-            image_height, image_width = self.image.shape[:2]
-            x, y, width, height = self.template.table_rect.to_pixels(self.image.shape)
-            left = max(0, x - image_width * 0.025)
-            right = min(image_width, x + width + image_width * 0.025)
-            top = max(0, y - image_height * 0.10)
-            bottom = min(image_height, y + height + image_height * 0.08)
-            target = QRectF(left, top, right - left, bottom - top)
-        self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
-
-    def zoom_by(self, factor: float) -> None:
-        self.scale(factor, factor)
-
-    def begin_draw(self, kind: str) -> None:
-        self.draw_kind = kind
-        self.setDragMode(QGraphicsView.DragMode.NoDrag)
-        self.setCursor(Qt.CursorShape.CrossCursor)
-
-    def set_selection_enabled(self, enabled: bool) -> None:
-        self.selection_enabled = enabled
-        self.setDragMode(QGraphicsView.DragMode.NoDrag if enabled else QGraphicsView.DragMode.ScrollHandDrag)
-        self.setCursor(Qt.CursorShape.ArrowCursor if enabled else Qt.CursorShape.OpenHandCursor)
-        self.redraw()
-
-    def select_cells(self, cells: set[tuple[int, int]], *, emit: bool = True, record: bool = True) -> None:
-        if not self.template:
-            return
-        self.selected_cells = {
-            (row, column) for row, column in cells
-            if 0 <= row < self.template.rows and 0 <= column < self.template.columns
-        }
-        if self.selected_cells:
-            self.selection_anchor = min(self.selected_cells)
-        if record:
-            self._record_selection()
-        self.redraw()
-        if emit:
-            self.cellSelectionChanged.emit(set(self.selected_cells))
-
-    def _record_selection(self) -> None:
-        current = frozenset(self.selected_cells)
-        if self._selection_history[self._selection_history_index] == current:
-            return
-        self._selection_history = self._selection_history[: self._selection_history_index + 1]
-        self._selection_history.append(current)
-        self._selection_history_index += 1
-
-    def undo_selection(self) -> None:
-        if self._selection_history_index <= 0:
-            return
-        self._selection_history_index -= 1
-        self.select_cells(set(self._selection_history[self._selection_history_index]), record=False)
-
-    def redo_selection(self) -> None:
-        if self._selection_history_index >= len(self._selection_history) - 1:
-            return
-        self._selection_history_index += 1
-        self.select_cells(set(self._selection_history[self._selection_history_index]), record=False)
-
-    def select_region(self, row_start: int, row_end: int, column_start: int, column_end: int) -> None:
-        self.select_cells({
-            (row, column)
-            for row in range(row_start, row_end + 1)
-            for column in range(column_start, column_end + 1)
-        })
-
-    def select_all_data(self) -> None:
-        if self.template:
-            self.select_region(
-                self.template.header_rows, self.template.rows - 1,
-                self.template.row_label_columns, self.template.columns - 1,
-            )
-
-    def _header_band(self) -> float:
-        if not self.template or self.image is None or not self.template.rows or not self.template.columns:
-            return 28.0
-        height, width = self.image.shape[:2]
-        cell_width = (self.template.column_guides[-1] - self.template.column_guides[0]) * width / self.template.columns
-        cell_height = (self.template.row_guides[-1] - self.template.row_guides[0]) * height / self.template.rows
-        return max(20.0, min(42.0, min(cell_width, cell_height) * .55))
-
-    def _cell_or_header_at(self, point: QPointF) -> tuple[str, int, int] | None:
-        if not self.template or self.image is None:
-            return None
-        height, width = self.image.shape[:2]
-        xs = [value * width for value in self.template.column_guides]
-        ys = [value * height for value in self.template.row_guides]
-        band = self._header_band()
-        if xs[0] <= point.x() < xs[-1] and ys[0] <= point.y() < ys[-1]:
-            column = bisect_right(xs, point.x()) - 1
-            row = bisect_right(ys, point.y()) - 1
-            return "cell", row, column
-        if xs[0] <= point.x() < xs[-1] and ys[0] - band <= point.y() < ys[0]:
-            return "column", -1, bisect_right(xs, point.x()) - 1
-        if ys[0] <= point.y() < ys[-1] and xs[0] - band <= point.x() < xs[0]:
-            return "row", bisect_right(ys, point.y()) - 1, -1
-        if xs[0] - band <= point.x() < xs[0] and ys[0] - band <= point.y() < ys[0]:
-            return "all", -1, -1
-        return None
-
-    @staticmethod
-    def _rectangle_cells(start: tuple[int, int], end: tuple[int, int]) -> set[tuple[int, int]]:
-        row_start, row_end = sorted((start[0], end[0]))
-        column_start, column_end = sorted((start[1], end[1]))
-        return {(row, column) for row in range(row_start, row_end + 1) for column in range(column_start, column_end + 1)}
-
-    def _apply_live_selection(self, end: tuple[int, int]) -> None:
-        if self._selection_drag_start is None:
-            return
-        block = self._rectangle_cells(self._selection_drag_start, end)
-        self.selected_cells = self._selection_drag_base - block if self._selection_subtract else self._selection_drag_base | block
-        self.redraw()
-
-    def redraw(self) -> None:
-        self._active_overlay = None
-        self.scene().clear()
-        if self.image is None:
-            return
-        pixmap_item = QGraphicsPixmapItem(pixmap_from_bgr(self.image))
-        self.scene().addItem(pixmap_item)
-        self.scene().setSceneRect(pixmap_item.boundingRect())
-        if not self.template:
-            return
-        height, width = self.image.shape[:2]
-        x, y, rect_width, rect_height = self.template.table_rect.to_pixels(self.image.shape)
-        table_bounds = QRectF(x, y, rect_width, rect_height)
-        table_item = OverlayRectItem(table_bounds, BLUE, self._table_moved)
-        if self.show_rules or self.read_only:
-            table_item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
-            table_item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-        self.scene().addItem(table_item)
-
-        if self.show_grid:
-            for index, normalized in enumerate(self.template.column_guides):
-                item = GuideLineItem(
-                    "vertical", normalized * width, (table_bounds.top(), table_bounds.bottom()), table_bounds,
-                    lambda value, guide=index: self._guide_moved("column", guide, value / width),
-                )
-                self.scene().addItem(item)
-            for index, normalized in enumerate(self.template.row_guides):
-                item = GuideLineItem(
-                    "horizontal", normalized * height, (table_bounds.left(), table_bounds.right()), table_bounds,
-                    lambda value, guide=index: self._guide_moved("row", guide, value / height),
-                )
-                self.scene().addItem(item)
-
-        if self.show_fields:
-            for index, region in enumerate(self.template.fields):
-                rx, ry, rw, rh = region.rect.to_pixels(self.image.shape)
-                item = OverlayRectItem(
-                    QRectF(rx, ry, rw, rh), region.color,
-                    lambda rect, field_index=index: self._field_moved(field_index, rect), region.name,
-                )
-                if self.read_only:
-                    item.setFlags(QGraphicsItem.GraphicsItemFlag(0))
-                    item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-                if index == self.active_field:
-                    item.setPen(QPen(QColor(region.color), 3))
-                    item.setSelected(True)
-                self.scene().addItem(item)
-
-        self._update_active_overlay()
-
-        if self.show_rules:
-            for index, region in enumerate(self.template.cell_rules):
-                if not (0 <= region.row_start <= region.row_end < self.template.rows and 0 <= region.column_start <= region.column_end < self.template.columns):
-                    continue
-                x1, x2 = self.template.column_guides[region.column_start], self.template.column_guides[region.column_end + 1]
-                y1, y2 = self.template.row_guides[region.row_start], self.template.row_guides[region.row_end + 1]
-                rect = QRectF(x1 * width, y1 * height, (x2 - x1) * width, (y2 - y1) * height)
-                color = QColor(region.color)
-                item = self.scene().addRect(rect, QPen(color, 4 if index == self.active_rule else 2))
-                fill = QColor(color); fill.setAlpha(32); item.setBrush(fill)
-                item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-                text = self.scene().addSimpleText(fmt('{p0}. {p1}', p0=index + 1, p1=localized_rule_name(region.name)))
-                text.setPos(rect.left() + 5, rect.top() + 3); text.setBrush(color)
-                text.setScale(1.15); text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-
-        if not self.read_only:
-            for cell in self.template.fixed_cells:
-                if not (0 <= cell.row < self.template.rows and 0 <= cell.column < self.template.columns):
-                    continue
-                left, right = self.template.column_guides[cell.column:cell.column + 2]
-                top, bottom = self.template.row_guides[cell.row:cell.row + 2]
-                rect = QRectF(left * width, top * height, (right-left) * width, (bottom-top) * height)
-                item = self.scene().addRect(rect, QPen(QColor("#94A3B8"), 1), QColor(241, 245, 249, 230))
-                item.setZValue(22); item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-                text = self.scene().addSimpleText(cell.value or "∅")
-                text.setBrush(QColor("#0F766E")); text.setZValue(23)
-                text.setScale(min(1.2, max(.2, (rect.width()-4) / max(1, text.boundingRect().width()))))
-                text.setPos(rect.left()+2, rect.top()+2); text.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-
-        if self.selection_enabled:
-            static_pen = QPen(QColor("#CBD5E1"), 1)
-            for normalized in self.template.column_guides:
-                self.scene().addLine(normalized * width, table_bounds.top(), normalized * width, table_bounds.bottom(), static_pen).setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-            for normalized in self.template.row_guides:
-                self.scene().addLine(table_bounds.left(), normalized * height, table_bounds.right(), normalized * height, static_pen).setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-            band = self._header_band()
-            header_fill = QColor("#F8FAFC")
-            header_pen = QPen(QColor("#CBD5E1"), 1)
-            for column in range(self.template.columns):
-                left, right = self.template.column_guides[column] * width, self.template.column_guides[column + 1] * width
-                self.scene().addRect(QRectF(left, table_bounds.top() - band, right - left, band), header_pen, header_fill).setZValue(20)
-                label = self.scene().addSimpleText(excel_column_name(column)); label.setBrush(QColor(MUTED)); label.setZValue(21)
-                label.setPos((left + right - label.boundingRect().width()) / 2, table_bounds.top() - band + (band - label.boundingRect().height()) / 2)
-            for row in range(self.template.rows):
-                top, bottom = self.template.row_guides[row] * height, self.template.row_guides[row + 1] * height
-                self.scene().addRect(QRectF(table_bounds.left() - band, top, band, bottom - top), header_pen, header_fill).setZValue(20)
-                label = self.scene().addSimpleText(str(row + 1)); label.setBrush(QColor(MUTED)); label.setZValue(21)
-                label.setPos(table_bounds.left() - band + (band - label.boundingRect().width()) / 2, (top + bottom - label.boundingRect().height()) / 2)
-            self.scene().addRect(QRectF(table_bounds.left() - band, table_bounds.top() - band, band, band), header_pen, header_fill).setZValue(20)
-            selection_fill = QColor("#2563EB"); selection_fill.setAlpha(38)
-            selection_pen = QPen(QColor("#2563EB"), 2)
-            for row, column in self.selected_cells:
-                left, right = self.template.column_guides[column] * width, self.template.column_guides[column + 1] * width
-                top, bottom = self.template.row_guides[row] * height, self.template.row_guides[row + 1] * height
-                item = self.scene().addRect(QRectF(left, top, right - left, bottom - top), selection_pen, selection_fill)
-                item.setAcceptedMouseButtons(Qt.MouseButton.NoButton); item.setZValue(25)
-            for row in range(self.template.rows):
-                for column in range(self.template.columns):
-                    left, right = self.template.column_guides[column] * width, self.template.column_guides[column + 1] * width
-                    top, bottom = self.template.row_guides[row] * height, self.template.row_guides[row + 1] * height
-                    hover = self.scene().addRect(QRectF(left, top, right - left, bottom - top), QPen(Qt.PenStyle.NoPen))
-                    rule, source = self.template.value_constraints(row, column)
-                    tooltip = fmt('{p0}{p1}\n{p2}\n{p3}', p0=excel_column_name(column), p1=row + 1, p2=source, p3=rule.summary())
-                    if self.template.fixed_value(row, column) is not None:
-                        tooltip = tr("Value from template; OCR skipped")
-                    hover.setToolTip(tooltip)
-                    bind(hover, 'tooltip', 'setToolTip', (tooltip,))
-                    hover.setAcceptHoverEvents(True)
-                    hover.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
-                    hover.setZValue(24)
-
-    def _table_moved(self, rect: QRectF) -> None:
-        if self.image is None or not self.template:
-            return
-        old = self.template.table_rect
-        self.template.table_rect = NormalizedRect.from_pixels(
-            (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
-        )
-        new = self.template.table_rect
-        self.template.column_guides = [new.x + (v - old.x) / old.width * new.width for v in self.template.column_guides]
-        self.template.row_guides = [new.y + (v - old.y) / old.height * new.height for v in self.template.row_guides]
-        self.geometryChanged.emit()
-        QTimer.singleShot(0, self.redraw)
-
-    def _field_moved(self, index: int, rect: QRectF) -> None:
-        if self.image is None or not self.template or index >= len(self.template.fields):
-            return
-        self.template.fields[index].rect = NormalizedRect.from_pixels(
-            (round(rect.x()), round(rect.y()), round(rect.width()), round(rect.height())), self.image.shape
-        )
-        self.active_field = index
-        self.geometryChanged.emit()
-        QTimer.singleShot(0, lambda: self.fieldSelected.emit(index))
-
-    def _guide_moved(self, kind: str, index: int, value: float) -> None:
-        if not self.template:
-            return
-        guides = self.template.column_guides if kind == "column" else self.template.row_guides
-        lower = guides[index - 1] + 0.002 if index > 0 else 0
-        upper = guides[index + 1] - 0.002 if index < len(guides) - 1 else 1
-        guides[index] = max(0, min(1, max(lower, min(upper, value))))
-        guides.sort()
-        rect = self.template.table_rect
-        if kind == "column":
-            self.template.table_rect = NormalizedRect(guides[0], rect.y, guides[-1] - guides[0], rect.height)
-        else:
-            self.template.table_rect = NormalizedRect(rect.x, guides[0], rect.width, guides[-1] - guides[0])
-        self.geometryChanged.emit()
-        QTimer.singleShot(0, self.redraw)
-
-    def mousePressEvent(self, event) -> None:
-        if self.draw_kind and event.button() == Qt.MouseButton.LeftButton:
-            self.draw_start = self.mapToScene(event.position().toPoint())
-            self.preview_rect = self.scene().addRect(QRectF(self.draw_start, self.draw_start), QPen(QColor(BLUE), 2, Qt.PenStyle.DashLine))
-            return
-        if self.selection_enabled and event.button() == Qt.MouseButton.LeftButton:
-            hit = self._cell_or_header_at(self.mapToScene(event.position().toPoint()))
-            if hit is None:
-                return
-            kind, row, column = hit
-            modifiers = event.modifiers()
-            additive = bool(modifiers & (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.MetaModifier))
-            if kind == "all":
-                self.select_region(0, self.template.rows - 1, 0, self.template.columns - 1)
-                return
-            if kind == "row":
-                cells = {(row, value) for value in range(self.template.columns)}
-                self.select_cells((self.selected_cells ^ cells) if additive else cells)
-                return
-            if kind == "column":
-                cells = {(value, column) for value in range(self.template.rows)}
-                self.select_cells((self.selected_cells ^ cells) if additive else cells)
-                return
-            current = (row, column)
-            start = self.selection_anchor if modifiers & Qt.KeyboardModifier.ShiftModifier and self.selection_anchor else current
-            self._selection_drag_start = start
-            self._selection_subtract = additive and current in self.selected_cells
-            self._selection_drag_base = set(self.selected_cells) if additive else set()
-            if not additive:
-                self.selection_anchor = start
-            self._apply_live_selection(current)
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event) -> None:
-        if self.draw_start is not None and self.preview_rect:
-            current = self.mapToScene(event.position().toPoint())
-            self.preview_rect.setRect(QRectF(self.draw_start, current).normalized().intersected(self.sceneRect()))
-            return
-        if self.selection_enabled and self._selection_drag_start is not None:
-            hit = self._cell_or_header_at(self.mapToScene(event.position().toPoint()))
-            if hit and hit[0] == "cell":
-                self._apply_live_selection((hit[1], hit[2]))
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event) -> None:
-        if self.draw_start is not None and self.preview_rect:
-            rect = self.preview_rect.rect()
-            self.scene().removeItem(self.preview_rect)
-            kind = self.draw_kind
-            self.draw_kind = ""
-            self.draw_start = None
-            self.preview_rect = None
-            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-            self.unsetCursor()
-            if rect.width() >= 10 and rect.height() >= 10:
-                self.regionCreated.emit(kind, rect)
-            return
-        if self.selection_enabled and self._selection_drag_start is not None:
-            self._selection_drag_start = None
-            self._selection_drag_base = set()
-            self._selection_subtract = False
-            self._record_selection()
-            self.cellSelectionChanged.emit(set(self.selected_cells))
-            return
-        super().mouseReleaseEvent(event)
+from .ui_common import BLUE, LIGHT_BLUE, AMBER, GREEN, BORDER, TEXT, MUTED, SURFACE, pixmap_from_bgr, notify
+from .document_canvas import DocumentCanvas, OverlayRectItem, GuideLineItem
+from .review_page import ReviewPage, CropPreview
 
 
 class DropArea(QFrame):
@@ -680,7 +89,7 @@ class FilesPage(QWidget):
         choose.setProperty("primary", True)
         choose.setFixedWidth(210)
         choose.clicked.connect(self.chooseRequested)
-        formats = QLabel(tr('или перетащите сюда PDF, PNG, JPG либо TIFF'))
+        formats = QLabel(tr('или перетащите сюда PDF, PNG, JPG, TIFF или HEIC/HEIF'))
         formats.setAlignment(Qt.AlignmentFlag.AlignCenter)
         set_theme_style(formats, fmt('color: {p0}; font-size: 15px;', p0=MUTED))
         privacy = QLabel(tr('▣  Файлы и распознанные данные не покидают этот компьютер'))
@@ -882,6 +291,20 @@ class TemplateLibraryPage(QWidget):
                 return
 
 
+class PreparationTabs(QTabWidget):
+    """Do not let a hidden, tall rules form stretch the exclusion workspace."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.currentChanged.connect(lambda _index: self.updateGeometry())
+
+    def minimumSizeHint(self):
+        hint = super().minimumSizeHint()
+        widget = self.currentWidget()
+        if widget is not None:
+            hint.setHeight(widget.minimumSizeHint().height() + self.tabBar().sizeHint().height() + 8)
+        return hint
+
+
 class TablePage(QWidget):
     continueRequested = Signal(object)
     saveVersionRequested = Signal(object)
@@ -940,6 +363,9 @@ class TablePage(QWidget):
         rotate_right.clicked.connect(lambda: self.rotationRequested.emit(-90))
         tools.addWidget(rotate_left)
         tools.addWidget(rotate_right)
+        self.exclusions_button = QToolButton(text=tr('Exclusions'))
+        self.exclusions_button.clicked.connect(lambda: self.tabs.setCurrentWidget(self.exclusions_panel))
+        tools.addWidget(self.exclusions_button)
         tools.addStretch()
         left_layout.addLayout(tools)
         self.canvas = DocumentCanvas()
@@ -950,7 +376,7 @@ class TablePage(QWidget):
         left_layout.addWidget(self.canvas)
         split.addWidget(left)
 
-        self.tabs = QTabWidget()
+        self.tabs = PreparationTabs()
         self.tabs.setMinimumWidth(400)
         self.tabs.setMaximumWidth(640)
         self.tabs.addTab(self._build_grid_tab(), tr('Сетка'))
@@ -960,6 +386,10 @@ class TablePage(QWidget):
         self.fixed_panel = FixedCellsPanel(lambda: self.template, self.canvas)
         self.fixed_panel.changed.connect(self.templateChanged.emit)
         self.tabs.addTab(self.fixed_panel, tr('Template values'))
+        from .exclusions import ExclusionsPanel
+        self.exclusions_panel = ExclusionsPanel(lambda: self.template, self.canvas)
+        self.exclusions_panel.changed.connect(self._exclusions_changed)
+        self.tabs.addTab(self.exclusions_panel, tr('Exclusions'))
         self.tabs.currentChanged.connect(self._tab_changed)
         split.addWidget(self.tabs)
         split.setSizes([820, 440])
@@ -1015,6 +445,11 @@ class TablePage(QWidget):
         self.slow_mode.toggled.connect(lambda checked: self.high_accuracy.setChecked(True) if checked else None)
         self.high_accuracy.toggled.connect(lambda checked: self.slow_mode.setChecked(False) if not checked else None)
         layout.addWidget(self.slow_mode)
+        self.adaptive = QCheckBox(tr('Adaptive analysis (experimental)'))
+        self.adaptive.setToolTip(tr('Short analysis when models agree; complete analysis otherwise. Short-pass values still require review.'))
+        self.adaptive.toggled.connect(lambda checked: self.high_accuracy.setChecked(True) if checked else None)
+        self.high_accuracy.toggled.connect(lambda checked: self.adaptive.setChecked(False) if not checked else None)
+        layout.addWidget(self.adaptive)
         accuracy_note = QLabel(tr('Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки.'))
         accuracy_note.setWordWrap(True)
         set_theme_style(accuracy_note, fmt('color: {p0};', p0=MUTED))
@@ -1052,6 +487,7 @@ class TablePage(QWidget):
         if self.mode == "template":
             self.high_accuracy.hide(); accuracy_note.hide(); load_saved.hide()
             self.slow_mode.hide()
+            self.adaptive.hide()
         self.rows_spin.setKeyboardTracking(False)
         self.columns_spin.setKeyboardTracking(False)
         self.rows_spin.valueChanged.connect(self._grid_count_changed)
@@ -1633,6 +1069,7 @@ class TablePage(QWidget):
         self.canvas.show_fields = False
         self.canvas.show_rules = False
         self.canvas.set_document(image, template)
+        self.exclusions_panel.refresh(reset_history=True)
         self._selection_changed(set())
         self._tab_changed(self.tabs.currentIndex())
 
@@ -1640,13 +1077,18 @@ class TablePage(QWidget):
         self.canvas.resetTransform()
         self.canvas.fit_document()
 
+    def _exclusions_changed(self, template) -> None:
+        self._refresh_columns()
+        self.templateChanged.emit(template)
+
     def _tab_changed(self, index: int) -> None:
         self.canvas.set_active_field(self.field_list.currentRow() if index == 1 else -1)
         self.canvas.show_grid = index == 0
         self.canvas.show_fields = index == 1
         self.canvas.show_rules = index == 2
-        self.canvas.set_selection_enabled(index in {2, 3})
+        self.canvas.set_selection_enabled(index in {2, 3, 4})
         self.fixed_panel.refresh()
+        self.exclusions_panel.refresh()
 
     def _save_common(self) -> None:
         if self._loading_form or not self.template:
@@ -1684,6 +1126,7 @@ class TablePage(QWidget):
         if changes:
             self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0=join_text('; ', changes)))
         self.canvas.redraw()
+        self.exclusions_panel.refresh(reset_history=True)
         self.templateChanged.emit(self.template)
 
     def fit_current_grid(self) -> None:
@@ -1925,750 +1368,6 @@ class TablePage(QWidget):
         notify(self, message)
 
 
-class RecognitionWorker(QThread):
-    progress = Signal(int, int, object)
-    completed = Signal(object)
-    failed = Signal(str)
-    cancelled = Signal()
-
-    def __init__(self, images: list[np.ndarray] | None, source_path: str, template: TableTemplate, crop_root: Path, high_accuracy: bool = True, parent: QObject | None = None, slow_mode: bool = False, *, auto_prepare: bool = False) -> None:
-        super().__init__(parent)
-        self.images = images
-        self.source_path = source_path
-        self.template = template
-        self.crop_root = crop_root
-        self.high_accuracy = high_accuracy
-        self.slow_mode = slow_mode
-        self.auto_prepare = auto_prepare
-        self.preparation = None
-
-    def run(self) -> None:
-        try:
-            if self.auto_prepare:
-                from .batch_preflight import prepare_file
-                checked = prepare_file(self.source_path, [self.template], self.isInterruptionRequested,
-                                       lambda message: self.progress.emit(0, 1, message))
-                assessment = checked.assessments.get(self.template.id)
-                if checked.error or not assessment or assessment.template is None:
-                    reason = checked.error or (assessment.error if assessment else '')
-                    raise ValueError(str(tr('Alignment required. Use Prepare files again to correct the protocol before retrying.')) + ' ' + reason)
-                self.template = assessment.template
-                self.preparation = dict(rotation=assessment.rotation_degrees, status=assessment.fit_status,
-                                        score=assessment.score, rows=self.template.rows, columns=self.template.columns)
-            if self.images is None:
-                self.images = rotate_document(load_document(self.source_path), self.template.rotation_degrees)
-            if self.isInterruptionRequested():
-                raise InterruptedError
-            def report(value: int, maximum: int, label: str) -> None:
-                if self.isInterruptionRequested():
-                    raise InterruptedError
-                self.progress.emit(value, maximum, label)
-
-            result = process_document(
-                self.images, self.source_path, self.template,
-                report, self.crop_root, self.high_accuracy, slow_mode=self.slow_mode,
-            )
-            self.completed.emit(result)
-        except InterruptedError:
-            self.cancelled.emit()
-        except Exception as exc:  # UI boundary: surface actionable error
-            self.failed.emit(str(exc))
-
-
-class CropPreview(QLabel):
-    """Paint the original at a fixed layout size; image changes cannot resize the inspector."""
-    def __init__(self, text: str = "") -> None:
-        super().__init__(text)
-        self._source_pixmap: QPixmap | None = None
-        self.setObjectName("cropPreview")
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
-
-    def set_source_pixmap(self, pixmap: QPixmap) -> None:
-        self._source_pixmap = pixmap
-        super().setText("")
-        self.update()
-
-    def setText(self, text: str) -> None:
-        self._source_pixmap = None
-        super().setText(text)
-        self.update()
-
-    def pixmap(self) -> QPixmap:
-        if self._source_pixmap is None:
-            return QPixmap()
-        return self._source_pixmap.scaled(self.contentsRect().size(), Qt.AspectRatioMode.KeepAspectRatio,
-                                          Qt.TransformationMode.SmoothTransformation)
-
-    def paintEvent(self, event) -> None:
-        super().paintEvent(event)
-        if self._source_pixmap is not None and not self._source_pixmap.isNull():
-            target = self.contentsRect().adjusted(8, 8, -8, -8)
-            size = self._source_pixmap.size().scaled(target.size(), Qt.AspectRatioMode.KeepAspectRatio)
-            rect = QRectF(0, 0, size.width(), size.height())
-            rect.moveCenter(QPointF(target.center()))
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-            painter.drawPixmap(rect, self._source_pixmap, QRectF(self._source_pixmap.rect()))
-
-
-
-class ReviewPage(QWidget):
-    exportRequested = Signal()
-    resultChanged = Signal(object)
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.images: list[np.ndarray] = []
-        self.result: JobResult | None = None
-        self.current_page = 0
-        self.current_kind = "cell"
-        self.current_index = -1
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 10, 16, 14)
-
-        toolbar = QHBoxLayout()
-        toolbar.addWidget(QLabel(tr('Страница')))
-        self.page_select = QComboBox()
-        self.page_select.setMinimumWidth(92)
-        self.page_select.currentIndexChanged.connect(self._page_changed)
-        toolbar.addWidget(self.page_select)
-        self.unresolved_label = QLabel(tr('Нет значений для сверки'))
-        set_theme_style(self.unresolved_label, fmt('color: {p0}; font-weight: 700;', p0=AMBER))
-        self.uncertain_only = QCheckBox(tr('Только спорные'))
-        self.uncertain_only.toggled.connect(self._apply_filter)
-        self.confirm_all_button = QPushButton(tr('Подтвердить все спорные'))
-        self.confirm_all_button.setToolTip(tr('Принять показанные значения во всём документе'))
-        self.confirm_all_button.clicked.connect(self.confirm_all_uncertain)
-        export = QPushButton(tr('Экспорт в Excel'))
-        export.setProperty("primary", True)
-        export.clicked.connect(self.exportRequested)
-        toolbar.addStretch()
-        toolbar.addWidget(self.unresolved_label)
-        toolbar.addWidget(self.uncertain_only)
-        toolbar.addWidget(self.confirm_all_button)
-        toolbar.addWidget(export)
-        outer.addLayout(toolbar)
-
-        split = QSplitter(Qt.Orientation.Horizontal)
-        split.setChildrenCollapsible(False)
-        split.setHandleWidth(6)
-        preview_box = QWidget()
-        preview_layout = QVBoxLayout(preview_box)
-        preview_layout.setContentsMargins(0, 0, 0, 0)
-        preview_toolbar = QHBoxLayout()
-        preview_toolbar.addWidget(QLabel(tr('Оригинал документа')))
-        preview_toolbar.addStretch()
-        self.canvas = DocumentCanvas()
-        self.canvas.read_only = True
-        self.canvas.show_grid = False
-        self.canvas.show_fields = True
-        for label, callback in (("−", lambda: self.canvas.zoom_by(.8)),
-                                ("+", lambda: self.canvas.zoom_by(1.25)),
-                                (tr('Вписать'), self.canvas.fit_document)):
-            button = QPushButton(label)
-            button.setToolTip({"−": tr('Уменьшить оригинал'), "+": tr('Увеличить оригинал'), tr('Вписать'): tr('Показать таблицу целиком')}[label])
-            button.clicked.connect(callback)
-            preview_toolbar.addWidget(button)
-        preview_layout.addLayout(preview_toolbar)
-        preview_layout.addWidget(self.canvas)
-        split.addWidget(preview_box)
-
-        self.results_tabs = QTabWidget()
-        self.table = QTableWidget()
-        self.table.setMinimumHeight(240)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.table.currentCellChanged.connect(lambda row, col, *_: self._cell_clicked(row, col))
-        self.table.verticalHeader().setDefaultSectionSize(36)
-        self.table.horizontalHeader().setMinimumSectionSize(76)
-        self.table.horizontalHeader().setDefaultSectionSize(100)
-        self.results_tabs.addTab(self.table, tr('Таблица'))
-        fields_box = QWidget()
-        fields_layout = QVBoxLayout(fields_box)
-        self.fields_label = QLabel(tr('Выберите поле, чтобы увидеть его на оригинале и проверить значение.'))
-        self.fields_label.setWordWrap(True)
-        fields_layout.addWidget(self.fields_label)
-        self.fields_table = QTableWidget(0, 3)
-        self.fields_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        # Cocoa's selectedChildren traversal can invalidate other selected cells
-        # while constructing a table's accessibility model. One selected cell
-        # still identifies the field and avoids that native use-after-free.
-        self.fields_table.setSelectionBehavior(
-            QTableWidget.SelectionBehavior.SelectItems if sys.platform == 'darwin'
-            else QTableWidget.SelectionBehavior.SelectRows)
-        self.fields_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.fields_table.setHorizontalHeaderLabels([tr('Поле'), tr('Значение'), tr('Оценка OCR')])
-        self.fields_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-        self.fields_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.fields_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self.fields_table.verticalHeader().hide()
-        self.fields_table.currentCellChanged.connect(lambda row, col, *_: self._field_clicked(row, col))
-        fields_layout.addWidget(self.fields_table)
-        self.results_tabs.addTab(fields_box, tr('Поля'))
-        self.results_tabs.currentChanged.connect(self._result_tab_changed)
-        for table in (self.table, self.fields_table):
-            table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
-            table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
-        split.addWidget(self.results_tabs)
-        split.setSizes([560, 760])
-        split.setStretchFactor(0, 2)
-        split.setStretchFactor(1, 3)
-
-        inspector = QFrame()
-        inspector.setObjectName("reviewInspector")
-        inspector.setMinimumHeight(260)
-        inspector_layout = QHBoxLayout(inspector)
-        inspector_layout.setContentsMargins(14, 12, 14, 12)
-        inspector_layout.setSpacing(20)
-        crop_box = QVBoxLayout()
-        self.crop_caption = QLabel(tr('Фрагмент оригинала'))
-        self.crop_caption.setTextFormat(Qt.TextFormat.PlainText)
-        self.crop_caption.setWordWrap(True)
-        self.crop_caption.setMaximumHeight(36)
-        crop_box.addWidget(self.crop_caption)
-        self.crop_label = CropPreview(tr('Выберите значение'))
-        self.crop_label.setMinimumSize(220, 125)
-        crop_box.addWidget(self.crop_label, 1)
-        inspector_layout.addLayout(crop_box, 2)
-
-        edit_box = QVBoxLayout()
-        edit_box.setSpacing(8)
-        title_row = QHBoxLayout()
-        self.address_label = QLabel(tr('Выбранное значение'))
-        set_theme_style(self.address_label, "font-size: 16px; font-weight: 600;")
-        self.value_label = QLabel("—")
-        set_theme_style(self.value_label, "font-size: 19px; font-weight: 600;")
-        self.value_label.setTextFormat(Qt.TextFormat.PlainText)
-        self.address_label.setTextFormat(Qt.TextFormat.PlainText)
-        self.value_label.setMaximumWidth(240)
-        self.value_label.setWordWrap(True)
-        title_row.addWidget(self.address_label)
-        title_row.addStretch()
-        title_row.addWidget(QLabel(tr('Распознано:')))
-        title_row.addWidget(self.value_label)
-        edit_box.addLayout(title_row)
-        value_row = QHBoxLayout()
-        value_title = QLabel(tr('Правильное значение'))
-        self.correct_value = QLineEdit()
-        self.correct_value.setPlaceholderText(tr('Сверьте с оригиналом и введите значение'))
-        self.correct_value.setAccessibleName(tr('Правильное значение выбранной ячейки или поля'))
-        self.correct_value.setMinimumHeight(40)
-        set_theme_style(self.correct_value, "font-size: 19px;")
-        value_title.setBuddy(self.correct_value)
-        self.correct_value.returnPressed.connect(self.confirm_current)
-        self.confirm_shortcuts = []
-        for key in ("Return", "Enter"):
-            shortcut = QShortcut(QKeySequence(key), self)
-            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-            shortcut.activated.connect(self.confirm_current)
-            self.confirm_shortcuts.append(shortcut)
-        value_row.addWidget(value_title)
-        value_row.addWidget(self.correct_value, 1)
-        edit_box.addLayout(value_row)
-        actions = QHBoxLayout()
-        self.confirm_button = QPushButton(tr('Подтвердить и далее') + '  [Enter]')
-        self.confirm_button.setProperty("primary", True)
-        self.confirm_button.setToolTip(tr('Сохранить значение и перейти к следующему спорному. Enter в поле ввода'))
-        self.confirm_button.clicked.connect(self.confirm_current)
-        self.next_button = QPushButton(tr('Следующее спорное →') + '  [Alt+→]')
-        self.next_button.setShortcut("Alt+Right")
-        self.next_button.setToolTip(tr('Перейти без подтверждения текущего значения. Alt+→'))
-        self.next_button.clicked.connect(self.select_next_uncertain)
-        actions.addWidget(self.confirm_button, 1)
-        actions.addWidget(self.next_button, 1)
-        edit_box.addLayout(actions)
-        secondary = QHBoxLayout()
-        self.exclude_row = QCheckBox(tr('Исключить эту строку'))
-        self.exclude_row.setToolTip(tr('Оставить измерения строки пустыми. Снимите отметку, чтобы восстановить значения.'))
-        self.exclude_row.toggled.connect(self._exclude_toggled)
-        secondary.addWidget(self.exclude_row)
-        self.exclude_column = QCheckBox(tr('Exclude this column'))
-        self.exclude_column.setToolTip(tr('Leave this column’s measurements empty, keeping its header. Clear to restore the values.'))
-        self.exclude_column.toggled.connect(self._exclude_column_toggled)
-        secondary.addWidget(self.exclude_column)
-        secondary.addStretch()
-        self.details_toggle = QToolButton()
-        self.details_toggle.setText(tr('Почему нужна проверка'))
-        self.details_toggle.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.details_toggle.setCheckable(True)
-        self.details_toggle.setArrowType(Qt.ArrowType.RightArrow)
-        self.details_toggle.toggled.connect(self._toggle_details)
-        secondary.addWidget(self.details_toggle)
-        edit_box.addLayout(secondary)
-        self.confidence_label = QLabel()
-        self.confidence_label.setWordWrap(True)
-        self.confidence_label.setTextFormat(Qt.TextFormat.RichText)
-        self.confidence_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self.confidence_label.setMargin(10)
-        self.detail_scroll = QScrollArea()
-        self.detail_scroll.setWidgetResizable(True)
-        self.detail_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.detail_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.detail_scroll.setMinimumHeight(110)
-        self.detail_scroll.setMaximumHeight(170)
-        self.detail_scroll.setWidget(self.confidence_label)
-        self.detail_scroll.hide()
-        edit_box.addWidget(self.detail_scroll)
-        edit_box.addStretch()
-        inspector_layout.addLayout(edit_box, 3)
-        self.review_split = QSplitter(Qt.Orientation.Vertical)
-        self.review_split.setHandleWidth(6)
-        self.review_split.setChildrenCollapsible(False)
-        self.review_split.addWidget(split)
-        self.review_split.addWidget(inspector)
-        self.review_split.setStretchFactor(0, 1)
-        self.review_split.setStretchFactor(1, 0)
-        self.review_split.setSizes([560, 270])
-        outer.addWidget(self.review_split, 1)
-
-    def _toggle_details(self, expanded: bool) -> None:
-        self.detail_scroll.setVisible(expanded)
-        self.details_toggle.setArrowType(Qt.ArrowType.DownArrow if expanded else Qt.ArrowType.RightArrow)
-        sizes = self.review_split.sizes()
-        delta = 140 if expanded else -140
-        self.review_split.setSizes([max(260, sizes[0] - delta), max(260, sizes[1] + delta)])
-
-    def _result_tab_changed(self, index: int) -> None:
-        table = self.table if index == 0 else self.fields_table
-        if table.currentRow() >= 0:
-            if index == 0:
-                self._cell_clicked(table.currentRow(), table.currentColumn())
-            else:
-                self._field_clicked(table.currentRow(), 0)
-        elif table.rowCount():
-            table.setCurrentCell(0, 0)
-
-    def set_result(self, images: list[np.ndarray], result: JobResult) -> None:
-        self.images = images
-        self.result = result
-        self.current_page = 0
-        self.current_index = -1
-        self.details_toggle.setChecked(False)
-        self.page_select.blockSignals(True)
-        self.page_select.clear()
-        for index in range(min(len(images), len(result.pages))):
-            self.page_select.addItem(tr('{p0} из {p1}', p0=index + 1, p1=len(result.pages)))
-        self.page_select.setCurrentIndex(0)
-        self.page_select.blockSignals(False)
-        if images:
-            self.canvas.set_document(images[0], result.template)
-        self._populate()
-        self.select_next_uncertain()
-
-    def _page_changed(self, index: int) -> None:
-        if not self.result or not 0 <= index < min(len(self.images), len(self.result.pages)):
-            return
-        self.current_page = index
-        self.current_index = -1
-        self.canvas.set_document(self.images[index], self.result.template)
-        self._populate()
-        self.select_next_uncertain(page_only=True)
-
-    def _populate(self) -> None:
-        if not self.result:
-            return
-        page = self.result.pages[self.current_page]
-        positions = [(table.horizontalScrollBar().value(), table.verticalScrollBar().value())
-                     for table in (self.table, self.fields_table)]
-        self.table.blockSignals(True)
-        self.fields_table.blockSignals(True)
-        self.table.setUpdatesEnabled(False)
-        self.fields_table.setUpdatesEnabled(False)
-        has_fields = bool(page.fields)
-        self.results_tabs.blockSignals(True)
-        self.results_tabs.setTabEnabled(1, has_fields)
-        self.results_tabs.blockSignals(False)
-        self.results_tabs.setTabText(1, tr('Поля · {p0}', p0=len(page.fields)))
-        self.fields_label.setVisible(has_fields)
-        self.fields_table.setVisible(has_fields)
-        self.fields_table.setRowCount(len(page.fields))
-        for index, item in enumerate(page.fields):
-            values = [item.name, item.final_text, fmt('{p0:.0%}', p0=item.confidence)]
-            for column, value in enumerate(values):
-                widget_item = QTableWidgetItem(value)
-                if item.needs_review:
-                    widget_item.setBackground(QColor("#FEF3C7"))
-                self.fields_table.setItem(index, column, widget_item)
-
-        self.table.setRowCount(self.result.template.rows)
-        self.table.setColumnCount(self.result.template.columns)
-        self.table.setHorizontalHeaderLabels([
-            excel_column_name(index) if rule.name.startswith("Column ") else rule.name
-            for index, rule in enumerate(self.result.template.column_rules)
-        ])
-        self.table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        self.table.verticalHeader().setMinimumSectionSize(34)
-        for cell in page.cells:
-            item = QTableWidgetItem("—" if cell.status == "excluded" else cell.final_text)
-            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            if cell.status == "excluded":
-                item.setBackground(QColor("#ECEFF3"))
-                item.setForeground(QColor(MUTED))
-            elif cell.needs_review:
-                item.setBackground(QColor("#FEF3C7"))
-                item.setForeground(QColor("#92400E"))
-            elif cell.status in {"confirmed", "corrected"}:
-                item.setBackground(QColor("#ECFDF3"))
-            self.table.setItem(cell.row, cell.column, item)
-        header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        header.setMinimumSectionSize(76)
-        header.setDefaultSectionSize(96)
-        self._update_status()
-        self._apply_filter()
-        self.refresh_theme()
-        for table, (horizontal, vertical) in zip((self.table, self.fields_table), positions):
-            table.blockSignals(False)
-            table.setUpdatesEnabled(True)
-            table.horizontalScrollBar().setValue(horizontal)
-            table.verticalScrollBar().setValue(vertical)
-
-    def _update_status(self) -> None:
-        if not self.result:
-            return
-        count = self.result.unresolved_count
-        self.unresolved_label.setText(tr('Нужно сверить: {p0}', p0=count) if count else tr('Готово к экспорту'))
-        set_theme_style(self.unresolved_label, fmt('color: {p0}; font-weight: 700;', p0=AMBER if count else GREEN))
-        self.confirm_all_button.setEnabled(count > 0)
-
-    def _field_clicked(self, row: int, _column: int) -> None:
-        if not self.result or not 0 <= row < len(self.result.pages[self.current_page].fields):
-            return
-        self.current_kind = "field"
-        self.current_index = row
-        self._show_current()
-
-    def _cell_clicked(self, row: int, column: int) -> None:
-        if not self.result:
-            return
-        page = self.result.pages[self.current_page]
-        index = next((i for i, item in enumerate(page.cells) if item.row == row and item.column == column), -1)
-        self.current_kind = "cell"
-        self.current_index = index
-        self._show_current()
-
-    def _show_current(self) -> None:
-        if not self.result or self.current_index < 0:
-            return
-        page = self.result.pages[self.current_page]
-        if self.current_kind == "field":
-            item = page.fields[self.current_index]
-            region_index = next((i for i, region in enumerate(self.result.template.fields)
-                                 if region.id == item.region_id), -1)
-            self.canvas.set_active_field(region_index)
-            address = tr('Поле · {p0}', p0=item.name)
-            self.address_label.setText(address)
-            self.exclude_row.blockSignals(True)
-            self.exclude_row.setChecked(False)
-            self.exclude_row.setEnabled(False)
-            self.exclude_row.blockSignals(False)
-            self.exclude_column.blockSignals(True)
-            self.exclude_column.setChecked(False)
-            self.exclude_column.setEnabled(False)
-            self.exclude_column.blockSignals(False)
-        else:
-            item = page.cells[self.current_index]
-            self.canvas.set_active_cell(item.row, item.column)
-            address = tr('Ячейка {p0}{p1}', p0=excel_column_name(item.column), p1=item.row + 1)
-            self.address_label.setText(address)
-            self.exclude_row.blockSignals(True)
-            self.exclude_row.setEnabled(item.row >= self.result.template.header_rows)
-            self.exclude_row.setChecked(item.row in page.excluded_rows)
-            self.exclude_row.blockSignals(False)
-            self.exclude_column.blockSignals(True)
-            self.exclude_column.setEnabled(item.column >= self.result.template.row_label_columns)
-            self.exclude_column.setChecked(item.column in page.excluded_columns)
-            self.exclude_column.blockSignals(False)
-        self.confirm_button.setEnabled(item.status != "excluded")
-        self.correct_value.setEnabled(item.status != "excluded")
-        if getattr(item, "status", "automatic") == "excluded":
-            self.value_label.setText(tr('Пусто — исключено'))
-        else:
-            self.value_label.setText(item.final_text or tr('Пусто'))
-        self.correct_value.setText(item.final_text)
-        reasons = {
-            "template_fixed_value": tr("Value from template; OCR skipped"),
-            "slow_mode_selected": tr('Qwen и GLM согласовали другое число. Сравните исправление с оригиналом.'),
-            "required_cell_empty": tr("Missing required value"),
-            "invalid_numeric_format": tr("Invalid numeric notation"),
-            "below_minimum": tr("The value is below the allowed minimum"),
-            "above_maximum": tr("The value exceeds the allowed maximum"),
-            "low_confidence": tr('Модель не уверена в прочтении — сравните значение с оригиналом'),
-            "empty_prediction": tr('Не удалось прочитать значение'),
-            "required_field_empty": tr('Обязательное поле осталось пустым'),
-            "high_accuracy_consensus": tr('Модели точного режима согласовали результат'),
-            "numeric_verification_required": tr('Цифры и десятичный разделитель прошли многоэтапную локальную проверку'),
-            "model_disagreement": tr('Локальные модели предлагают разные прочтения'),
-            "possible_missing_decimal": tr('Возможно, пропущен десятичный разделитель'),
-            "possible_border_digit": tr('Граница таблицы могла быть прочитана как 1'),
-            "crossed_out_row": tr('На изображении обнаружен непрерывный штрих через строку'),
-            "auto_excluded_crossed_row": tr('Непрерывный штрих найден по всей строке; её значения автоматически оставлены пустыми'),
-            "suspected_crossed_row": tr('Possible crossed-out row or shifted grid. Values were kept. Check the alignment before excluding the row.'),
-            "non_numeric_mark_row": tr('В большинстве ячеек строки OCR видит буквы или символы вместо чисел; строка оставлена пустой'),
-            "alternative_selected": tr('Выбрано альтернативное прочтение; исходный OCR показан выше'),
-            "rule_selected_alternative": tr('Выбрано другое прочтение OCR, соответствующее вашему правилу'),
-            "expected_range_selected_alternative": tr('Выбран реально прочитанный OCR-вариант из заданного обычного диапазона — проверьте оригинал'),
-            "separator_inferred_from_rule": tr('Разделитель предложен по формату, а не прочитан моделью — проверьте оригинал'),
-            "separator_reclassified_from_one": tr('Узкий штрих, прочитанный как 1, предложен как десятичный разделитель по правилу шаблона — проверьте оригинал'),
-            "rule_conflict": tr('Ни одно прочтение не соответствует правилу'),
-            "ambiguous_rule_proposals": tr('По формату возможны разные значения — автоматического выбора нет'),
-            "decimal_places_mismatch": tr('Не совпадает число знаков после разделителя'),
-            "decimal_part_required": tr('По шаблону десятичная часть обязательна'),
-            "expected_integer": tr('Здесь разрешено только целое число'),
-            "expected_decimal_number": tr('Здесь разрешено только простое число'),
-            "value_not_allowed": tr('Значения нет в разрешённом списке'),
-            "outside_expected_range": tr('Необычное значение: вне ожидаемого диапазона, но не запрещено'),
-            "range_not_checkable": tr('Диапазон нельзя проверить для сложной записи'),
-            "value_rule_review_required": tr('Значение проверено по правилу шаблона'),
-            "constrained_decoder_used": tr('Проверены дополнительные варианты из внутренних вероятностей OCR'),
-            "crop_retry_contributed": tr('Дополнительный вырез ячейки повлиял на результат'),
-            "decimal_separator_detected": tr('Разделитель найден отдельным геометрическим детектором'),
-            "separator_not_visually_confirmed": tr('OCR предложил дробь, но отдельный детектор не подтвердил разделитель'),
-            "visible_digit_count_used": tr('Короткий вариант отклонён: на изображении виден дополнительный отдельный знак'),
-            "decimal_boundary_inferred_from_glyphs": tr('Позиция дробной части найдена между видимыми знаками с учётом формата шаблона'),
-            "unstable_consensus": tr('Недостаточно устойчивое согласие независимых этапов'),
-            "digit_verifier_agrees": tr('Независимый распознаватель отдельных цифр согласен'),
-            "digit_verifier_disagreement": tr('Дополнительный распознаватель цифр предложил другой вариант; основной консенсус сохранён'),
-            "isolated_digit_consensus": tr('All three models agree on the separately read disputed digit'),
-            "isolated_digit_disagreement": tr('Separate reading of the disputed digit remains uncertain'),
-            "split_consensus_used": tr('Independent models agree when reading the number in parts'),
-            "candidate_reranked": tr('Selected another OCR candidate using balanced model evidence; verify against the original'),
-            "candidate_ranking_disagreement": tr('Several readings have similar support; verify the ambiguous digit'),
-            "weak_sequence_evidence": tr('All numeric readings have weak image evidence; verify the whole value'),
-            "multistage_cascade": tr('Выполнена многоэтапная локальная проверка'),
-            "table_outlier": tr('Значение резко отличается от других сопоставимых ячеек этой строки'),
-            "table_outlier_with_plausible_alternative": tr('Среди других прочтений OCR есть вариант, согласующийся со строкой — выберите его только после сверки с фото'),
-        }
-        audit_flags = {"numeric_verification_required", "high_accuracy_consensus", "constrained_decoder_used",
-                       "crop_retry_contributed", "decimal_separator_detected", "digit_verifier_agrees",
-                       "multistage_cascade",
-                       "value_rule_review_required"}
-        def section(title: str, lines: list[str]) -> str:
-            if not lines:
-                return ""
-            return fmt('<p><b>{p0}</b></p><ul>', p0=escape(title)) + join_text('', (fmt('<li>{p0}</li>', p0=escape(line)) for line in lines)) + "</ul>"
-        concerns = [reasons.get(flag, tr('Дополнительная отметка: {p0}', p0=flag)) for flag in item.flags if flag not in audit_flags and not flag.startswith("writer_style_")]
-        checks = [reasons[flag] for flag in item.flags if flag in audit_flags]
-        details = section(tr('Что проверить'), concerns or [tr('Сравните значение с фрагментом оригинала.')])
-        rule_lines = []
-        if self.current_kind == "cell" and getattr(item, "applied_rule", "") and "template_fixed_value" not in item.flags:
-            rule, rule_name = self.result.template.value_constraints(item.row, item.column)
-            rule_lines = [fmt("{p0}: {p1}", p0=rule_name, p1=rule.summary())]
-        details += section(tr('Правило значения'), rule_lines)
-        evidence = getattr(item, 'slow_mode_evidence', {})
-        if evidence:
-            details += section(tr('Перепроверка slow mode'), [
-                tr('До перепроверки: {p0}', p0=evidence.get('baseline') or tr('Пусто')),
-                fmt('Qwen: {p0}', p0=evidence.get('qwen') or '—'),
-                fmt('GLM: {p0}', p0=evidence.get('glm') or '—'),
-            ])
-        readings = []
-        if item.raw_text:
-            readings.append(tr('Первичное распознавание: ') + item.raw_text)
-        if getattr(item, "suggested_text", ""):
-            readings.append(tr('До исключения строки: ') + item.suggested_text)
-        if item.alternatives:
-            readings.append(tr('Другие прочтения: ') + item.alternatives)
-        details += section(tr('Варианты прочтения'), readings)
-        details += section(tr('Выполненные проверки'), checks)
-        details += section(tr('Технические сведения'), [tr('Оценка OCR: {p0:.0%}. Это оценка модели, а не измеренная точность.', p0=item.confidence)])
-        self.confidence_label.setText(details)
-        self.detail_scroll.verticalScrollBar().setValue(0)
-        # Review always uses the same unmodified source page as the left canvas.
-        # Ownership masks and inset OCR crops can erase genuine ink or leave border fragments.
-        crop = None
-        if self.current_page < len(self.images):
-            image = self.images[self.current_page]
-            if self.current_kind == "cell":
-                crop = crop_cell(image, self.result.template, item.row, item.column, inset=0)
-            else:
-                region = next((r for r in self.result.template.fields if r.id == item.region_id), None)
-                if region:
-                    crop = crop_normalized(image, region.rect)
-        self.crop_caption.setText(tr('Фрагмент оригинала · ') + address)
-        if crop is not None and crop.size:
-            self.crop_label.set_source_pixmap(pixmap_from_bgr(crop))
-        else:
-            self.crop_label.setText(tr('Фрагмент оригинала недоступен'))
-
-    def refresh_theme(self) -> None:
-        if not self.result:
-            return
-        c = colors()
-        page = self.result.pages[self.current_page]
-        for collection, table in ((page.cells, self.table), (page.fields, self.fields_table)):
-            for index, result in enumerate(collection):
-                bg, fg = c["surface"], c["text"]
-                if result.status == "excluded":
-                    bg, fg = c["excluded"], c["muted"]
-                elif result.needs_review:
-                    bg, fg = c["warning_bg"], c["warning"]
-                elif result.status in {"confirmed", "corrected"}:
-                    bg, fg = c["success_bg"], c["text"]
-                items = ([table.item(result.row, result.column)] if table is self.table
-                         else [table.item(index, column) for column in range(3)])
-                for widget_item in items:
-                    if widget_item:
-                        widget_item.setBackground(QColor(bg))
-                        widget_item.setForeground(QColor(fg))
-
-
-    def confirm_current(self) -> None:
-        if not self.result or self.current_index < 0:
-            return
-        page = self.result.pages[self.current_page]
-        collection = page.fields if self.current_kind == "field" else page.cells
-        item = collection[self.current_index]
-        if item.status == "excluded":
-            return
-        corrected = self.correct_value.text().strip()
-        # Explicit human corrections override recognition constraints verbatim.
-        item.final_text = corrected
-        if getattr(item, "status", "automatic") != "excluded":
-            item.status = "confirmed" if corrected == item.raw_text else "corrected"
-        self._populate()
-        self.resultChanged.emit(self.result)
-        self.select_next_uncertain()
-
-    def confirm_all_uncertain(self) -> None:
-        """Accept every currently valid disputed value in the whole document."""
-        if not self.result or not self.result.unresolved_count:
-            return
-        confirmable: list[object] = []
-        blocked = 0
-        for page in self.result.pages:
-            for field in page.fields:
-                if not field.needs_review:
-                    continue
-                region = next((region for region in self.result.template.fields if region.id == field.region_id), None)
-                if region is None or region.hard_errors(field.final_text):
-                    blocked += 1
-                else:
-                    confirmable.append(field)
-            for cell in page.cells:
-                if not cell.needs_review:
-                    continue
-                constraints, _ = self.result.template.cell_constraints(cell.row, cell.column)
-                if constraints and constraints.hard_errors(cell.final_text):
-                    blocked += 1
-                else:
-                    confirmable.append(cell)
-        if not confirmable:
-            QMessageBox.information(
-                self, tr('Нужны исправления'),
-                tr('Оставшиеся значения нарушают правила шаблона. Исправьте их по одному.'),
-            )
-            return
-        suffix = tr('\n\nЕщё {p0} знач. с ошибками правил останутся для ручной проверки.', p0=blocked) if blocked else ""
-        answer = QMessageBox.question(
-            self,
-            tr('Подтвердить все спорные'),
-            tr('Принять {p0} знач. точно в том виде, как они показаны?{p1}', p0=len(confirmable), p1=suffix),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if answer != QMessageBox.StandardButton.Yes:
-            return
-        for item in confirmable:
-            item.status = "confirmed"
-        self._populate()
-        self.resultChanged.emit(self.result)
-        self.select_next_uncertain()
-
-    def _exclude_toggled(self, checked: bool) -> None:
-        self._set_axis_excluded('row', checked)
-
-    def _exclude_column_toggled(self, checked: bool) -> None:
-        self._set_axis_excluded('column', checked)
-
-    def _set_axis_excluded(self, axis: str, checked: bool) -> None:
-        if not self.result or self.current_kind != "cell" or self.current_index < 0:
-            return
-        page = self.result.pages[self.current_page]
-        cell = page.cells[self.current_index]
-        page.set_excluded(axis, cell.row if axis == 'row' else cell.column, checked, self.result.template)
-        self._populate()
-        self._show_current()
-        self.resultChanged.emit(self.result)
-
-    def select_next_uncertain(self, *, page_only: bool = False) -> None:
-        if not self.result:
-            return
-        entries = [(page_index, kind, index, item)
-                   for page_index, page in enumerate(self.result.pages)
-                   for kind, items in (("field", page.fields), ("cell", page.cells))
-                   for index, item in enumerate(items)]
-        current = next((i for i, entry in enumerate(entries)
-                        if entry[:3] == (self.current_page, self.current_kind, self.current_index)), -1)
-        ordered = entries[current + 1:] + entries[:current + 1]
-        if current < 0:
-            ordered = [e for e in entries if e[0] >= self.current_page] + [e for e in entries if e[0] < self.current_page]
-        target = next((e for e in ordered if e[3].needs_review and (not page_only or e[0] == self.current_page)), None)
-        if target is None:
-            self._clear_current()
-            return
-        page_index, kind, index, item = target
-        if page_index != self.current_page:
-            self.current_page = page_index
-            self.page_select.blockSignals(True)
-            self.page_select.setCurrentIndex(page_index)
-            self.page_select.blockSignals(False)
-            if page_index < len(self.images):
-                self.canvas.set_document(self.images[page_index], self.result.template)
-            self._populate()
-        self.current_kind, self.current_index = kind, index
-        self.results_tabs.blockSignals(True)
-        self.results_tabs.setCurrentIndex(1 if kind == "field" else 0)
-        self.results_tabs.blockSignals(False)
-        table = self.fields_table if kind == "field" else self.table
-        table.blockSignals(True)
-        table.setCurrentCell(index if kind == "field" else item.row, 0 if kind == "field" else item.column)
-        table.blockSignals(False)
-        table.scrollToItem(table.currentItem())
-        self._show_current()
-        self.correct_value.setFocus(Qt.FocusReason.OtherFocusReason)
-        self.correct_value.selectAll()
-
-    def _clear_current(self) -> None:
-        self.current_index = -1
-        self.canvas.set_active_field(-1)
-        for table in (self.table, self.fields_table):
-            table.blockSignals(True)
-            table.clearSelection()
-            table.setCurrentCell(-1, -1)
-            table.blockSignals(False)
-        self.crop_label.setText(tr('На этой странице всё проверено') if self.result and self.result.unresolved_count else tr('Сверка завершена'))
-        self.crop_caption.setText(tr('Фрагмент оригинала'))
-        self.address_label.setText(tr('Выберите ячейку или поле для просмотра'))
-        self.value_label.setText("—")
-        self.correct_value.clear()
-        self.correct_value.setEnabled(False)
-        self.confirm_button.setEnabled(False)
-        self.exclude_row.blockSignals(True)
-        self.exclude_row.setChecked(False)
-        self.exclude_row.setEnabled(False)
-        self.exclude_row.blockSignals(False)
-        self.exclude_column.blockSignals(True)
-        self.exclude_column.setChecked(False)
-        self.exclude_column.setEnabled(False)
-        self.exclude_column.blockSignals(False)
-        self.confidence_label.clear()
-        self.details_toggle.setChecked(False)
-
-    def _apply_filter(self) -> None:
-        if not self.result:
-            return
-        page = self.result.pages[self.current_page]
-        filtering = self.uncertain_only.isChecked()
-        uncertain_rows = {cell.row for cell in page.cells if cell.needs_review}
-        for row in range(self.table.rowCount()):
-            self.table.setRowHidden(row, filtering and row not in uncertain_rows)
-        for row, field in enumerate(page.fields):
-            self.fields_table.setRowHidden(row, filtering and not field.needs_review)
-
-
-
 class CurrentPageStack(QStackedWidget):
     """A hidden template editor must not force the review window off a laptop screen."""
     def __init__(self, parent=None) -> None:
@@ -2733,7 +1432,7 @@ class MainWindow(QMainWindow):
         self.job_id = ""
         self.source_path = ""
         self.stored_source_path = ""
-        self.images: list[np.ndarray] = []
+        self.images: Sequence[np.ndarray] = []
         self.template: TableTemplate | None = None
         self.result: JobResult | None = None
         self.worker: RecognitionWorker | None = None
@@ -3048,11 +1747,11 @@ class MainWindow(QMainWindow):
         self.template_editor_working = template
 
     def create_template_from_sample(self) -> None:
-        path, _ = QFileDialog.getOpenFileName(self, tr('Выберите образец таблицы'), "", "Documents (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)")
+        path, _ = QFileDialog.getOpenFileName(self, tr('Выберите образец таблицы'), "", document_file_filter())
         if not path:
             return
         try:
-            images = load_document(path)
+            images = open_document(path)
             if not images:
                 raise ValueError(tr('Файл не содержит страниц'))
             detection = self._detect_or_manual(images[0])
@@ -3078,18 +1777,19 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, tr('Шаблон недоступен'), tr('Не удалось загрузить выбранный шаблон.')); return
         source = template.reference_source_path
         if not source or not Path(source).exists():
-            source, _ = QFileDialog.getOpenFileName(self, tr('Укажите образец для шаблона'), "", "Documents (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)")
+            source, _ = QFileDialog.getOpenFileName(self, tr('Укажите образец для шаблона'), "", document_file_filter())
             if not source:
                 return
         try:
-            images = rotate_document(load_document(source), template.rotation_degrees)
+            images = rotate_document(open_document(source), template.rotation_degrees)
             if not images:
                 raise ValueError(tr('Файл не содержит страниц'))
+            image = images[0]
         except Exception as exc:
             QMessageBox.warning(self, tr('Образец недоступен'), str(exc)); return
         working = TableTemplate.from_dict(template.to_dict())
         self.template_editor_working = working; self.template_editor_reference = source
-        self.template_editor.set_document(images[0], working)
+        self.template_editor.set_document(image, working)
         self.templates_stack.setCurrentIndex(1); self.template_back_bar.show(); self._navigate_section(1)
 
     def save_template_version(self, template: TableTemplate) -> None:
@@ -3106,7 +1806,7 @@ class MainWindow(QMainWindow):
         self._refresh_templates()
         self.template_library.select_template(saved.id)
         try:
-            image = rotate_document(load_document(saved.reference_source_path), saved.rotation_degrees)[0]
+            image = rotate_document(open_document(saved.reference_source_path), saved.rotation_degrees)[0]
             self.template_editor.set_document(image, saved)
         except Exception:
             pass
@@ -3175,7 +1875,7 @@ class MainWindow(QMainWindow):
         notify(self, tr('Шаблон импортирован: {p0}', p0=template.name))
 
     def choose_files(self) -> None:
-        paths, _ = QFileDialog.getOpenFileNames(self, tr('Открыть изображения таблиц'), "", tr('Документы (*.pdf *.png *.jpg *.jpeg *.tif *.tiff)'))
+        paths, _ = QFileDialog.getOpenFileNames(self, tr('Открыть изображения таблиц'), "", document_file_filter())
         if paths:
             self.open_files(paths)
 
@@ -3246,7 +1946,7 @@ class MainWindow(QMainWindow):
         new_job_id = ""
         try:
             new_job_id, copied = self.store.import_source(path)
-            images = load_document(copied)
+            images = open_document(copied)
             if not images:
                 raise ValueError(tr('The document contains no pages.'))
             detection: GridDetection | None = None if reused_template else self._detect_or_manual(images[0])
@@ -3285,7 +1985,7 @@ class MainWindow(QMainWindow):
             self.table_page.grid_warning.setText(join_text(' ', detection.warnings) if detection else tr('Проверьте наложение сохранённого шаблона и число строк заголовка.'))
         self.refresh_recent()
 
-    def _new_template(self, path: str, copied: str, images: list[np.ndarray],
+    def _new_template(self, path: str, copied: str, images: Sequence[np.ndarray],
                       detection: GridDetection | None = None) -> TableTemplate:
         detection = detection or self._detect_or_manual(images[0])
         identifier = str(uuid4())
@@ -3298,12 +1998,12 @@ class MainWindow(QMainWindow):
         template.ensure_column_rules()
         return template
 
-    def _activate_document(self, job_id: str, path: str, copied: str, images: list[np.ndarray],
+    def _activate_document(self, job_id: str, path: str, copied: str, images: Sequence[np.ndarray],
                            template: TableTemplate, result: JobResult | None = None) -> None:
         """Install one fully prepared context; failed reads never get this far."""
         self.job_id, self.source_path, self.stored_source_path = job_id, path, copied
         self.images, self.template, self.result = images, template, result
-        self.review_page.result = result
+        self.review_page.clear_result()
         self.file_title.setText(Path(path).name)
         self.save_status.setText(tr('Изменения сохранены'))
         self.save_status.setToolTip("")
@@ -3332,7 +2032,8 @@ class MainWindow(QMainWindow):
     def _make_queue_worker(self, entry):
         worker = RecognitionWorker(None, entry['stored_path'], TableTemplate.from_dict(entry['template']),
                                    self.store.jobs_dir / entry['job_id'] / 'crops', entry['high_accuracy'],
-                                   self, slow_mode=entry['slow_mode'], auto_prepare='preparation' not in entry)
+                                   self, slow_mode=entry['slow_mode'], auto_prepare='preparation' not in entry,
+                                   run_id=entry.get('run_id'), adaptive=entry.get('adaptive', False))
         self.worker = worker
         self._workers.append(worker)
         worker.finished.connect(lambda: self._recognition_thread_finished(worker))
@@ -3361,8 +2062,8 @@ class MainWindow(QMainWindow):
         image = self.template_editor.image
         if template is None or image is None:
             return
-        if template.fields or template.cell_rules or template.fixed_cells:
-            answer = QMessageBox.question(self, tr('Rotate template'), tr('Rotation will detect a new grid and clear fields, rules and template values. Continue?'))
+        if template.fields or template.cell_rules or template.fixed_cells or template.excluded_rows or template.excluded_columns or template.excluded_cells:
+            answer = QMessageBox.question(self, tr('Rotate template'), tr('Rotation will detect a new grid and clear fields, rules, template values and exclusions. Continue?'))
             if answer != QMessageBox.StandardButton.Yes:
                 return
         rotated = rotate_document([image], degrees)[0]
@@ -3374,6 +2075,7 @@ class MainWindow(QMainWindow):
         template.fields = []
         template.cell_rules = []
         template.fixed_cells = []
+        template.clear_exclusions()
         template.column_rules = []
         template.ensure_column_rules()
         template.reference_page_aspect = rotated.shape[1] / rotated.shape[0]
@@ -3383,7 +2085,7 @@ class MainWindow(QMainWindow):
     def _rotate_pages(self, degrees: int) -> None:
         if not self.images or not self.template:
             return
-        if self.template.fields or self.result:
+        if self.template.fields or self.result or self.template.excluded_rows or self.template.excluded_columns or self.template.excluded_cells:
             answer = QMessageBox.question(self, tr('Повернуть документ'), tr('Поворот сбросит текущую сетку и выделенные поля. Сохранённый исходный файл не изменится. Продолжить?'))
             if answer != QMessageBox.StandardButton.Yes:
                 return
@@ -3405,7 +2107,7 @@ class MainWindow(QMainWindow):
             if not loaded:
                 raise ValueError(tr('Не удалось открыть сохранённое задание.'))
             metadata, result = loaded
-            images = load_document(metadata["stored_source_path"])
+            images = open_document(metadata["stored_source_path"])
             if not images:
                 raise ValueError(tr('The document contains no pages.'))
             draft = None if prefer_result and result else self.store.load_draft(job_id)
@@ -3421,6 +2123,7 @@ class MainWindow(QMainWindow):
                 self.store.save_draft(job_id, template)
             template.resize_grid(template.rows, template.columns)
             images = rotate_document(images, template.rotation_degrees)
+            images[0]  # Decode the initial page before replacing the active context.
         except Exception as exc:
             QMessageBox.warning(self, tr('Исходник недоступен'), str(exc))
             return
@@ -3434,7 +2137,10 @@ class MainWindow(QMainWindow):
             # Keep the saved job intact; a changed template must not reinterpret
             # old confirmed results as if recognition had been rerun.
             self.result = None
-        self.review_page.result = self.result
+        if self.result is None:
+            self.review_page.clear_result()
+        else:
+            self.review_page.result = self.result
         if self.job_id:
             self._pending_draft = (self.job_id, template.to_dict())
             self.save_status.setText(tr('Сохранение изменений…'))
@@ -3518,7 +2224,8 @@ class MainWindow(QMainWindow):
         self.template = template
         try:
             self.analysis_queue.enqueue(self.job_id, self.source_path, self.stored_source_path, template,
-                                        self.table_page.high_accuracy.isChecked(), self.table_page.slow_mode.isChecked())
+                                        self.table_page.high_accuracy.isChecked(), self.table_page.slow_mode.isChecked(),
+                                        adaptive=self.table_page.adaptive.isChecked())
         except OSError as exc:
             QMessageBox.warning(self, tr('Queue error'), str(exc))
             return

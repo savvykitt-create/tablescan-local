@@ -48,11 +48,14 @@ are an [optional release mode](docs/macos-release-signing.md).
 
 ## Your first table
 
-1. **Files:** open a PDF, PNG, JPEG or TIFF. Multiple files and multipage PDFs
+1. **Files:** open a PDF, PNG, JPEG, TIFF, HEIC or HEIF. Multiple files and multipage PDFs
    are supported.
 2. **Alignment:** choose a protocol and check the detected rotation, boundary,
    rows and columns. Adjust the grid if needed. Mark metadata outside the grid
    under **Fields** and configure expected values under **Rules**.
+   Use **Exclusions** to omit unused rows, columns or individual cells before
+   recognition. Click row numbers or column letters, or drag across cells, then
+   choose **Exclude selection**. Ctrl/Cmd adds to the selection; Shift extends it.
 3. **Analyze:** choose Fast, High accuracy or Slow analysis. Standard recognition
    models are included; install optional Slow analysis from **Settings → Slow mode →
    Install Slow mode**. Windows and Apple Silicon macOS prepare Python, an isolated virtual environment,
@@ -67,6 +70,16 @@ Rules guide recognition. Individual manual corrections override cell and field
 rules, including numeric limits and decimal formats. Bulk confirmation still
 leaves rule conflicts for individual review. **Exclude this row** and
 **Exclude this column** omit measurements; clearing an exclusion restores them.
+
+Preparation exclusions are saved with the document and with any template you
+save from it. They skip OCR and Slow verification, keep their original positions
+and export blank values. **Restore selection**, undo/redo and **Clear all
+exclusions** make them reversible, including a single cell within an excluded
+row or column. Whole excluded axes also cover newly added cells on those axes;
+individual addresses stay fixed. Shrinking the grid past an exclusion requires
+editing or clearing it. Explicit preparation exclusions take precedence over
+fixed template values without deleting the saved constants. To read an area
+excluded before analysis, restore it in preparation and analyze the file again.
 
 Choose English, Czech or Russian in **Settings → Language**. Document contents
 and custom protocol names remain in the language in which you entered them.
@@ -93,8 +106,25 @@ the latest attempt, excluding time spent waiting in the queue. After a crash,
 an unknown finish time stays blank and **≥** marks the last recorded duration.
 **×** removes a task and stops it if
 running; saved results remain in file history. **Cancel all** stops unfinished
-work, and **Resume all** restarts cancelled, interrupted or failed tasks from
-the beginning. Tasks removed with **×** are not resumed.
+work, and **Resume all** continues cancelled, interrupted or failed tasks using
+their completed page stages. The interrupted page's unfinished stage runs again.
+Tasks removed with **×** are not resumed.
+
+HEIC/HEIF photographs (including iPhone `.HEIC` files) open through the same
+file picker, drag-and-drop and batch preparation as other images. Decoding is
+local and preserves the source file and full pixel dimensions; no PDF or JPEG
+conversion is required. Stored orientation is applied once. The primary image
+is shown first; additional top-level images are treated as pages, while depth
+maps, gain maps and thumbnails are excluded. High-bit-depth input is decoded
+into the 8-bit RGB representation used by OCR.
+
+PDF and TIFF pages are read as needed, with a small image cache, at the same
+recognition resolution. Completed primary OCR and Slow page stages are saved
+locally. Resume reuses them only when the source, rendering, protocol and
+recognition implementation/models still match. Missing or damaged checkpoints
+are recomputed. Starting a new analysis explicitly runs recognition again;
+checkpoints do not replace saved manual corrections during preparation.
+See [large documents and recovery](docs/large-documents.md) for details.
 
 **Prepare selected file…** repeats preparation for only the selected file;
 **Prepare files again…** prepares all files still in the queue. Previous results
@@ -146,6 +176,10 @@ grids or animal counts must be analyzed as separate files.
 | Fast | Standard local OCR with fewer passes. |
 | High accuracy | Additional OCR models, crop variations and candidate checks. |
 | Slow | High accuracy followed by Qwen/GLM verification of disputed numeric measurements. |
+
+The alignment screen also offers opt-in [Adaptive analysis (experimental)](docs/adaptive-analysis.md):
+a short numeric pass when independent models agree, with the complete High
+cascade for other cells. Short-pass values still require human review.
 
 Slow mode is optional. See [installation and troubleshooting](docs/slow-mode.md)
 for Apple Silicon, Intel Mac, Windows and Linux. Its models download during setup
@@ -248,6 +282,10 @@ available and produce diagnostic details. If the details report rejected values,
 check the file's numeric ranges and formats; model agreement does not override
 those constraints. Agreement changes a
 proposal; it does not confirm the measurement or remove the need for review.
+Review shows whether Slow changed a proposal, supported the original reading,
+found disagreement or lacked a valid model reading. Table outlier flags are
+recomputed after Slow and after manual changes; other recognition evidence and
+human confirmations are retained.
 
 ### Models and their roles
 

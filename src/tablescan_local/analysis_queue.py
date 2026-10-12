@@ -3,6 +3,7 @@ import json
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import uuid4
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -66,14 +67,16 @@ class AnalysisQueue(QObject):
     def busy(self, job_id):
         return any(e['job_id'] == job_id and e['status'] in ('queued', 'running', 'cancelling') for e in self.entries)
 
-    def enqueue(self, job_id, source_path, stored_path, template, high_accuracy=True, slow_mode=False, *, preparation=None):
+    def enqueue(self, job_id, source_path, stored_path, template, high_accuracy=True, slow_mode=False, *, preparation=None, adaptive=False):
         if self.busy(job_id):
             return False
         self.closing = False
         snapshot = TableTemplate.from_dict(template.to_dict())
         snapshot.validate_value_rules()
         entry = dict(job_id=job_id, source_path=source_path, stored_path=str(stored_path),
-                     template=snapshot.to_dict(), high_accuracy=high_accuracy, slow_mode=slow_mode,
+                     template=snapshot.to_dict(), high_accuracy=bool(high_accuracy or adaptive), slow_mode=slow_mode,
+                     adaptive=bool(adaptive),
+                     run_id=str(uuid4()),
                      status='queued', progress=0, message='', preparation=dict(preparation or {}))
         previous = self.entries
         self.entries = [e for e in previous if e['job_id'] != job_id] + [entry]
@@ -96,6 +99,9 @@ class AnalysisQueue(QObject):
         entry.update(started_at=datetime.now(timezone.utc).isoformat(timespec='seconds'), elapsed_seconds=0.0)
         started_clock = time.monotonic()
         try:
+            # Old queue files have no checkpoints. Assign their first run once,
+            # then retain it through cancellation, restart and retry.
+            entry.setdefault('run_id', str(uuid4()))
             worker = self.worker_factory(entry)
             entry['status'] = 'running'
             self.persist()

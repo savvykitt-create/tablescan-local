@@ -205,3 +205,23 @@ def test_slow_diagnostics_show_parsing_counts_in_each_language():
         details = str(completion_details([{'status': 'partial', 'parsed_qwen_rows': 16, 'parsed_glm_rows': 0, 'rows': 2}]))
         assert '16' in details and '0' in details and '2' in details
         assert bool(re.search('[А-Яа-яЁё]', details)) == (code == 'ru')
+
+
+@pytest.mark.parametrize('platform', ['darwin', 'win32', 'linux'])
+@pytest.mark.parametrize('method', ['getOpenFileName', 'getOpenFileNames', 'getSaveFileName'])
+def test_file_picker_uses_cocoa_on_mac_and_translates_titles(platform, method, monkeypatch):
+    from tablescan_local import localized_widgets as widgets
+    monkeypatch.setattr(widgets.sys, 'platform', platform)
+    calls = []
+    def picker(*args, **kwargs):
+        calls.append((args, kwargs))
+        return ([], '') if method == 'getOpenFileNames' else ('', '')
+    monkeypatch.setattr(widgets.QtWidgets.QFileDialog, method, picker)
+    set_language('cs')
+    getattr(widgets.QFileDialog, method)(None, tr('Открыть изображения таблиц'), '',
+                                       'Documents (*.HEIC *.heic)')
+    args, options = calls[0]
+    assert args[1] == 'Otevřít obrázky tabulek'
+    assert args[3] == 'Documents (*.HEIC *.heic)'
+    native_disabled = options.get('options', widgets.QtWidgets.QFileDialog.Option(0))
+    assert bool(native_disabled & widgets.QtWidgets.QFileDialog.Option.DontUseNativeDialog) == (platform != 'darwin')

@@ -10,6 +10,7 @@ TableScan Local depends on the following open-source projects. Release builds in
 - openpyxl — MIT.
 - Pillow — MIT-CMU (see the exact installed-version license).
 - NumPy — BSD-3-Clause.
+- pi-heif — BSD-3-Clause source; decoder wheels bundle LGPL libraries libheif and libde265. No HEVC encoder is included.
 
 Model weights shipped by `rapidocr-onnxruntime` remain subject to their upstream notices. The bundled upstream license snapshot includes the RapidOCR release license; model origins and hashes are included in the manifest. Unused Qt Virtual Keyboard and Qt PDF image plugins are excluded from the package.
 

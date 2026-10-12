@@ -8,8 +8,24 @@ import numpy as np
 from .ui import create_application, InstanceAlreadyRunning
 
 
+def document_self_test() -> int:
+    """Exercise the actual bundled HEIF decoder, frame order and orientation."""
+    from pathlib import Path
+    from .documents import open_document
+    pages = open_document(Path(__file__).parent / 'assets/heic-smoke.heic')
+    if len(pages) != 2 or pages[0].shape != (96, 64, 3) or pages[1].shape != (64, 96, 3):
+        raise RuntimeError('Packaged HEIC size, orientation or frame order is wrong')
+    for actual, expected in ((pages[0][10, 10], (30, 20, 230)),
+                             (pages[0][-10, -10], (230, 30, 20)),
+                             (pages[1][10, 10], (50, 180, 30))):
+        if np.max(np.abs(actual.astype(int) - expected)) > 4:
+            raise RuntimeError('Packaged HEIC pixels or orientation are wrong')
+    return 0
+
+
 def self_test(*, parallel=False) -> int:
     """Load the packaged OCR runtime and run one in-memory recognition pass."""
+    document_self_test()
     from .slow_setup import download_context
     if not download_context().get_ca_certs():
         raise RuntimeError("Python download certificates are missing from the application")
@@ -45,6 +61,13 @@ def self_test(*, parallel=False) -> int:
             results = list(pool.map(tasks, LocalOcrEngine(high_accuracy=True)))
             if pool.completed == 0:
                 raise RuntimeError('Packaged CPU worker did not complete a cell')
+            adaptive_args = dict(tasks[0][1], adaptive=True)
+            direct = LocalOcrEngine(high_accuracy=True).recognize_cell(**adaptive_args)
+            parallel_adaptive = list(pool.map([(0, adaptive_args)], LocalOcrEngine(high_accuracy=True)))[0][1]
+            if direct.text != parallel_adaptive.text or direct.flags != parallel_adaptive.flags:
+                raise RuntimeError('Packaged adaptive worker parity failed')
+            if not {'adaptive_short_pass', 'adaptive_full_pass'}.intersection(direct.flags):
+                raise RuntimeError('Packaged adaptive route was not executed')
             if [key for key, _ in results] != [0, 1] or any(
                 value.text != precise.text or value.flags != precise.flags for _, value in results
             ):
@@ -100,6 +123,8 @@ def main() -> int:
         return uninstall_main()
     if "--slow-mode-self-test" in sys.argv:
         return slow_mode_self_test()
+    if "--document-self-test" in sys.argv:
+        return document_self_test()
     if "--self-test" in sys.argv:
         return self_test()
     if "--parallel-self-test" in sys.argv:

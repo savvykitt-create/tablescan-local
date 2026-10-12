@@ -84,6 +84,16 @@ def test_template_selector_shows_latest_family_and_loads_constants(qtbot):
     assert page.template.fixed_value(0, 1) == 'L1'
 
 
+def test_preparation_exclusions_are_user_edits_not_factory_defaults(tmp_path):
+    store = LocalStore(tmp_path)
+    old = TableTemplate.from_dict(json.loads((OLD / 'plantar.json').read_text()))
+    old.set_cell_exclusions({(2, 3)}, True)
+    store.save_template(old)
+    store.install_default_templates()
+    saved = next(t for t in store.load_templates() if t.id == old.id)
+    assert saved.to_dict() == old.to_dict()
+
+
 @pytest.mark.parametrize('layout', ['beside', 'below', 'combined', 'blank', 'similar'])
 def test_expanded_field_removes_only_printed_caption_and_preserves_raw(layout):
     from tablescan_local.ocr import LocalOcrEngine

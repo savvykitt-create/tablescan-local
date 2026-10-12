@@ -1,14 +1,13 @@
 """Per-file orientation and geometry checks before any batch OCR starts."""
 from dataclasses import dataclass, field
-from pathlib import Path
+from collections.abc import Sequence
 
 import numpy as np
-import cv2
 from PySide6.QtCore import QThread, Signal
 
 from .domain import TableTemplate
 from .i18n import tr
-from .imaging import detect_grid, load_document, rotate_document
+from .imaging import detect_grid, open_document, rotate_document
 from .template_fit import fit_template
 from .template_matcher import rank_templates
 
@@ -31,7 +30,7 @@ class PreparedFile:
     geometry: dict = field(default_factory=dict)
     error: str = ''
     pages: int = 0
-    thumbnails: list = field(default_factory=list)
+    thumbnails: Sequence = field(default_factory=list)
 
 
 def assess_geometry(template, pages, *, auto_fit=True):
@@ -95,27 +94,29 @@ def assess_orientations(template, geometry):
 def prepare_file(path, templates, interrupted=lambda: False, progress=lambda message: None):
     item = PreparedFile(str(path))
     try:
-        images = load_document(path)
+        images = open_document(path, cache_pages=0, cancelled=interrupted)
         if not images:
             raise ValueError(tr('The document contains no pages.'))
         item.pages = len(images)
-        for image in images:
-            scale = min(1., 1000 / max(image.shape[:2]))
-            item.thumbnails.append(cv2.resize(image, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA))
+        # Preview pages remain lazy as well: a batch must not retain thousands
+        # of thumbnails after the full-resolution geometry check completes.
+        item.thumbnails = open_document(path, max_dimension=1000, cache_pages=0,
+                                        cache_bytes=3 * 1000 ** 2)
         # A saved rotation belongs to the reference scan, not to every file in
         # a batch. Check all four orientations independently for each file.
-        for rotation in (0, 90, 180, 270):
-            pages = []
-            for index, image in enumerate(rotate_document(images, rotation)):
+        item.geometry = {rotation: [] for rotation in (0, 90, 180, 270)}
+        for index, original in enumerate(images):
+            for rotation, pages in item.geometry.items():
                 if interrupted():
                     raise InterruptedError()
                 progress(str(tr('Checking page {p0}: rotation {p1}°', p0=index + 1, p1=rotation)))
+                image = rotate_document([original], rotation)[0]
                 try:
                     detection = detect_grid(image)
                 except ValueError:
                     detection = None
                 pages.append((image.shape, detection))
-            item.geometry[rotation] = pages
+            del image, original
         for template in templates:
             if interrupted():
                 raise InterruptedError()

@@ -19,6 +19,8 @@ SOURCES = [
     ("qt-6.11.2", "qt/qttranslations", "v6.11.2"),
     ("rapidocr-1.4.4", "RapidAI/RapidOCR", "v1.4.4"),
     ("flatbuffers-25.12.19", "google/flatbuffers", "v25.12.19"),
+    ("heif-decoders", "strukturag/libheif", "v1.23.0"),
+    ("heif-decoders", "strukturag/libde265", "v1.1.0"),
 ]
 
 

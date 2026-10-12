@@ -120,9 +120,12 @@ The budget depends on available RAM, physical cores and document size; at least
 3 GiB or 20% of total memory is reserved, with a further 768 MiB allowance per
 worker. Small jobs, GPU OCR and unknown/low-memory systems stay sequential.
 Workers preserve ONNX's numerical/thread settings but disable idle thread-pool
-busy-waiting. They are stopped under memory pressure or on
-cancellation; unfinished cells fall back to the original sequential engine after
-a worker failure. Document queue ordering remains unchanged.
+busy-waiting. Under moderate memory pressure, completed workers retire one at a
+time without discarding other pending cells. A reserve deficit of at least
+768 MiB, continued pressure with one worker, or a worker failure switches to the
+original sequential engine, replaying only unfinished cells. Cancellation stops
+all owned workers. Worker counts do not grow again within a document, avoiding
+repeated model loading under fluctuating memory. Document ordering is unchanged.
 
 Slow analysis owns one external runtime per document. Qwen/GLM weights may remain
 loaded between requests only while memory permits. Loading another model checks
@@ -132,12 +135,30 @@ generation caches are not shared between requests. Existing Slow installations
 work without downloading models or reinstalling their environment.
 
 Saved results include `performance` metadata (decoder, initial resource snapshot,
-worker budget, fallback count, primary page durations and total time). The same
+worker budget, reduction and fallback counts, event reasons and memory snapshots,
+primary page durations and total time). The same
 summary is written to `crops/performance.json`. Slow execution evidence records
 model reuse, load time, inference time in the response files, and request time.
 Local performance tests and source-document benchmarks belong in ignored `qa/`.
 
+## Experimental recognition depth
+
+[Adaptive analysis](adaptive-analysis.md) adds an optional agreement gate in
+`adaptive_ocr.py`. It preserves the complete cascade as fallback and marks every
+early exit for review. Performance worker budgeting remains independent of this
+recognition policy. Keep experiments and source-document scoring outside Git.
+
 ## Further reading
 
+- [Large documents, recovery and module boundaries](large-documents.md)
 - [Localization](LOCALIZATION.md)
 - [Slow mode setup and CPU compatibility](slow-mode.md)
+
+## HEIC input
+
+HEIC input uses the decoder-only `pi-heif==1.4.0` wheel, included in frozen
+builds on macOS and Windows. Its upstream project has ended releases; review
+decoder maintenance before refreshing this pin. Do not replace it with a
+standard `pillow-heif` wheel without reviewing the additional encoder libraries
+and their distribution terms. The bundled synthetic `assets/heic-smoke.heic`
+exercises actual decoding in the application's `--self-test` on both platforms.

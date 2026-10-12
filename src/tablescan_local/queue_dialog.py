@@ -55,7 +55,7 @@ class AnalysisQueueDialog(QDialog):
         self.cancel_all_button = QPushButton(tr('Cancel all'))
         self.cancel_all_button.clicked.connect(lambda: self._bulk_action(queue.cancel_all))
         self.resume_all_button = QPushButton(tr('Resume all'))
-        self.resume_all_button.setToolTip(tr('Restart cancelled, interrupted and failed analyses from the beginning. Completed results are kept.'))
+        self.resume_all_button.setToolTip(tr('Resume cancelled, interrupted and failed analyses from saved page stages. Completed results are kept.'))
         self.resume_all_button.clicked.connect(lambda: self._bulk_action(queue.resume_all))
         actions.addWidget(self.cancel_all_button)
         actions.addWidget(self.resume_all_button)
@@ -140,6 +140,8 @@ class AnalysisQueueDialog(QDialog):
         self.table.setRowCount(len(visible))
         for row, entry in enumerate(visible):
             mode = tr('Slow analysis') if entry.get('slow_mode') else (tr('High accuracy') if entry.get('high_accuracy', True) else tr('Fast analysis'))
+            if entry.get('adaptive'):
+                mode = tr('Adaptive + Slow') if entry.get('slow_mode') else tr('Adaptive analysis (experimental)')
             prepared = entry.get('preparation', {})
             preparation = tr('Manually checked') if prepared.get('status') == 'manual' else tr('Fitted')
             preparation = (fmt("{label} · {rotation}° · {rows}×{columns}", label=preparation, rotation=prepared["rotation"], rows=prepared["rows"], columns=prepared["columns"])

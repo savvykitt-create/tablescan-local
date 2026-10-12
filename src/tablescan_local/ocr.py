@@ -170,6 +170,7 @@ class LocalOcrEngine:
         numeric: bool,
         constraints: ValueConstraints | None = None,
         retry_crops: list[np.ndarray] | None = None,
+        adaptive: bool = False,
     ) -> OcrValue:
         source_crops = [crop, *(retry_crops or [])]
         # Empty paper and a lone cancellation stroke must be decided from the
@@ -183,7 +184,11 @@ class LocalOcrEngine:
             empty = OcrValue("", 1.0)
             return constrain_reading(empty, constraints) if constraints is not None else empty
         if numeric and constraints is not None and getattr(self, "_high_accuracy", False):
-            value = self._recognize_numeric_slow(crop, constraints, retry_crops or [])
+            if adaptive:
+                from .adaptive_ocr import recognize
+                value = recognize(self, crop, constraints, retry_crops or [])
+            else:
+                value = self._recognize_numeric_slow(crop, constraints, retry_crops or [])
         else:
             value = self._read_cell(crop, numeric)
         return constrain_reading(value, constraints) if constraints is not None else value
@@ -250,6 +255,7 @@ class LocalOcrEngine:
         crop: np.ndarray,
         constraints: ValueConstraints,
         retry_crops: list[np.ndarray],
+        *, recognition_cache=None,
     ) -> OcrValue:
         """Constraint-aware cascade over models, crops, and CTC hypotheses."""
         if crop.size == 0 or self._ink_ratio(crop) < 0.003:
@@ -304,7 +310,7 @@ class LocalOcrEngine:
         )
         raw_literals: list[str] = []
         ranking_evidence = CandidateEvidence()
-        recognition_cache = {}
+        recognition_cache = {} if recognition_cache is None else recognition_cache
 
         for view_name, view in named_views:
             prepared = self._prepare(view)

@@ -2,7 +2,7 @@ from pathlib import Path
 import sys
 import os
 
-from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs
+from PyInstaller.utils.hooks import collect_data_files, collect_dynamic_libs, copy_metadata
 
 
 project_root = Path(SPECPATH).parent
@@ -17,8 +17,8 @@ rapid_data = collect_data_files("rapidocr_onnxruntime")
 a = Analysis(
     [str(project_root / "tablescan_local_app.py")],
     pathex=[str(project_root / "src")],
-    binaries=collect_dynamic_libs("onnxruntime"),
-    datas=rapid_data + [
+    binaries=collect_dynamic_libs("onnxruntime") + collect_dynamic_libs("pi_heif"),
+    datas=rapid_data + copy_metadata("pi-heif") + [
         (str(project_root / "src/tablescan_local/translations"), "tablescan_local/translations"),
         (str(project_root / "src/tablescan_local/assets"), "tablescan_local/assets"),
         (str(project_root / "src/tablescan_local/models"), "tablescan_local/models"),
@@ -32,8 +32,8 @@ a = Analysis(
         (str(license_directory), "licenses"),
     ],
     hookspath=[str(project_root / "packaging" / "hooks")],
-    hiddenimports=["rapidocr_onnxruntime", "onnxruntime", "pypdfium2", "cv2", "openpyxl"],
-    excludes=["tkinter", "matplotlib", "pandas"],
+    hiddenimports=["rapidocr_onnxruntime", "onnxruntime", "pypdfium2", "cv2", "openpyxl", "pi_heif", "_pi_heif"],
+    excludes=["tkinter", "matplotlib", "pandas", "pillow_heif", "_pillow_heif"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -67,7 +67,7 @@ if sys.platform == "darwin":
         bundle_identifier=os.getenv("TABLESCAN_BUNDLE_ID", "org.tablescan.local"),
         info_plist={
             "NSHighResolutionCapable": True,
-            "CFBundleShortVersionString": "1.0.7",
-            "CFBundleVersion": "1.0.7",
+            "CFBundleShortVersionString": "1.0.8",
+            "CFBundleVersion": "1.0.8",
         },
     )

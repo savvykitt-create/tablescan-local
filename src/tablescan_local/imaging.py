@@ -4,19 +4,16 @@ from .i18n import tr, fmt, join_text
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
-from threading import RLock
 
 from .components import connected_components
+from .documents import DocumentPages, PDF_LOCK as _PDF_LOCK, SUPPORTED_EXTENSIONS, open_document
 
 import cv2
 import numpy as np
-from PIL import Image, ImageOps
 
 from .domain import NormalizedRect, TableTemplate
 
 
-SUPPORTED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff"}
-_PDF_LOCK = RLock()  # PDFium operations must not overlap across OCR/preflight/UI threads.
 
 
 def write_image(path: str | Path, image: np.ndarray) -> None:
@@ -45,39 +42,8 @@ class GridDetection:
 
 
 def load_document(path: str | Path, scale: float = 3.0) -> list[np.ndarray]:
-    source = Path(path)
-    suffix = source.suffix.lower()
-    if suffix not in SUPPORTED_EXTENSIONS:
-        raise ValueError(tr('Unsupported file type: {p0}', p0=suffix))
-    if suffix == ".pdf":
-        import pypdfium2 as pdfium
-
-        with _PDF_LOCK:
-            document = pdfium.PdfDocument(str(source))
-            pages: list[np.ndarray] = []
-            try:
-                for index in range(len(document)):
-                    page = document[index]
-                    try:
-                        bitmap = page.render(scale=scale)
-                        try:
-                            rgb = np.asarray(bitmap.to_pil().convert("RGB"))
-                            pages.append(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
-                        finally:
-                            bitmap.close()
-                    finally:
-                        page.close()
-            finally:
-                document.close()
-            return pages
-    with Image.open(source) as image:
-        frames = []
-        frame_count = getattr(image, "n_frames", 1)
-        for index in range(frame_count):
-            image.seek(index)
-            rgb = np.asarray(ImageOps.exif_transpose(image).convert("RGB"))
-            frames.append(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR))
-        return frames
+    """Explicit eager compatibility helper; application flows use open_document."""
+    return list(open_document(path, scale, cache_pages=0))
 
 
 def _cluster_indices(indices: Iterable[int], gap: int = 3) -> list[int]:
@@ -130,10 +96,12 @@ def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
     return corrected, corrected != lines
 
 
-def rotate_document(images: list[np.ndarray], degrees: int) -> list[np.ndarray]:
+def rotate_document(images, degrees: int):
     """Rotate copies counterclockwise; original source files are unchanged."""
     if degrees % 90:
         raise ValueError(tr('Rotation must be a multiple of 90 degrees'))
+    if isinstance(images, DocumentPages):
+        return images.rotated(degrees)
     return [np.ascontiguousarray(np.rot90(image, (degrees // 90) % 4)) for image in images]
 
 

@@ -49,6 +49,11 @@ class LocalStore:
             if default and saved.template_version < default.template_version:
                 previous = saved.to_dict()
                 previous.pop('reference_source_path', None)
+                # Empty fields added by newer schemas are not user edits.
+                # Nonempty exclusions must prevent a factory replacement.
+                for key in ('excluded_rows', 'excluded_columns', 'excluded_cells'):
+                    if not previous.get(key):
+                        previous.pop(key, None)
                 for region in previous['fields']:
                     if not region.get('printed_label'):
                         region.pop('printed_label', None)

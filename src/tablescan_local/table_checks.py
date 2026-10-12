@@ -26,10 +26,17 @@ def flag_table_outliers(page: PageResult, template: TableTemplate) -> None:
     gross digit confusions without assuming that normal biological variation is
     an OCR error.  It never changes ``final_text`` or confirmation status.
     """
+    # Recompute from current values after Slow/manual edits. Historical flags
+    # must not keep a corrected or excluded cell in the review queue forever.
+    for cell in page.cells:
+        cell.flags = [flag for flag in cell.flags if flag not in
+                      {'table_outlier', 'table_outlier_with_plausible_alternative'}]
+    excluded = page.exclusion_mask(template)
     for row in range(template.header_rows, template.rows):
         row_cells = [
             cell for cell in page.cells
             if cell.row == row and cell.column >= template.row_label_columns and cell.status != "excluded"
+            and (cell.row, cell.column) not in excluded
             and template.fixed_value(cell.row, cell.column) is None
         ]
         groups: dict[str, list[tuple[object, float]]] = {}

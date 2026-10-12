@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from .i18n import tr, fmt, join_text
+from .i18n import tr
 import tempfile
-import time
 from math import ceil
 from pathlib import Path
 from typing import Callable
 
-import cv2
 import numpy as np
 
 from .domain import CellResult, FieldRegion, FieldResult, JobResult, NormalizedRect, PageResult, TableTemplate
 from .imaging import cell_crop_bundle, crop_normalized, detect_crossed_rows, write_image
-from .ocr import LocalOcrEngine, is_complex_number, is_simple_number
+from .ocr import LocalOcrEngine, is_complex_number
 from .table_checks import flag_table_outliers
 
 
@@ -56,7 +54,7 @@ def detect_non_numeric_mark_rows(cells: list[CellResult], template: TableTemplat
     for row in range(template.rows):
         candidates = []
         for cell in cells:
-            if cell.row != row or cell.column < template.row_label_columns or not cell.applied_rule or template.fixed_value(cell.row, cell.column) is not None:
+            if cell.row != row or cell.column < template.row_label_columns or not cell.applied_rule or template.is_excluded(cell.row, cell.column) or template.fixed_value(cell.row, cell.column) is not None:
                 continue
             constraints, _ = template.value_constraints(cell.row, cell.column)
             if constraints.value_format in {"numeric", "integer", "complex_numeric"}:
@@ -91,15 +89,17 @@ def process_page(
     engine: LocalOcrEngine,
     progress: ProgressCallback | None = None,
     crop_directory: Path | None = None,
+    *, adaptive: bool = False,
 ) -> PageResult:
     template.ensure_column_rules()
     template.validate_value_rules()
+    excluded = template.exclusion_mask()
     crop_directory = crop_directory or Path(tempfile.mkdtemp(prefix="tablescan-crops-"))
     suspected_rows = detect_crossed_rows(image, template)
     # A shifted printed border can look exactly like a cancellation. Keep the
     # readings and require Review; only the reviewer may exclude a whole row.
-    excluded_rows: list[int] = []
-    total = sum(template.fixed_value(r, c) is None and template.column_rules[c].role != "ignored"
+    excluded_rows: list[int] = list(template.excluded_rows)
+    total = sum(template.fixed_value(r, c) is None and (r, c) not in excluded
                 for r in range(template.rows) for c in range(template.columns))
     total += sum(region.source != "fixed" for region in template.fields)
     completed = 0
@@ -137,13 +137,14 @@ def process_page(
     def requests():
         for row in range(template.rows):
             for column in range(template.columns):
+                if (row, column) in excluded:
+                    cells.append(CellResult(row, column, "", "", 1.0, status="excluded",
+                                            flags=['excluded_before_analysis']))
+                    continue
                 fixed = template.fixed_value(row, column)
                 if fixed is not None:
                     cells.append(CellResult(row, column, "", fixed, 1.0,
                                             flags=["template_fixed_value"], applied_rule="Value from template"))
-                    continue
-                if template.column_rules[column].role == "ignored":
-                    cells.append(CellResult(row, column, "", "", 1.0, status="excluded"))
                     continue
                 crop_variants, context_crop = cell_crop_bundle(image, template, row, column)
                 crop = crop_variants[0]
@@ -169,6 +170,7 @@ def process_page(
                 yield (row, column, crop_path, preview_crop_path, active, rule_name, constraints), dict(
                     crop=crop, numeric=numeric, constraints=recognition_rule,
                     retry_crops=crop_variants[1:] if numeric else None,
+                    **({"adaptive": True} if adaptive else {}),
                 )
 
     from .parallel_ocr import CellWorkers
@@ -214,90 +216,39 @@ def process_page(
     # measurements should disappear. This also catches wavy cancellations.
     for row in detect_non_numeric_mark_rows(cells, template) if template.detect_crossed_rows else []:
         for cell in cells:
-            if cell.row != row or cell.column < template.row_label_columns or template.fixed_value(cell.row, cell.column) is not None:
+            if cell.row != row or cell.column < template.row_label_columns or template.is_excluded(cell.row, cell.column) or template.fixed_value(cell.row, cell.column) is not None:
                 continue
             cell.flags = sorted(set([*cell.flags, "suspected_crossed_row", "non_numeric_mark_row"]))
     excluded_rows.sort()
 
-    page = PageResult(page_index, source_path, cells, fields, excluded_rows)
+    page = PageResult(page_index, source_path, cells, fields, excluded_rows,
+                      excluded_columns=list(template.excluded_columns))
     flag_table_outliers(page, template)
     return page
 
 
 def process_document(
-    images: list[np.ndarray],
+    images,
     source_path: str,
     template: TableTemplate,
     progress: ProgressCallback | None = None,
     crop_root: Path | None = None,
     high_accuracy: bool = True,
     slow_mode: bool = False,
+    *,
+    adaptive: bool = False,
+    checkpoint_directory: Path | None = None,
+    run_id: str | None = None,
+    cancelled: Callable[[], bool] = lambda: False,
 ) -> JobResult:
-    started = time.monotonic()
-    from .template_fit import fit_document_template
-    template = fit_document_template(template, images)
-    template.ensure_column_rules()
-    slow_config = None
-    if slow_mode:
-        from .slow_mode import runtime_config
-        slow_config = runtime_config()
-    needs_ocr = (any(field.source != "fixed" for field in template.fields)
-                 or any(template.fixed_value(r, c) is None and template.column_rules[c].role != "ignored"
-                        for r in range(template.rows) for c in range(template.columns)))
-    engine = LocalOcrEngine(high_accuracy=high_accuracy or slow_mode) if needs_ocr else None
-    model_version = engine.model_version if engine else "template-values"
-    from .resource_policy import resources, cpu_workers
-    from .parallel_ocr import CellWorkers
-    from .ocr_runtime import acceleration_provider
-    from .numeric_decoder import _native_search
-    state = resources()
-    count = 1
-    pool = None
-    # Test adapters/custom engines retain their own recognition semantics.
-    from .ocr import LocalOcrEngine as NativeEngine
-    if isinstance(engine, NativeEngine) and (high_accuracy or slow_mode):
-        cells = sum(template.fixed_value(r, c) is None and template.column_rules[c].role != 'ignored'
-                    for r in range(template.rows) for c in range(template.columns)) * len(images)
-        count = cpu_workers(state, cells, accelerated=acceleration_provider() is not None)
-        if count > 1:
-            pool = CellWorkers(count)
-            engine._cell_workers = pool
-    performance = {'resources': state.to_dict(), 'cpu_workers': count,
-                   'ocr_provider_available': (acceleration_provider() or ('CPUExecutionProvider',))[0],
-                   'decoder': 'native' if _native_search else 'python', 'primary_pages_seconds': []}
-    pages = []
-    try:
-        for index, image in enumerate(images):
-            page_started = time.monotonic()
-            page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
-            pages.append(process_page(image, source_path, index, template, engine, progress, page_crop_root))
-            performance['primary_pages_seconds'].append(time.monotonic() - page_started)
-    finally:
-        if pool:
-            performance['cpu_fallbacks'] = pool.fallbacks
-            performance['cpu_parallel_cells'] = pool.completed
-            pool.close()
-    # ONNX sessions must not compete with the much larger Slow models for RAM.
-    # Finish primary OCR first, then release all sessions before starting Qwen/GLM.
-    del engine
-    if slow_mode:
-        import gc
-        from .slow_mode import refine_page, model_session
-        gc.collect()
-        with model_session():
-            for index, (image, page) in enumerate(zip(images, pages)):
-                if progress:
-                    progress(0, 1, str(tr('Preparing Slow verification')))
-                page_crop_root = crop_root / f"page-{index + 1}" if crop_root else None
-                directory = (page_crop_root or Path(tempfile.mkdtemp(prefix='tablescan-slow-'))) / 'slow-mode'
-                refine_page(image, page, template, directory, slow_config, progress)
-                flag_table_outliers(page, template)
-    performance['total_seconds'] = time.monotonic() - started
-    if crop_root:
-        import json
-        crop_root.mkdir(parents=True, exist_ok=True)
-        (crop_root / 'performance.json').write_text(json.dumps(performance, indent=2), encoding='utf-8')
-    return JobResult(source_path, template, pages, model_version + ('+slow-qwen-glm-v1' if slow_mode else ''), performance)
+    """Recognize a page sequence; persistence/orchestration is UI-independent."""
+    from .document_analysis import analyze_document
+    return analyze_document(
+        images, source_path, template, process_page, LocalOcrEngine,
+        progress=progress, crop_root=crop_root, high_accuracy=high_accuracy,
+        slow_mode=slow_mode, checkpoint_directory=checkpoint_directory,
+        run_id=run_id, cancelled=cancelled, adaptive=adaptive,
+    )
 
 
 

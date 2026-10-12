@@ -137,18 +137,25 @@ class QProgressDialog(_widget(QtWidgets.QProgressDialog)):
 
 
 class QFileDialog(QtWidgets.QFileDialog):
-    """Qt dialogs obey the app language even when the OS uses another language."""
+    """Use native Cocoa pickers; Qt dialogs follow the app locale elsewhere.
+
+    Cocoa avoids a macOS accessibility crash in Qt's file-list hierarchy.
+    Native picker controls use the system language; titles remain translated.
+    """
     @staticmethod
     def getOpenFileName(*args, **kwargs):
-        kwargs["options"] = kwargs.get("options", QtWidgets.QFileDialog.Option(0)) | QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        if sys.platform != "darwin":
+            kwargs["options"] = kwargs.get("options", QtWidgets.QFileDialog.Option(0)) | QtWidgets.QFileDialog.Option.DontUseNativeDialog
         return QtWidgets.QFileDialog.getOpenFileName(*(render(a) for a in args), **kwargs)
 
     @staticmethod
     def getOpenFileNames(*args, **kwargs):
-        kwargs["options"] = kwargs.get("options", QtWidgets.QFileDialog.Option(0)) | QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        if sys.platform != "darwin":
+            kwargs["options"] = kwargs.get("options", QtWidgets.QFileDialog.Option(0)) | QtWidgets.QFileDialog.Option.DontUseNativeDialog
         return QtWidgets.QFileDialog.getOpenFileNames(*(render(a) for a in args), **kwargs)
 
     @staticmethod
     def getSaveFileName(*args, **kwargs):
-        kwargs["options"] = kwargs.get("options", QtWidgets.QFileDialog.Option(0)) | QtWidgets.QFileDialog.Option.DontUseNativeDialog
+        if sys.platform != "darwin":
+            kwargs["options"] = kwargs.get("options", QtWidgets.QFileDialog.Option(0)) | QtWidgets.QFileDialog.Option.DontUseNativeDialog
         return QtWidgets.QFileDialog.getSaveFileName(*(render(a) for a in args), **kwargs)

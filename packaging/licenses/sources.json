@@ -1606,5 +1606,17 @@
     "file": "cython-3.3.0/LICENSE.txt",
     "source": "https://raw.githubusercontent.com/cython/cython/3.3.0/LICENSE.txt",
     "sha256": "3e4af21da9cb8a50d6a8f32225d7630fbf94a263e89945489d4863585f4aca4e"
+  },
+  {
+    "group": "heif-decoders",
+    "file": "heif-decoders/libheif/COPYING",
+    "source": "https://raw.githubusercontent.com/strukturag/libheif/bd114ed6d592adc92a09882172ab71d1b4c6e1b1/COPYING",
+    "sha256": "fa81ce652315b013359d6e8e4744335f31a50c7c192907176d3632f78a3b4596"
+  },
+  {
+    "group": "heif-decoders",
+    "file": "heif-decoders/libde265/COPYING",
+    "source": "https://raw.githubusercontent.com/strukturag/libde265/f0e5137ee10af674dcb5ac8ed5d02f5a102225af/COPYING",
+    "sha256": "02cc1585a20677992e0ba578fa692635dc193735f2691dc81de924b51c4e8020"
   }
 ]

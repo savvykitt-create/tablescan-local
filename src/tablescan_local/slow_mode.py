@@ -128,8 +128,11 @@ def runtime_config() -> dict:
 
 
 def eligible_cells(page: PageResult, template: TableTemplate):
+    from .domain import flags_need_review
+    excluded = page.exclusion_mask(template)
     return [cell for cell in page.cells
-            if cell.needs_review and cell.row not in page.excluded_rows
+            if cell.needs_review and flags_need_review([f for f in cell.flags if f != 'adaptive_review_required'])
+            and (cell.row, cell.column) not in excluded
             and template.fixed_value(cell.row, cell.column) is None
             and cell.row >= template.header_rows and cell.column >= template.row_label_columns
             and template.column_rules[cell.column].role != 'ignored'
@@ -164,12 +167,17 @@ def apply_agreement(page, template, qwen, glm):
     first = template.row_label_columns
     for cell in eligible_cells(page, template):
         qvalues, gvalues = qwen.get(cell.row + 1), glm.get(cell.row)
-        if qvalues is None or gvalues is None:
-            continue
         rule, _ = template.value_constraints(cell.row, cell.column)
-        q = reading(qvalues[cell.column - first], rule)
-        g = reading(gvalues[cell.column - first], rule)
-        cell.slow_mode_evidence = {'baseline': cell.final_text, 'qwen': q, 'glm': g, 'policy': POLICY}
+        offset = cell.column - first
+        q = reading(qvalues[offset], rule) if qvalues is not None else None
+        g = reading(gvalues[offset], rule) if gvalues is not None else None
+        outcome = ('qwen_unavailable' if q is None else
+                   'baseline_supported' if g is None and num(q) == num(cell.final_text) else
+                   'glm_unavailable' if g is None else
+                   'disagreement' if num(q) != num(g) else
+                   'agreed_unchanged' if num(q) == num(cell.final_text) else 'changed')
+        cell.slow_mode_evidence = {'baseline': cell.final_text, 'qwen': q, 'glm': g,
+                                   'policy': POLICY, 'outcome': outcome}
         if q is None or num(q) != num(g) or num(q) == num(cell.final_text):
             continue
         original = cell.final_text
@@ -180,18 +188,21 @@ def apply_agreement(page, template, qwen, glm):
     return changed
 
 
-def mask_fixed_cells(image, template):
-    if not template.fixed_cells:
+def mask_fixed_cells(image, template, page=None):
+    """Keep table coordinates while withholding cells that must not be read."""
+    addresses = {(cell.row, cell.column) for cell in template.fixed_cells}
+    addresses.update(page.exclusion_mask(template) if page is not None else template.exclusion_mask())
+    if not addresses:
         return image
     masked = image.copy()
-    for cell in template.fixed_cells:
-        x, y, w, h = cell_rect(template, image.shape, cell.row, cell.column, 0)
+    for row, column in addresses:
+        x, y, w, h = cell_rect(template, image.shape, row, column, 0)
         masked[y:y+h, x:x+w] = 255
     return masked
 
 
-def prepare_images(image, template, directory):
-    image = mask_fixed_cells(image, template)
+def prepare_images(image, template, directory, page=None):
+    image = mask_fixed_cells(image, template, page)
     first = template.row_label_columns
     if first >= template.columns:
         raise ValueError(tr('В таблице нет столбцов измерений для slow mode.'))
@@ -212,8 +223,8 @@ def prepare_images(image, template, directory):
     return {'id': 'table', 'image': str(path), 'rows': template.rows, 'columns': template.columns-first}
 
 
-def row_record(image, template, row, directory):
-    image = mask_fixed_cells(image, template)
+def row_record(image, template, row, directory, page=None):
+    image = mask_fixed_cells(image, template, page)
     x, y, _, _ = cell_rect(template, image.shape, row, template.row_label_columns, 0)
     xx, yy, w, h = cell_rect(template, image.shape, row, template.columns - 1, 0)
     path = directory / f'row-{row+1}.png'
@@ -338,18 +349,22 @@ def run_model(kind, records, directory, config, progress=None):
 
 
 def refine_page(image, page, template, directory, config, progress=None):
+    started = time.monotonic()
+    eligible = eligible_cells(page, template)
     page.slow_mode = {'policy': POLICY, 'status': 'running', 'models': MODEL_SETS[config.get('backend', 'mlx')],
-                      'backend': config.get('backend', 'mlx'), 'requested_device': config.get('device', 'auto')}
-    if not eligible_cells(page, template):
-        page.slow_mode.update(status='complete', changed=0, rows=0)
+                      'backend': config.get('backend', 'mlx'), 'requested_device': config.get('device', 'auto'),
+                      'eligible_cells': len(eligible)}
+    if not eligible:
+        page.slow_mode.update(status='complete', changed=0, rows=0, seconds=time.monotonic()-started)
         return
     try:
-        table = prepare_images(image, template, directory)
+        if config.get('unavailable_error'):
+            raise RuntimeError(config['unavailable_error'])
+        table = prepare_images(image, template, directory, page)
         result = run_model('qwen', [table], directory, config, progress)
         page.slow_mode['execution'] = {'qwen': result[0].get('execution', {})}
         qwen = parse_table(result[0]['raw'], template.rows, table['columns'])
         first = template.row_label_columns
-        eligible = eligible_cells(page, template)
         missing = [cell for cell in eligible if cell.row + 1 not in qwen or
                    reading(qwen[cell.row + 1][cell.column - first], template.value_constraints(cell.row, cell.column)[0]) is None]
         page.slow_mode['recovery'] = {'qwen_requested_cells': len(missing), 'glm_requested_cells': 0}
@@ -368,7 +383,7 @@ def refine_page(image, page, template, directory, config, progress=None):
         rows = disputed_rows(page, template, qwen)
         glm = {}
         if rows:
-            records = [row_record(image, template, r, directory) for r in rows]
+            records = [row_record(image, template, r, directory, page) for r in rows]
             results = run_model('glm', records, directory, config, progress)
             page.slow_mode['execution']['glm'] = [r.get('execution', {}) for r in results]
             glm = {r['id']: row_values(r['raw'], table['columns']) for r in results}
@@ -415,6 +430,8 @@ def refine_page(image, page, template, directory, config, progress=None):
         page.slow_mode.update(missing_qwen_rows=sorted(missing_qwen), missing_glm_rows=sorted(missing_glm),
                               recovery_errors=recovery_errors, rule_rejections=rule_rejections)
         changed = apply_agreement(page, template, qwen, glm)
+        from collections import Counter
+        page.slow_mode['outcomes'] = dict(Counter(cell.slow_mode_evidence['outcome'] for cell in eligible))
         page.slow_mode.update(status='partial' if partial else 'complete', changed=changed, rows=len(rows),
                               parsed_qwen_rows=len(qwen), parsed_glm_rows=len(rows) - len(missing_glm))
     except InterruptedError:
@@ -422,6 +439,8 @@ def refine_page(image, page, template, directory, config, progress=None):
     except Exception as exc:
         # All inference finishes before applying anything: failure retains OCR.
         page.slow_mode.update(status='failed', error=str(exc), changed=0)
+    finally:
+        page.slow_mode['seconds'] = time.monotonic() - started
 
 
 def completion_details(pages):

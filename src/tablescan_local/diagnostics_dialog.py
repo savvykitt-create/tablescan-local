@@ -93,14 +93,19 @@ class DiagnosticsDialog(QDialog):
                 QMessageBox.warning(self, str(tr('Diagnostics')), str(exc))
 
     def refresh(self, *_):
-        selected = self.jobs.currentData()
-        self.jobs.blockSignals(True)
-        self.jobs.clear()
-        self.jobs.addItem(tr('Device only'), '')
-        for entry in self.queue.entries:
-            self.jobs.addItem(Path(entry['source_path']).name, entry['job_id'])
-        self.jobs.setCurrentIndex(max(0, self.jobs.findData(selected)))
-        self.jobs.blockSignals(False)
+        desired = [(str(tr('Device only')), '')]
+        desired.extend((Path(entry['source_path']).name, entry['job_id']) for entry in self.queue.entries)
+        current = [(self.jobs.itemText(i), self.jobs.itemData(i)) for i in range(self.jobs.count())]
+        # Refreshing resources must not close an open document selector every
+        # two seconds. Rebuild only when queue membership or labels change.
+        if current != desired:
+            selected = self.jobs.currentData()
+            self.jobs.blockSignals(True)
+            self.jobs.clear()
+            for label, identifier in desired:
+                self.jobs.addItem(label, identifier)
+            self.jobs.setCurrentIndex(max(0, self.jobs.findData(selected)))
+            self.jobs.blockSignals(False)
         state = resources()
         from .numeric_decoder import _native_search
         from .slow_mode import runtime_config
@@ -139,7 +144,8 @@ class DiagnosticsDialog(QDialog):
             # No source paths, cell contents or model prompts in the export.
             self.report['analysis'] = {'job_id': entry['job_id'], 'status': entry['status'],
                                        'timing': timing, 'performance': performance,
-                                       'slow_execution': [{k: p[k] for k in ('status', 'backend', 'requested_device', 'execution') if k in p} for p in slow]}
+                                       'slow_execution': [{k: p[k] for k in ('status', 'backend', 'requested_device', 'execution',
+                                           'eligible_cells', 'outcomes', 'recovery', 'changed', 'seconds') if k in p} for p in slow]}
             analysis = row(tr('Analysis'), Path(entry['source_path']).name)
             row(tr('Started'), local_timestamp(timing['started_at']), analysis)
             row(tr('Finished'), local_timestamp(timing['finished_at']), analysis)
@@ -149,9 +155,33 @@ class DiagnosticsDialog(QDialog):
                 row(tr('Available OCR provider'), performance.get('ocr_provider_available', '—'), analysis)
                 row(tr('Cells processed in parallel'), performance.get('cpu_parallel_cells', 0), analysis)
                 row(tr('Sequential fallbacks'), performance.get('cpu_fallbacks', 0), analysis)
+                row(tr('Worker reductions'), performance.get('cpu_worker_reductions', 0), analysis)
+                reasons = {
+                    'memory_pressure': tr('Low available memory'),
+                    'initialization_failed': tr('Worker initialization failed'),
+                    'send_failed': tr('Could not send a cell to the worker'),
+                    'timeout': tr('Worker timed out'),
+                    'worker_stopped': tr('Worker stopped unexpectedly'),
+                    'invalid_result': tr('Worker returned an invalid result'),
+                    'receive_failed': tr('Could not receive a worker result'),
+                }
+                for event in performance.get('cpu_worker_events', []):
+                    row(tr('After {count} cells: {before} → {after} workers', count=event['completed_cells'],
+                           before=event['workers_before'], after=event['workers_after']),
+                        reasons.get(event['reason'], event['reason']), analysis)
                 row(tr('OCR total'), duration_text(performance.get('total_seconds')), analysis)
+                adaptive = performance.get('adaptive')
+                if adaptive:
+                    row(tr('Adaptive: short / complete cells'),
+                        f"{adaptive['short_cells']} / {adaptive['full_cells']}", analysis)
+                restored = performance.get('checkpoint', {})
+                restored_primary = set(restored.get('primary_pages', []))
+                if restored:
+                    row(tr('Restored pages: OCR / Slow'),
+                        f"{len(restored_primary)} / {len(restored.get('slow_pages', []))}", analysis)
                 for index, seconds in enumerate(performance.get('primary_pages_seconds', []), 1):
-                    row(tr('Page {p0}: primary OCR', p0=index), f'{seconds:.2f} s', analysis)
+                    row(tr('Page {p0}: primary OCR', p0=index),
+                        tr('Restored completed recognition') if index in restored_primary else f'{seconds:.2f} s', analysis)
             else:
                 row(tr('Recorded measurements'), tr('Not available yet'), analysis)
             for index, page in enumerate(slow, 1):
@@ -159,6 +189,14 @@ class DiagnosticsDialog(QDialog):
                 if not execution:
                     continue
                 group = row(tr('Page {p0}: Slow models', p0=index), '', analysis)
+                if index in performance.get('checkpoint', {}).get('slow_pages', []):
+                    row(tr('Restored completed verification'), tr('Yes'), group)
+                row(tr('Eligible disputed cells'), page.get('eligible_cells', '—'), group)
+                row(tr('Proposals changed by agreement'), page.get('changed', '—'), group)
+                row(tr('Slow verification time'), duration_text(page.get('seconds')), group)
+                recovery = page.get('recovery', {})
+                row(tr('Single-cell retries: Qwen / GLM'),
+                    f"{recovery.get('qwen_requested_cells', '—')} / {recovery.get('glm_requested_cells', '—')}", group)
 
                 def model_rows(name, data):
                     if isinstance(data, list):

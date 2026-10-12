@@ -120,6 +120,12 @@ class FixedCell:
     value: str
 
 
+@dataclass(frozen=True, slots=True)
+class CellAddress:
+    row: int
+    column: int
+
+
 @dataclass(slots=True)
 class TableTemplate:
     id: str
@@ -141,6 +147,71 @@ class TableTemplate:
     reference_page_aspect: float | None = None
     auto_fit_rows: bool = False
     fixed_cells: list[FixedCell] = field(default_factory=list)
+    excluded_rows: list[int] = field(default_factory=list)
+    excluded_columns: list[int] = field(default_factory=list)
+    excluded_cells: list[CellAddress] = field(default_factory=list)
+
+    def is_excluded(self, row: int, column: int) -> bool:
+        """Explicit preparation exclusions take precedence over template values.
+
+        Legacy ignored columns retain their fixed headings until the user
+        explicitly excludes the whole column in the preparation editor.
+        """
+        return (row in self.excluded_rows or column in self.excluded_columns
+                or CellAddress(row, column) in self.excluded_cells
+                or (column < len(self.column_rules) and self.column_rules[column].role == 'ignored'
+                    and self.fixed_value(row, column) is None))
+
+    def exclusion_mask(self) -> set[tuple[int, int]]:
+        """Build one lookup for bulk operations; never cache mutable settings."""
+        addresses = {(cell.row, cell.column) for cell in self.excluded_cells}
+        addresses.update((r, c) for r in self.excluded_rows for c in range(self.columns))
+        addresses.update((r, c) for c in self.excluded_columns for r in range(self.rows))
+        fixed = {(cell.row, cell.column) for cell in self.fixed_cells}
+        addresses.update((r, c) for c, rule in enumerate(self.column_rules) if rule.role == 'ignored'
+                         for r in range(self.rows) if (r, c) not in fixed)
+        return addresses
+
+    def set_cell_exclusions(self, cells: set[tuple[int, int]], excluded: bool) -> None:
+        """Edit an arbitrary selection, including holes inside excluded axes.
+
+        Whole selected axes remain axes when the grid grows. Restoring only
+        part of an excluded axis preserves the other excluded cells.
+        """
+        if any(type(r) is not int or type(c) is not int or not 0 <= r < self.rows
+               or not 0 <= c < self.columns for r, c in cells):
+            raise ValueError(tr('Excluded cells must have unique addresses inside the grid.'))
+        if not cells:
+            return
+        self.ensure_column_rules()
+        rows, columns = set(self.excluded_rows), set(self.excluded_columns)
+        addresses = {(cell.row, cell.column) for cell in self.excluded_cells}
+        if excluded:
+            rows.update(r for r in {r for r, _ in cells}
+                        if all((r, c) in cells for c in range(self.columns)))
+            columns.update(c for c in {c for _, c in cells}
+                           if all((r, c) in cells for r in range(self.rows)))
+            addresses.update(cells)
+        else:
+            addresses = self.exclusion_mask() - cells
+            rows.difference_update(r for r, _ in cells)
+            columns.difference_update(c for _, c in cells)
+            for c in {c for _, c in cells}:
+                if self.column_rules[c].role == 'ignored':
+                    self.column_rules[c].role = 'row_label' if c < self.row_label_columns else 'data'
+        self.excluded_rows = sorted(rows)
+        self.excluded_columns = sorted(columns)
+        self.excluded_cells = [CellAddress(r, c) for r, c in sorted(addresses)
+                               if r not in rows and c not in columns]
+        self.schema_version = max(5, self.schema_version)
+
+    def clear_exclusions(self) -> None:
+        self.excluded_rows.clear()
+        self.excluded_columns.clear()
+        self.excluded_cells.clear()
+        for c, rule in enumerate(self.column_rules):
+            if rule.role == 'ignored':
+                rule.role = 'row_label' if c < self.row_label_columns else 'data'
 
     def fixed_value(self, row: int, column: int) -> str | None:
         return next((cell.value for cell in self.fixed_cells
@@ -244,6 +315,8 @@ class TableTemplate:
         Generic headers and row identifiers are text, not measurements governed
         by the default numeric column format.
         """
+        if self.is_excluded(row, column):
+            return None, tr('Excluded before analysis')
         if self.fixed_value(row, column) is not None:
             return None, tr('Value from template')
         rule, name = self.value_constraints(row, column)
@@ -255,6 +328,18 @@ class TableTemplate:
 
     def validate_value_rules(self) -> None:
         self.ensure_column_rules()
+        for indices, limit in ((self.excluded_rows, self.rows), (self.excluded_columns, self.columns)):
+            if (any(type(index) is not int or not 0 <= index < limit for index in indices)
+                    or len(set(indices)) != len(indices)):
+                raise ValueError(tr('Exclusions extend outside the current grid. Restore or edit them before analysis.'))
+        excluded_addresses = set()
+        for cell in self.excluded_cells:
+            address = (cell.row, cell.column)
+            if (type(cell.row) is not int or type(cell.column) is not int
+                    or not 0 <= cell.row < self.rows or not 0 <= cell.column < self.columns
+                    or address in excluded_addresses):
+                raise ValueError(tr('Excluded cells must have unique addresses inside the grid.'))
+            excluded_addresses.add(address)
         addresses = set()
         for cell in self.fixed_cells:
             address = (cell.row, cell.column)
@@ -318,11 +403,16 @@ class TableTemplate:
             reference_page_aspect=(float(data["reference_page_aspect"]) if data.get("reference_page_aspect") is not None else None),
             auto_fit_rows=bool(data.get("auto_fit_rows", False)),
             fixed_cells=[FixedCell(**item) for item in data.get("fixed_cells", [])],
+            excluded_rows=list(data.get('excluded_rows', [])),
+            excluded_columns=list(data.get('excluded_columns', [])),
+            excluded_cells=[CellAddress(**item) for item in data.get('excluded_cells', [])],
         )
 
 
 NON_BLOCKING_OCR_FLAGS = frozenset({
     "template_fixed_value",
+    "adaptive_full_pass",
+    "adaptive_short_pass",
     # These flags describe checks that contributed to a result.  They are
     # useful in the audit trail, but do not by themselves mean that two
     # plausible readings remain unresolved.
@@ -417,8 +507,15 @@ class PageResult:
     excluded_columns: list[int] = field(default_factory=list)
 
     def is_excluded(self, row: int, column: int, template: TableTemplate) -> bool:
-        return ((row in self.excluded_rows and column >= template.row_label_columns)
+        return (template.is_excluded(row, column)
+                or (row in self.excluded_rows and column >= template.row_label_columns)
                 or (column in self.excluded_columns and row >= template.header_rows))
+
+    def exclusion_mask(self, template: TableTemplate) -> set[tuple[int, int]]:
+        addresses = template.exclusion_mask()
+        addresses.update((r, c) for r in self.excluded_rows for c in range(template.row_label_columns, template.columns))
+        addresses.update((r, c) for c in self.excluded_columns for r in range(template.header_rows, template.rows))
+        return addresses
 
     def set_excluded(self, axis: str, index: int, checked: bool, template: TableTemplate) -> None:
         template.ensure_column_rules()

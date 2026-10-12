@@ -127,7 +127,7 @@ def test_retry_of_old_queue_runs_preflight_before_ocr(qtbot, tmp_path, monkeypat
     def process(images, source, template, *args, **kwargs):
         calls.append((images[0].shape, template))
         return JobResult(source, template, [PageResult(0, source, [], [])])
-    monkeypatch.setattr(ui, 'process_document', process)
+    monkeypatch.setattr('tablescan_local.recognition_worker.process_document', process)
     worker = ui.RecognitionWorker(None, fixture(20), t, tmp_path, auto_prepare=True)
     worker.failed.connect(failures.append); worker.completed.connect(completed.append)
     worker.run()
@@ -182,13 +182,13 @@ def test_many_files_keep_individual_templates_and_slow_options(qtbot, tmp_path, 
     monkeypatch.setattr(slow_mode, 'runtime_config', lambda: {})
     _, window = create_application(); qtbot.addWidget(window)
     calls = []
-    def process(images, path, template, progress, crops, high_accuracy, *, slow_mode=False):
+    def process(images, path, template, progress, crops, high_accuracy, *, slow_mode=False, **options):
         calls.append((template.name, high_accuracy, slow_mode))
         page = PageResult(0, path, [], [])
         if len(calls) == 1:
             page.slow_mode = {'status': 'partial'}
         return JobResult(path, template, [page])
-    monkeypatch.setattr(ui, 'process_document', process)
+    monkeypatch.setattr('tablescan_local.recognition_worker.process_document', process)
     jobs = []
     for index in range(25):
         path = tmp_path / f'{index}.png'

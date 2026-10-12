@@ -11,7 +11,7 @@ import cv2
 from .batch_preflight import Compatibility, PreflightWorker, assess_geometry, assess_orientations
 from .domain import TableTemplate
 from .i18n import tr
-from .imaging import load_document, rotate_document, detect_grid
+from .imaging import open_document, rotate_document, detect_grid
 from .localized_widgets import (QDialog, QLabel, QPushButton, QComboBox, QCheckBox,
                                 QTableWidget, QTableWidgetItem, QDialogButtonBox)
 
@@ -69,7 +69,7 @@ class FileProtocolDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr('Protocol for {p0}', p0=Path(item.path).name))
         self.resize(1240, 830)
-        self.images = load_document(item.path)
+        self.images = open_document(item.path)
         self.images = rotate_document(self.images, template.rotation_degrees)
         self.source_path = item.path
         self.save_template = save_template
@@ -117,20 +117,31 @@ class FileProtocolDialog(QDialog):
 
     def change_page(self, index):
         if self.editor.prepare_current_settings():
-            self.editor.set_document(self.images[index], self.editor.template)
-            self.current_page = index
-        else:
-            self.page_select.blockSignals(True)
-            self.page_select.setCurrentIndex(self.current_page)
-            self.page_select.blockSignals(False)
+            try:
+                image = self.images[index]
+            except Exception as exc:
+                QMessageBox.warning(self, tr('Исходник недоступен'), str(exc))
+            else:
+                self.editor.set_document(image, self.editor.template)
+                self.current_page = index
+                return
+        self.page_select.blockSignals(True)
+        self.page_select.setCurrentIndex(self.current_page)
+        self.page_select.blockSignals(False)
 
     def rotate(self, degrees):
         if not self.editor.prepare_current_settings():
             return
+        try:
+            images = rotate_document(self.images, degrees)
+            image = images[self.current_page]
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Исходник недоступен'), str(exc))
+            return
         template = self.editor.template
         template.rotation_degrees = (template.rotation_degrees + degrees) % 360
-        self.images = rotate_document(self.images, degrees)
-        self.editor.set_document(self.images[self.page_select.currentIndex()], template)
+        self.images = images
+        self.editor.set_document(image, template)
 
     def save(self):
         if not self.editor.prepare_current_settings():
@@ -144,12 +155,16 @@ class FileProtocolDialog(QDialog):
         # Freeze the explicitly inspected geometry so OCR cannot refit away edits.
         template.auto_fit_rows = False
         pages = []
-        for image in self.images:
-            try:
-                detection = detect_grid(image)
-            except ValueError:
-                detection = None
-            pages.append((image.shape, detection))
+        try:
+            for image in self.images:
+                try:
+                    detection = detect_grid(image)
+                except ValueError:
+                    detection = None
+                pages.append((image.shape, detection))
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Исходник недоступен'), str(exc))
+            return
         self.result_template, self.result_geometry = template, pages
         self.accept()
 

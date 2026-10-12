@@ -26,3 +26,23 @@ def test_small_or_naturally_variable_groups_are_not_rewritten_or_flagged():
     flag_table_outliers(result, template)
     assert [cell.final_text for cell in result.cells] == before
     assert all("table_outlier" not in cell.flags for cell in result.cells)
+
+
+def test_correction_recomputes_outlier_flags_without_erasing_other_evidence():
+    template, result = page(['10.0', '10.1', '10.2', '10.3', '10.4', '90.0'])
+    last = result.cells[-1]
+    last.flags = ['model_disagreement']
+    flag_table_outliers(result, template)
+    assert 'table_outlier' in last.flags
+    last.final_text = '10.5'
+    flag_table_outliers(result, template)
+    assert last.flags == ['model_disagreement']
+    assert last.needs_review
+
+
+def test_excluded_values_do_not_distort_comparable_group():
+    template, result = page(['10', '11', '12', '13', '14', '90', '91', '92', '93', '94'])
+    template.set_cell_exclusions({(0, c) for c in range(6, 10)}, True)
+    flag_table_outliers(result, template)
+    assert 'table_outlier' in result.cells[5].flags
+    assert all('table_outlier' not in cell.flags for cell in result.cells[6:])

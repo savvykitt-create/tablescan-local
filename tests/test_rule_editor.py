@@ -138,7 +138,7 @@ def test_double_start_keeps_one_live_recognition_worker(qtbot, monkeypatch, tmp_
         release.wait(3)
         return JobResult("source.png", t, [PageResult(0, "source.png", [], [])])
 
-    monkeypatch.setattr(ui_module, "process_document", slow_process)
+    monkeypatch.setattr('tablescan_local.recognition_worker.process_document', slow_process)
     monkeypatch.setattr(window, "_recognition_done", lambda _result: None)
     window.start_recognition(t)
     assert started.wait(1)

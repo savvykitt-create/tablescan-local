@@ -5,12 +5,24 @@ mode also enables Maximum accuracy. Standard recognition remains the default.
 
 ## How it works
 
-1. Run the existing local OCR, cancellation detection, writer adaptation, and outlier checks.
+1. Run High accuracy OCR and the suspected-crossing and outlier checks.
 2. Qwen reads the table using synthetic row positions, without identifier columns.
 3. GLM reads original row images only where Qwen proposes a different admissible number for a disputed cell.
 4. Replace a value only when both models agree after applying the current cell rules.
 5. Preserve excluded rows/cells, confirmed values, and manual corrections. Headers, text fields, and identifiers are outside this mode.
 6. Keep changed values in review, with the original reading and both model responses available under **Why review is needed**.
+
+**Alignment → Exclusions** can omit rows, columns and individual cells before
+analysis. These cells generate no primary OCR or recovery requests and are
+masked in Slow's table and row images. Fixed template values are masked too;
+source images and the original crops shown during review stay intact. Cell
+coordinates and expected row widths remain unchanged. When no disputed numeric
+measurements remain, the optional runtime is not loaded.
+
+Each eligible cell records why its proposal changed or was kept: model agreement,
+disagreement, or unavailable/invalid readings. Qwen supporting the primary value
+does not imply that GLM also checked it. Slow remains part of the original
+analysis, before human review.
 
 The models can agree on an incorrect reading. This is additional evidence, not
 an automatic confirmation. Malformed or unsupported responses leave the original

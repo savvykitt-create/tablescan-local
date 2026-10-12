@@ -3738,5 +3738,275 @@
     "en": "Update {version} is available — open update settings",
     "ru": "Доступно обновление {version} — открыть настройки обновления",
     "cs": "Je dostupná aktualizace {version} — otevřít nastavení aktualizací"
+  },
+  "Excluded cells must have unique addresses inside the grid.": {
+    "en": "Excluded cells must have unique addresses inside the grid.",
+    "ru": "Исключённые ячейки должны иметь уникальные адреса внутри сетки.",
+    "cs": "Vyloučené buňky musí mít jedinečné adresy uvnitř mřížky."
+  },
+  "Exclusions extend outside the current grid. Restore or edit them before analysis.": {
+    "en": "Exclusions extend outside the current grid. Restore or edit them before analysis.",
+    "ru": "Исключения выходят за текущую сетку. Восстановите или измените их перед анализом.",
+    "cs": "Vyloučené oblasti přesahují aktuální mřížku. Před analýzou je obnovte nebo upravte."
+  },
+  "Excluded before analysis": {
+    "en": "Excluded before analysis",
+    "ru": "Исключено до анализа",
+    "cs": "Vyloučeno před analýzou"
+  },
+  "Exclusions": {
+    "en": "Exclusions",
+    "ru": "Исключения",
+    "cs": "Vyloučení"
+  },
+  "Select a column letter, a row number, or drag across cells. Ctrl/Cmd adds to the selection; Shift extends it. Excluded cells stay blank in exports and are skipped by all recognition modes.": {
+    "en": "Select a column letter, a row number, or drag across cells. Ctrl/Cmd adds to the selection; Shift extends it. Excluded cells stay blank in exports and are skipped by all recognition modes.",
+    "ru": "Нажмите на букву столбца, номер строки или выделите ячейки рамкой. Ctrl/Cmd добавляет к выделению, Shift расширяет его. Исключённые ячейки остаются пустыми при экспорте и пропускаются во всех режимах распознавания.",
+    "cs": "Klikněte na písmeno sloupce, číslo řádku nebo označte buňky tažením. Ctrl/Cmd přidává k výběru, Shift jej rozšiřuje. Vyloučené buňky zůstanou při exportu prázdné a všechny režimy rozpoznávání je přeskočí."
+  },
+  "Exclude selection": {
+    "en": "Exclude selection",
+    "ru": "Исключить выделенное",
+    "cs": "Vyloučit výběr"
+  },
+  "Restore selection": {
+    "en": "Restore selection",
+    "ru": "Вернуть выделенное",
+    "cs": "Obnovit výběr"
+  },
+  "Select entire table": {
+    "en": "Select entire table",
+    "ru": "Выделить всю таблицу",
+    "cs": "Vybrat celou tabulku"
+  },
+  "Clear selection": {
+    "en": "Clear selection",
+    "ru": "Снять выделение",
+    "cs": "Zrušit výběr"
+  },
+  "Undo exclusion change": {
+    "en": "Undo exclusion change",
+    "ru": "Отменить исключение",
+    "cs": "Zpět: změna vyloučení"
+  },
+  "Redo exclusion change": {
+    "en": "Redo exclusion change",
+    "ru": "Повторить изменение",
+    "cs": "Znovu: změna vyloučení"
+  },
+  "Excluded areas": {
+    "en": "Excluded areas",
+    "ru": "Исключённые области",
+    "cs": "Vyloučené oblasti"
+  },
+  "Clear all exclusions": {
+    "en": "Clear all exclusions",
+    "ru": "Сбросить все исключения",
+    "cs": "Zrušit všechna vyloučení"
+  },
+  "Row {number}": {
+    "en": "Row {number}",
+    "ru": "Строка {number}",
+    "cs": "Řádek {number}"
+  },
+  "Column {name}": {
+    "en": "Column {name}",
+    "ru": "Столбец {name}",
+    "cs": "Sloupec {name}"
+  },
+  "More exclusions are visible on the page.": {
+    "en": "More exclusions are visible on the page.",
+    "ru": "Остальные исключения видны на странице.",
+    "cs": "Další vyloučené oblasti jsou viditelné na stránce."
+  },
+  "Excluded cells: {count}. Their positions are preserved; no values are shifted.": {
+    "en": "Excluded cells: {count}. Their positions are preserved; no values are shifted.",
+    "ru": "Исключено ячеек: {count}. Их позиции сохраняются, значения не сдвигаются.",
+    "cs": "Vyloučené buňky: {count}. Jejich pozice zůstávají zachovány, hodnoty se neposouvají."
+  },
+  "Rotation will detect a new grid and clear fields, rules, template values and exclusions. Continue?": {
+    "en": "Rotation will detect a new grid and clear fields, rules, template values and exclusions. Continue?",
+    "ru": "При повороте будет определена новая сетка, поля, правила, шаблонные значения и исключения будут сброшены. Продолжить?",
+    "cs": "Otočení rozpozná novou mřížku a odstraní pole, pravidla, hodnoty šablony a vyloučení. Pokračovat?"
+  },
+  "Excluded before analysis. Restore this area in preparation and analyze again to read its values.": {
+    "en": "Excluded before analysis. Restore this area in preparation and analyze again to read its values.",
+    "ru": "Исключено до анализа. Чтобы прочитать значения, верните эту область на этапе подготовки и повторите анализ.",
+    "cs": "Vyloučeno před analýzou. Pro načtení hodnot obnovte tuto oblast při přípravě a spusťte analýzu znovu."
+  },
+  "Slow: Qwen and GLM agreed on a correction. Check it against the original.": {
+    "en": "Slow: Qwen and GLM agreed on a correction. Check it against the original.",
+    "ru": "Slow: Qwen и GLM согласились с исправлением. Сверьте его с оригиналом.",
+    "cs": "Slow: Qwen a GLM se shodly na opravě. Ověřte ji podle originálu."
+  },
+  "Slow: both models support the original value.": {
+    "en": "Slow: both models support the original value.",
+    "ru": "Slow: обе модели поддерживают исходное значение.",
+    "cs": "Slow: oba modely podporují původní hodnotu."
+  },
+  "Slow: Qwen supports the original value; no valid GLM reading is available.": {
+    "en": "Slow: Qwen supports the original value; no valid GLM reading is available.",
+    "ru": "Slow: Qwen поддерживает исходное значение; допустимого прочтения GLM нет.",
+    "cs": "Slow: Qwen podporuje původní hodnotu; platné čtení GLM není k dispozici."
+  },
+  "Slow: the models disagree. The original value was kept.": {
+    "en": "Slow: the models disagree. The original value was kept.",
+    "ru": "Slow: модели не согласны. Сохранено исходное значение.",
+    "cs": "Slow: modely se neshodují. Původní hodnota byla zachována."
+  },
+  "Slow: Qwen returned no valid value. The original value was kept.": {
+    "en": "Slow: Qwen returned no valid value. The original value was kept.",
+    "ru": "Slow: Qwen не вернул допустимое значение. Сохранено исходное значение.",
+    "cs": "Slow: Qwen nevrátil platnou hodnotu. Původní hodnota byla zachována."
+  },
+  "Slow: GLM returned no valid value. The original value was kept.": {
+    "en": "Slow: GLM returned no valid value. The original value was kept.",
+    "ru": "Slow: GLM не вернул допустимое значение. Сохранено исходное значение.",
+    "cs": "Slow: GLM nevrátil platnou hodnotu. Původní hodnota byla zachována."
+  },
+  "Worker reductions": {
+    "en": "Worker reductions",
+    "ru": "Сокращения числа процессов",
+    "cs": "Snížení počtu procesů"
+  },
+  "Low available memory": {
+    "en": "Low available memory",
+    "ru": "Недостаточно доступной памяти",
+    "cs": "Nedostatek dostupné paměti"
+  },
+  "Worker initialization failed": {
+    "en": "Worker initialization failed",
+    "ru": "Не удалось запустить рабочий процесс",
+    "cs": "Spuštění pracovního procesu selhalo"
+  },
+  "Could not send a cell to the worker": {
+    "en": "Could not send a cell to the worker",
+    "ru": "Не удалось передать ячейку рабочему процессу",
+    "cs": "Buňku se nepodařilo odeslat pracovnímu procesu"
+  },
+  "Worker timed out": {
+    "en": "Worker timed out",
+    "ru": "Истекло время ожидания рабочего процесса",
+    "cs": "Vypršel časový limit pracovního procesu"
+  },
+  "Worker stopped unexpectedly": {
+    "en": "Worker stopped unexpectedly",
+    "ru": "Рабочий процесс неожиданно завершился",
+    "cs": "Pracovní proces se neočekávaně ukončil"
+  },
+  "Worker returned an invalid result": {
+    "en": "Worker returned an invalid result",
+    "ru": "Рабочий процесс вернул некорректный результат",
+    "cs": "Pracovní proces vrátil neplatný výsledek"
+  },
+  "Could not receive a worker result": {
+    "en": "Could not receive a worker result",
+    "ru": "Не удалось получить результат рабочего процесса",
+    "cs": "Výsledek pracovního procesu se nepodařilo přijmout"
+  },
+  "After {count} cells: {before} → {after} workers": {
+    "en": "After {count} cells: {before} → {after} workers",
+    "ru": "После {count} ячеек: {before} → {after} процессов",
+    "cs": "Po {count} buňkách: {before} → {after} procesů"
+  },
+  "Eligible disputed cells": {
+    "en": "Eligible disputed cells",
+    "ru": "Спорных ячеек для проверки",
+    "cs": "Sporné buňky ke kontrole"
+  },
+  "Proposals changed by agreement": {
+    "en": "Proposals changed by agreement",
+    "ru": "Изменено по согласию моделей",
+    "cs": "Návrhy změněné při shodě modelů"
+  },
+  "Slow verification time": {
+    "en": "Slow verification time",
+    "ru": "Время проверки Slow",
+    "cs": "Čas kontroly Slow"
+  },
+  "Single-cell retries: Qwen / GLM": {
+    "en": "Single-cell retries: Qwen / GLM",
+    "ru": "Повторы отдельных ячеек: Qwen / GLM",
+    "cs": "Opakovaná čtení buněk: Qwen / GLM"
+  },
+  "Preparing analysis": {
+    "en": "Preparing analysis",
+    "ru": "Подготовка анализа",
+    "cs": "Příprava analýzy"
+  },
+  "Page {p0} of {p1}: {p2}": {
+    "en": "Page {p0} of {p1}: {p2}",
+    "ru": "Страница {p0} из {p1}: {p2}",
+    "cs": "Strana {p0} z {p1}: {p2}"
+  },
+  "Restored completed recognition": {
+    "en": "Restored completed recognition",
+    "ru": "Восстановлено завершённое распознавание",
+    "cs": "Obnováno dokončené rozpoznávání"
+  },
+  "Restored completed verification": {
+    "en": "Restored completed verification",
+    "ru": "Восстановлена завершённая перепроверка",
+    "cs": "Obnoveno dokončené ověření"
+  },
+  "The source changed while it was open. Reopen the document before continuing.": {
+    "en": "The source changed while it was open. Reopen the document before continuing.",
+    "ru": "Исходный файл изменился. Заново откройте документ перед продолжением.",
+    "cs": "Zdrojový soubor se změnil. Před pokračováním dokument znovu otevřete."
+  },
+  "Restored pages: OCR / Slow": {
+    "en": "Restored pages: OCR / Slow",
+    "ru": "Восстановлено страниц: OCR / Slow",
+    "cs": "Obnovené strany: OCR / Slow"
+  },
+  "Adaptive analysis (experimental)": {
+    "en": "Adaptive analysis (experimental)",
+    "ru": "Адаптивный анализ (экспериментальный)",
+    "cs": "Adaptivní analýza (experimentální)"
+  },
+  "Adaptive + Slow": {
+    "en": "Adaptive + Slow",
+    "ru": "Адаптивный + Slow",
+    "cs": "Adaptivní + Slow"
+  },
+  "Short analysis when models agree; complete analysis otherwise. Short-pass values still require review.": {
+    "en": "Short analysis when models agree; complete analysis otherwise. Short-pass values still require review.",
+    "ru": "Короткий анализ при согласии моделей; полный — при расхождениях. Результаты короткого анализа требуют сверки.",
+    "cs": "Krátká analýza při shodě modelů, jinak úplná. Výsledky krátké analýzy vyžadují kontrolu."
+  },
+  "Two models agreed in the short analysis": {
+    "en": "Two models agreed in the short analysis",
+    "ru": "Две модели согласились при коротком анализе",
+    "cs": "Dva modely se shodly v krátké analýze"
+  },
+  "The complete High analysis was required": {
+    "en": "The complete High analysis was required",
+    "ru": "Потребовался полный анализ High",
+    "cs": "Byla nutná úplná analýza High"
+  },
+  "Experimental short analysis: compare with the original and confirm": {
+    "en": "Experimental short analysis: compare with the original and confirm",
+    "ru": "Экспериментальный короткий анализ: сверьте с оригиналом и подтвердите",
+    "cs": "Experimentální krátká analýza: porovnejte s originálem a potvrďte"
+  },
+  "Adaptive: short / complete cells": {
+    "en": "Adaptive: short / complete cells",
+    "ru": "Адаптивный: короткий / полный анализ ячеек",
+    "cs": "Adaptivní: krátce / úplně analyzované buňky"
+  },
+  "Resume cancelled, interrupted and failed analyses from saved page stages. Completed results are kept.": {
+    "en": "Resume cancelled, interrupted and failed analyses from saved page stages. Completed results are kept.",
+    "ru": "Продолжить отменённые, прерванные и неудачные задачи с сохранённых этапов страниц. Готовые результаты сохраняются.",
+    "cs": "Pokračovat ve zrušených, přerušených a neúspěšných analýzách od uložených fází stránek. Hotové výsledky zůstanou zachovány."
+  },
+  "Documents ({patterns})": {
+    "en": "Documents ({patterns})",
+    "cs": "Dokumenty ({patterns})",
+    "ru": "Документы ({patterns})"
+  },
+  "или перетащите сюда PDF, PNG, JPG, TIFF или HEIC/HEIF": {
+    "en": "or drop PDF, PNG, JPG, TIFF or HEIC/HEIF files here",
+    "cs": "nebo sem přetáhněte soubory PDF, PNG, JPG, TIFF či HEIC/HEIF",
+    "ru": "или перетащите сюда PDF, PNG, JPG, TIFF или HEIC/HEIF"
   }
 }

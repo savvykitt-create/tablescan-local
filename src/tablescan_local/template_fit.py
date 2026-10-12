@@ -73,16 +73,22 @@ def fit_template(template: TableTemplate, detection: GridDetection, page_aspect:
     return fitted
 
 
-def fit_document_template(template: TableTemplate, images: list[np.ndarray]) -> TableTemplate:
+def fit_document_template(template: TableTemplate, images, cancelled=lambda: False) -> TableTemplate:
     if not template.auto_fit_rows:
         return TableTemplate.from_dict(template.to_dict())
-    fitted = [fit_template(template, detect_grid(image), image.shape[1]/image.shape[0]) for image in images]
-    first = fitted[0]
+    first = None
     # JobResult currently has one grid shared by all pages. Refuse mixed layouts.
-    for other in fitted[1:]:
-        if other.rows != first.rows or any(
+    for image in images:
+        if cancelled():
+            raise InterruptedError()
+        other = fit_template(template, detect_grid(image), image.shape[1]/image.shape[0])
+        if first is None:
+            first = other
+        elif other.rows != first.rows or any(
             np.max(np.abs(np.array(a)-np.array(b))) > .002
             for a, b in ((first.row_guides, other.row_guides), (first.column_guides, other.column_guides))
         ):
             raise ValueError(tr("Auto-fit: pages have different grids. Open them as separate files."))
+    if first is None:
+        raise ValueError(tr('The document contains no pages.'))
     return first

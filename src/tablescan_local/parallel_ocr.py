@@ -54,6 +54,8 @@ class CellWorkers:
         self.disabled = False
         self.fallbacks = 0
         self.completed = 0
+        self.reductions = 0
+        self.events = []
 
     def _start(self, heartbeat):
         if self.workers:
@@ -79,8 +81,10 @@ class CellWorkers:
         deadline = time.monotonic() + timeout
         while not connection.poll(.1):
             heartbeat()
-            if not process.is_alive() or time.monotonic() > deadline:
-                raise RuntimeError('CPU worker stopped or timed out')
+            if not process.is_alive():
+                raise ChildProcessError('CPU worker stopped')
+            if time.monotonic() > deadline:
+                raise TimeoutError('CPU worker timed out')
         return connection.recv()
 
     def map(self, tasks, engine, heartbeat=lambda: None):
@@ -95,8 +99,10 @@ class CellWorkers:
             if not self.disabled:
                 try:
                     self._start(heartbeat)
+                except InterruptedError:
+                    raise
                 except (OSError, RuntimeError, EOFError):
-                    self._fallback()
+                    self._fallback('initialization_failed')
             identifier = 0
             exhausted = False
             while pending or not exhausted:
@@ -115,13 +121,13 @@ class CellWorkers:
                     except StopIteration:
                         exhausted = True
                         break
-                    slot = identifier % len(self.workers)
-                    process, connection = self.workers[slot]
+                    busy = {id(item[1]) for item in pending}
+                    process, connection = next(worker for worker in self.workers if id(worker[0]) not in busy)
                     pending.append((identifier, process, connection, metadata, args))
                     try:
                         connection.send((identifier, args))
                     except (OSError, EOFError):
-                        self._fallback()
+                        self._fallback('send_failed')
                         break
                     identifier += 1
                 if self.disabled or not pending:
@@ -129,10 +135,16 @@ class CellWorkers:
                 number, process, connection, metadata, args = pending[0]
                 try:
                     tag, payload = self._receive(process, connection, heartbeat)
-                    if tag != 'result' or payload[0] != number:
+                    if (tag != 'result' or not isinstance(payload, (tuple, list))
+                            or len(payload) != 2 or payload[0] != number):
                         raise RuntimeError('CPU worker returned an invalid cell identifier')
-                except (OSError, RuntimeError, EOFError):
-                    self._fallback()
+                except InterruptedError:
+                    raise
+                except (OSError, RuntimeError, EOFError) as exc:
+                    reason = ('timeout' if isinstance(exc, TimeoutError) else
+                              'worker_stopped' if isinstance(exc, (ChildProcessError, EOFError)) else
+                              'invalid_result' if isinstance(exc, RuntimeError) else 'receive_failed')
+                    self._fallback(reason)
                     continue
                 pending.popleft()
                 self.completed += 1
@@ -141,25 +153,46 @@ class CellWorkers:
                 from .resource_policy import resources
                 state = resources()
                 if state.total and state.available < state.reserve:
-                    self._fallback()
+                    # Retire only the worker whose completed cell was delivered.
+                    # Other pending cells keep their workers and input order.
+                    if len(self.workers) > 1 and state.reserve - state.available < 768 * 1024**2:
+                        self._event('reduce', 'memory_pressure', state)
+                        self.workers.remove((process, connection))
+                        self._close_workers([(process, connection)])
+                        self.reductions += 1
+                    else:
+                        self._fallback('memory_pressure', state)
         except BaseException:
             self.close()
             raise
 
-    def _fallback(self):
+    def _event(self, action, reason, state=None):
+        event = {'action': action, 'reason': reason, 'completed_cells': self.completed,
+                 'workers_before': len(self.workers),
+                 'workers_after': len(self.workers) - 1 if action == 'reduce' else 0}
+        if state is not None:
+            event.update(available_bytes=state.available, reserve_bytes=state.reserve)
+        self.events.append(event)
+
+    def _fallback(self, reason, state=None):
+        self._event('sequential', reason, state)
         self.disabled = True
         self.fallbacks += 1
-        log.warning('CPU parallel OCR unavailable or memory pressure; using sequential OCR')
+        log.warning('CPU parallel OCR: %s; using sequential OCR', reason)
         self.close()
 
     def close(self):
-        for process, connection in self.workers:
+        self._close_workers(self.workers)
+        self.workers.clear()
+
+    @staticmethod
+    def _close_workers(workers):
+        for process, connection in workers:
             if process.is_alive():
                 process.terminate()
             connection.close()
-        for process, _ in self.workers:
+        for process, _ in workers:
             process.join(timeout=2)
             if process.is_alive():
                 process.kill(); process.join(timeout=2)
             process.close()
-        self.workers.clear()

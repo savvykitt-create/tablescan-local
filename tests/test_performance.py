@@ -87,6 +87,38 @@ def test_out_of_order_completion_keeps_original_cell_addresses(monkeypatch):
     assert not pool.workers
 
 
+def test_moderate_pressure_retires_idle_worker_without_replaying_pending_cells(monkeypatch):
+    normal = Resources(16*GIB, 12*GIB, 10)
+    pressured = Resources(16*GIB, normal.reserve - 128*1024**2, 10)
+    snapshots = iter([pressured, pressured])
+    monkeypatch.setattr('tablescan_local.resource_policy.resources', lambda: next(snapshots, normal))
+    pool = CellWorkers(3, target=echo_worker)
+    tasks = [(i, {'value': str(i), 'delay': .1 if i % 2 else 0}) for i in range(8)]
+    try:
+        # No sequential adapter: any lost pending work would fail this call.
+        assert list(pool.map(tasks, None)) == [(i, str(i)) for i in range(8)]
+        assert pool.completed == 8 and pool.reductions == 2 and pool.fallbacks == 0
+        assert len(pool.workers) == 1
+        assert [(e['workers_before'], e['workers_after']) for e in pool.events] == [(3, 2), (2, 1)]
+    finally:
+        pool.close()
+
+
+def test_critical_pressure_replays_only_unfinished_cells_and_records_reason(monkeypatch):
+    monkeypatch.setattr('tablescan_local.resource_policy.resources', lambda: Resources(16*GIB, GIB, 10))
+    pool = CellWorkers(3, target=echo_worker)
+    replayed = []
+    def sequential(**args):
+        replayed.append(args['value'])
+        return args['value']
+    tasks = [(i, {'value': str(i)}) for i in range(6)]
+    assert list(pool.map(tasks, SimpleNamespace(recognize_cell=sequential))) == [(i, str(i)) for i in range(6)]
+    assert replayed == ['1', '2', '3', '4', '5']
+    assert pool.events[0]['reason'] == 'memory_pressure'
+    assert pool.events[0]['completed_cells'] == 1
+    assert pool.disabled and not pool.workers
+
+
 @pytest.mark.parametrize('target', [echo_worker, wrong_worker])
 def test_worker_failure_replays_unfinished_cells_only(target, monkeypatch):
     monkeypatch.setattr('tablescan_local.resource_policy.resources', lambda: Resources(16*GIB, 12*GIB, 10))

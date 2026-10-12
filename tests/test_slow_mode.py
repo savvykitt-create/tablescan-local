@@ -180,7 +180,25 @@ def test_cell_recovery_failure_retains_primary_ocr(tmp_path, monkeypatch, failur
     else:
         slow.refine_page(np.full((100, 200, 3), 255, np.uint8), p, t, tmp_path, {})
         assert p.slow_mode['status'] == 'partial'
-    assert p.to_dict()['cells'] == original
+    current = p.to_dict()['cells']
+    for cell, before in zip(current, original):
+        cell.pop('slow_mode_evidence'); before.pop('slow_mode_evidence')
+    assert current == original
+
+
+@pytest.mark.parametrize('q,g,outcome', [
+    ('37.6', '37.6', 'changed'), ('31.6', '31.6', 'agreed_unchanged'),
+    ('31.6', None, 'baseline_supported'), ('37.6', '38.6', 'disagreement'),
+    (None, '37.6', 'qwen_unavailable'), ('37.6', None, 'glm_unavailable'),
+    ('99.9', '99.9', 'qwen_unavailable'),
+])
+def test_slow_explains_why_a_value_was_changed_or_kept(q, g, outcome):
+    t, p = fixture_page()
+    slow.apply_agreement(p, t, {1: [q, None]}, {0: [g, None]})
+    cell = p.cell(0, 1)
+    assert cell.slow_mode_evidence['outcome'] == outcome
+    assert cell.final_text == ('37.6' if outcome == 'changed' else '31.6')
+    assert cell.needs_review and cell.status == 'automatic'
 
 
 @pytest.mark.parametrize('text, expected', [("['50.5']", ['50.5']), ('["50.5"]', ['50.5']),
@@ -230,3 +248,20 @@ def test_primary_models_are_released_before_slow_starts(tmp_path, monkeypatch):
                                        crop_root=tmp_path, slow_mode=True)
     assert len(result.pages) == 2
     assert result.model_version == 'test+slow-qwen-glm-v1'
+
+
+def test_optional_runtime_disappearing_keeps_completed_primary_results(tmp_path, monkeypatch):
+    from tablescan_local import pipeline
+    t, page = fixture_page()
+    original = page.to_dict()['cells']
+    monkeypatch.setattr(pipeline, 'LocalOcrEngine', Mock(return_value=Mock(model_version='test')))
+    monkeypatch.setattr(pipeline, 'process_page', lambda *args: page)
+    monkeypatch.setattr(slow, 'runtime_config', Mock(side_effect=RuntimeError('runtime unavailable')))
+    runner = Mock(side_effect=AssertionError('No inference without runtime'))
+    monkeypatch.setattr(slow, 'run_model', runner)
+    result = pipeline.process_document([np.zeros((100, 200, 3), np.uint8)], 'test', t,
+                                       crop_root=tmp_path, slow_mode=True)
+    assert result.pages[0].to_dict()['cells'] == original
+    assert result.pages[0].slow_mode['status'] == 'failed'
+    assert 'runtime unavailable' in str(slow.completion_details([result.pages[0].slow_mode]))
+    runner.assert_not_called()
