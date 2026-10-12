@@ -104,7 +104,10 @@ def test_excluded_cells_never_get_cropped_recognized_recovered_or_exported(tmp_p
 
 
 def test_all_excluded_document_never_loads_ocr_or_slow(monkeypatch):
-    from tablescan_local import pipeline, slow_mode
+    from tablescan_local import pipeline, slow_mode, slow_setup
+    # Qt can deliver unrelated settings refreshes during test teardown. Their
+    # status probe must not call the analysis-only runtime_config sentinel.
+    monkeypatch.setattr(slow_setup, 'setup_status', lambda: 'missing')
     t = template(); t.set_cell_exclusions({(r, c) for r in range(4) for c in range(4)}, True)
     engine = Mock(side_effect=AssertionError('No OCR required'))
     config = Mock(side_effect=AssertionError('No Slow required'))

@@ -240,3 +240,28 @@ print(json.dumps({'calls': calls, 'restored': result.performance['checkpoint']['
     second = subprocess.run([sys.executable, str(script), str(tmp_path), 'resume'],
                             capture_output=True, text=True, timeout=30, check=True)
     assert json.loads(second.stdout) == {'calls': [1, 2], 'restored': [1]}
+
+
+
+def test_recent_file_digest_detects_same_timestamp_rewrite(tmp_path, monkeypatch):
+    path = tmp_path / 'same-tick.bin'
+    path.write_bytes(b'123')
+    frozen = path.stat()
+    original_stat = Path.stat
+    monkeypatch.setattr(Path, 'stat', lambda self, *a, **kw:
+                        frozen if self == path else original_stat(self, *a, **kw))
+    monkeypatch.setattr(checkpoints.time, 'time_ns', lambda: frozen.st_mtime_ns)
+    before = checkpoints.file_digest(path)
+    path.write_bytes(b'456')
+    assert checkpoints.file_digest(path) != before
+
+
+def test_unchanged_older_weights_reuse_cached_digest(tmp_path, monkeypatch):
+    path = tmp_path / 'stable-weights.bin'
+    path.write_bytes(b'123')
+    monkeypatch.setattr(checkpoints.time, 'time_ns', lambda: path.stat().st_mtime_ns + 10_000_000_000)
+    before = checkpoints.file_digest(path)
+    def unexpected_hash():
+        raise AssertionError('Unchanged older weights should not be rehashed')
+    monkeypatch.setattr(checkpoints.hashlib, 'sha256', unexpected_hash)
+    assert checkpoints.file_digest(path) == before

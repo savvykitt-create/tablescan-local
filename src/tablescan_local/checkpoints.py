@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import platform
 import sys
+import time
 from tempfile import NamedTemporaryFile
 from threading import RLock
 
@@ -38,8 +39,11 @@ def file_digest(path, cancelled=lambda: False):
     key = (str(path.resolve()), stat.st_dev, stat.st_ino, stat.st_size,
            stat.st_mtime_ns, stat.st_ctime_ns)
     check_cancelled(cancelled)
+    # Rapid same-size writes can share an mtime on Windows/filesystems with
+    # coarse timestamps. Rehash recently written files until that window passes.
+    cacheable = time.time_ns() - stat.st_mtime_ns > 2_000_000_000
     with _digest_lock:
-        if key in _digests:
+        if cacheable and key in _digests:
             return _digests[key]
     digest = hashlib.sha256()
     with path.open('rb') as stream:
@@ -53,7 +57,8 @@ def file_digest(path, cancelled=lambda: False):
     with _digest_lock:
         if len(_digests) >= 1024:
             _digests.clear()
-        _digests[key] = digest.hexdigest()
+        if cacheable:
+            _digests[key] = digest.hexdigest()
     return digest.hexdigest()
 
 
