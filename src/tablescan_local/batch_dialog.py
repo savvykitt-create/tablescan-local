@@ -69,8 +69,7 @@ class FileProtocolDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr('Protocol for {p0}', p0=Path(item.path).name))
         self.resize(1240, 830)
-        self.images = open_document(item.path)
-        self.images = rotate_document(self.images, template.rotation_degrees)
+        self.images = open_document(item.path, rotation=template.rotation_degrees, transforms=template.page_transforms)
         self.source_path = item.path
         self.save_template = save_template
         self.result_template = None
@@ -89,6 +88,7 @@ class FileProtocolDialog(QDialog):
         self.editor.set_document(self.images[0], TableTemplate.from_dict(template.to_dict()))
         self.editor.saveVersionRequested.connect(lambda _: self.save())
         self.editor.rotationRequested.connect(self.rotate)
+        self.editor.alignmentRequested.connect(self.align_photo)
         self.page_select.currentIndexChanged.connect(self.change_page)
         self.save_template_button = QPushButton(tr('Save as new template'))
         self.save_template_button.setEnabled(save_template is not None)
@@ -129,6 +129,19 @@ class FileProtocolDialog(QDialog):
         self.page_select.setCurrentIndex(self.current_page)
         self.page_select.blockSignals(False)
 
+    def align_photo(self):
+        if not self.editor.prepare_current_settings():
+            return
+        from .photo_dialog import edit_photo_alignment
+        try:
+            result = edit_photo_alignment(self.source_path, self.editor.template, self, self.current_page)
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Alignment failed'), str(exc)); return
+        if result:
+            self.images, template, notice = result
+            self.editor.set_document(self.images[self.current_page], template)
+            self.editor.grid_warning.setText(notice)
+
     def rotate(self, degrees):
         if not self.editor.prepare_current_settings():
             return
@@ -140,6 +153,7 @@ class FileProtocolDialog(QDialog):
             return
         template = self.editor.template
         template.rotation_degrees = (template.rotation_degrees + degrees) % 360
+        template.page_transforms = {}
         self.images = images
         self.editor.set_document(image, template)
 
@@ -156,9 +170,10 @@ class FileProtocolDialog(QDialog):
         template.auto_fit_rows = False
         pages = []
         try:
-            for image in self.images:
+            for page_index, image in enumerate(self.images):
                 try:
                     detection = detect_grid(image)
+                    detection.transform = template.page_transforms.get(page_index, {})
                 except ValueError:
                     detection = None
                 pages.append((image.shape, detection))
@@ -293,7 +308,7 @@ class BatchPreparationDialog(QDialog):
         if not item.error:
             for template in self.templates:
                 if template.id not in item.assessments:
-                    item.assessments[template.id] = assess_orientations(template, item.geometry)
+                    item.assessments[template.id] = assess_orientations(template, item.geometry, self.templates)
         select.blockSignals(True)
         select.clear()
         for template in sorted(self.templates, key=lambda t: -(item.assessments[t.id].score or 0) if t.id in item.assessments else 0):
@@ -345,6 +360,10 @@ class BatchPreparationDialog(QDialog):
             self.preview_detail.setText(tr('Select a checked file to see its alignment.'))
             return
         image = rotate_document([item.thumbnails[page]], result.rotation_degrees)[0]
+        from .photo_geometry import apply_transform
+        preview_protocol = result.template or result.preview_template
+        if preview_protocol:
+            image = apply_transform(image, preview_protocol.page_transforms.get(page, {}))
         geometry = item.geometry.get(result.rotation_degrees, [])
         detection = geometry[page][1] if geometry else None
         self.preview.display(image, result.preview_template or result.template, detection)

@@ -33,7 +33,7 @@ class PreparedFile:
     thumbnails: Sequence = field(default_factory=list)
 
 
-def assess_geometry(template, pages, *, auto_fit=True):
+def assess_geometry(template, pages, *, auto_fit=True, all_templates=()):
     """Use the weakest page, so an incompatible page cannot be averaged away."""
     scores, reasons, fitted = [], [], []
     ranking_template = TableTemplate.from_dict(template.to_dict())
@@ -42,6 +42,11 @@ def assess_geometry(template, pages, *, auto_fit=True):
         if detection is None:
             return Compatibility(None, [], None, str(tr('Grid could not be detected. Open the file and align the protocol manually.')))
         match = rank_templates(shape, detection, [ranking_template])[0]
+        if all_templates:
+            from .photo_preparation import title_matches
+            if not title_matches(template,detection.title_text) and any(title_matches(t,detection.title_text) for t in all_templates):
+                from .template_matcher import TemplateMatch
+                match=TemplateMatch(match.template,match.score*.70,(*match.reasons,tr('Printed title points to another protocol')))
         scores.append(round(match.score * 100))
         reasons.extend(str(r) for r in match.reasons)
         reasons.extend(str(w) for w in detection.warnings)
@@ -63,18 +68,19 @@ def assess_geometry(template, pages, *, auto_fit=True):
                              str(tr('Pages have different grids. Split the document into separate files.')))
     # The inspected geometry is the geometry used by OCR. Do not fit again in
     # the worker, which could otherwise move manually inspected cells.
+    first.page_transforms = {i:d.transform for i,(_,d) in enumerate(pages) if d and d.transform}
     first.auto_fit_rows = False
     return Compatibility(min(scores), list(dict.fromkeys(reasons)), first,
                          rotation_degrees=template.rotation_degrees,
                          preview_template=first, fit_status='fitted' if auto_fit else 'manual')
 
 
-def assess_orientations(template, geometry):
+def assess_orientations(template, geometry, all_templates=()):
     candidates = []
     for rotation, pages in geometry.items():
         oriented = TableTemplate.from_dict(template.to_dict())
         oriented.rotation_degrees = rotation
-        result = assess_geometry(oriented, pages)
+        result = assess_geometry(oriented, pages, all_templates=all_templates)
         result.rotation_degrees = rotation
         result.preview_template = result.template or oriented
         candidates.append(result)
@@ -112,7 +118,9 @@ def prepare_file(path, templates, interrupted=lambda: False, progress=lambda mes
                 progress(str(tr('Checking page {p0}: rotation {p1}°', p0=index + 1, p1=rotation)))
                 image = rotate_document([original], rotation)[0]
                 try:
-                    detection = detect_grid(image)
+                    from .photo_preparation import prepare_page
+                    from pathlib import Path
+                    image, detection = prepare_page(image, photograph=Path(path).suffix.lower() != '.pdf', title=bool(templates))
                 except ValueError:
                     detection = None
                 pages.append((image.shape, detection))
@@ -120,7 +128,7 @@ def prepare_file(path, templates, interrupted=lambda: False, progress=lambda mes
         for template in templates:
             if interrupted():
                 raise InterruptedError()
-            item.assessments[template.id] = assess_orientations(template, item.geometry)
+            item.assessments[template.id] = assess_orientations(template, item.geometry, templates)
     except InterruptedError:
         raise
     except Exception as exc:

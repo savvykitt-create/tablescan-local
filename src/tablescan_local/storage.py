@@ -52,7 +52,7 @@ class LocalStore:
                 previous.pop('reference_source_path', None)
                 # Empty fields added by newer schemas are not user edits.
                 # Nonempty exclusions must prevent a factory replacement.
-                for key in ('excluded_rows', 'excluded_columns', 'excluded_cells'):
+                for key in ('excluded_rows', 'excluded_columns', 'excluded_cells', 'page_transforms'):
                     if not previous.get(key):
                         previous.pop(key, None)
                 for region in previous['fields']:

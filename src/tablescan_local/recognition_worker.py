@@ -46,7 +46,8 @@ class RecognitionWorker(QThread):
                                         score=assessment.score, rows=self.template.rows, columns=self.template.columns)
             if self.images is None:
                 self.images = open_document(self.source_path, rotation=self.template.rotation_degrees,
-                                            cache_pages=1, cancelled=self.isInterruptionRequested)
+                                            cache_pages=1, cancelled=self.isInterruptionRequested,
+                                            transforms=self.template.page_transforms)
             if self.isInterruptionRequested():
                 raise InterruptedError
             def report(value: int, maximum: int, label: str) -> None:

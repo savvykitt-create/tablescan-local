@@ -84,11 +84,34 @@ excluded before analysis, restore it in preparation and analyze the file again.
 Choose English, Czech or Russian in **Settings → Language**. Document contents
 and custom protocol names remain in the language in which you entered them.
 
+## Photographed tables
+
+Photographs from the file picker and the **Phone** tab use the same local
+preparation. TableScan checks orientation, finds a repeated grid, corrects
+perspective, and follows small residual bends in printed rules. It also reads
+the printed heading above the grid to distinguish protocols with identical
+layouts, such as Von Frey and Plantar. Matching scores describe compatibility,
+not OCR accuracy; confirm the protocol when headings are missing or layouts tie.
+
+Use **Alignment → Align photograph — four corners** to correct a boundary.
+Drag the orange handles to the four table corners, select **Preview alignment**,
+inspect the detected grid on the right, and apply. Crossing or invalid corners
+are rejected. Low-confidence grids display a warning and must be checked before
+recognition. Strong folds, glare, occlusion and missing borders can still require
+manual guides or another photograph.
+
+The original photograph is preserved. Alignment is saved per document/page and
+reapplied consistently to preview, cell crops, review and resumed analysis.
+Saved templates retain their reference alignment for library previews; another
+photograph gets its own alignment. Changing the corners invalidates the previous
+alignment preview until it is recalculated. Check metadata fields as well as
+the table after a correction.
+
 ## Process multiple files
 
 Select or drop several files to open batch preparation. Each file automatically
-selects its highest-scoring protocol. Compatibility describes layout matching,
-not recognition accuracy or identification of the experiment.
+selects its highest-scoring protocol. Compatibility combines grid layout and available printed-title evidence;
+it is not recognition accuracy or a guarantee of experiment identity.
 
 Inspect the preview with its grid overlay before submitting. You can apply one
 protocol to all files, select another per file, or open a file to correct its

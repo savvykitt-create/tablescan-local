@@ -56,6 +56,8 @@ def rank_templates(
     """Rank the latest saved version in every family and explain each score."""
     height, width = image_shape[:2]
     page_aspect = width / max(1, height)
+    from .photo_preparation import title_matches
+    title_candidates = {t.id for t in templates if title_matches(t, detection.title_text)} if detection.title_text else set()
     matches = []
     for template in latest_template_versions(templates):
         row_score = _count_similarity(len(detection.row_guides) - 1, template.rows)
@@ -79,7 +81,17 @@ def rank_templates(
             .27 * row_score + .31 * column_score + .15 * rect_score
             + .10 * aspect_score + .17 * ((row_shape + column_shape) / 2)
         )
-        reasons = [
+        if title_candidates:
+            # Title disambiguates compatible layouts, never rescues a bad grid.
+            score *= 1.0 if template.id in title_candidates else .70
+        if detection.warnings:
+            score = min(score, .49)
+        reasons = []
+        if template.id in title_candidates:
+            reasons.append(tr('Printed title matches the protocol'))
+        elif title_candidates:
+            reasons.append(tr('Printed title points to another protocol'))
+        reasons += [
             tr('сетка {p0}×{p1}', p0=template.rows, p1=template.columns),
             tr('число строк совпадает') if len(detection.row_guides) == len(template.row_guides) else
             (tr('число строк будет подогнано') if template.auto_fit_rows and row_score == 1 else tr('число строк отличается')),
@@ -90,4 +102,7 @@ def rank_templates(
         if rect_score > .85:
             reasons.append(tr('положение таблицы похоже'))
         matches.append(TemplateMatch(template, round(max(0.0, min(1.0, score)), 4), tuple(reasons)))
-    return sorted(matches, key=lambda item: item.score, reverse=True)
+    matches = sorted(matches, key=lambda item: item.score, reverse=True)
+    if len(matches)>1 and abs(matches[0].score-matches[1].score)<.04:
+        matches = [TemplateMatch(m.template,m.score,(*m.reasons,tr('Similar layouts: confirm the protocol name.'))) for m in matches]
+    return matches

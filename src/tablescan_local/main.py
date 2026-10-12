@@ -68,10 +68,38 @@ def phone_self_test() -> int:
     return 0
 
 
+def photo_self_test() -> int:
+    """Exercise packaged perspective geometry, local title OCR and persistence."""
+    import json
+    from pathlib import Path
+    from .documents import open_document
+    from .photo_geometry import prepare_photo, apply_transform
+    from .photo_preparation import read_printed_title
+    from .domain import TableTemplate
+    from .template_matcher import rank_templates
+    root=Path(__file__).parent/'default_templates'
+    image=open_document(root/'von_frey.pdf')[0]
+    h,w=image.shape[:2]
+    src=np.float32([[0,0],[w-1,0],[w-1,h-1],[0,h-1]])
+    dst=np.float32([[w*.025,h*.01],[w*.98,h*.04],[w*.97,h*.98],[w*.01,h*.96]])
+    image=cv2.warpPerspective(image,cv2.getPerspectiveTransform(src,dst),(w,h),borderValue=(255,255,255))
+    prepared,transform,d=prepare_photo(image)
+    if len(d.row_guides)!=22 or len(d.column_guides)!=13 or not transform:
+        raise RuntimeError('Packaged photograph grid detection failed')
+    d.title_text=read_printed_title(prepared,d)
+    templates=[TableTemplate.from_dict(json.loads((root/(name+'.json')).read_text())) for name in ('plantar','von_frey')]
+    if rank_templates(prepared.shape,d,templates)[0].template.name!='Von Frey':
+        raise RuntimeError('Packaged printed title matching failed')
+    if not np.array_equal(prepared,apply_transform(image,json.loads(json.dumps(transform)))):
+        raise RuntimeError('Packaged photograph geometry round trip failed')
+    return 0
+
+
 def self_test(*, parallel=False) -> int:
     """Load the packaged OCR runtime and run one in-memory recognition pass."""
     document_self_test()
     phone_self_test()
+    photo_self_test()
     from .slow_setup import download_context
     if not download_context().get_ca_certs():
         raise RuntimeError("Python download certificates are missing from the application")
@@ -171,6 +199,8 @@ def main() -> int:
         return slow_mode_self_test()
     if "--phone-self-test" in sys.argv:
         return phone_self_test()
+    if "--photo-self-test" in sys.argv:
+        return photo_self_test()
     if "--document-self-test" in sys.argv:
         return document_self_test()
     if "--self-test" in sys.argv:

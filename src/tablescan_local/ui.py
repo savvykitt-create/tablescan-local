@@ -168,7 +168,7 @@ class TemplateChoiceDialog(QDialog):
         heading = QLabel(tr('Какой шаблон применить к документу?'))
         set_theme_style(heading, "font-size: 20px; font-weight: 750;")
         layout.addWidget(heading)
-        note = QLabel(tr('Программа сравнила сетку локально. Проверьте выбор: перед распознаванием будет показано наложение шаблона.'))
+        note = QLabel(tr('The grid and printed title were compared locally. Confirm the protocol and inspect the overlay before recognition.'))
         note.setWordWrap(True); set_theme_style(note, fmt('color: {p0};', p0=MUTED))
         layout.addWidget(note)
         self.list = QListWidget()
@@ -312,6 +312,7 @@ class TablePage(QWidget):
     templateChanged = Signal(object)
     savedTemplateRequested = Signal(str)
     rotationRequested = Signal(int)
+    alignmentRequested = Signal()
 
     def __init__(self, mode: str = "document", *, private_copy: bool = False) -> None:
         super().__init__()
@@ -462,6 +463,9 @@ class TablePage(QWidget):
         self.grid_warning.setWordWrap(True)
         set_theme_style(self.grid_warning, fmt('color: {p0};', p0=AMBER))
         layout.addWidget(self.grid_warning)
+        align = QPushButton(tr('Align photograph — four corners'))
+        align.clicked.connect(self.alignmentRequested)
+        layout.addWidget(align)
         detect = QPushButton(tr('Найти сетку заново'))
         detect.clicked.connect(self.detect_again)
         load_saved = QPushButton(tr('Применить выбранный шаблон'))
@@ -1048,7 +1052,7 @@ class TablePage(QWidget):
         self.image = image
         self.template = template
         resized_rules = template.resize_grid(template.rows, template.columns)
-        self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(resized_rules)) if resized_rules else '')
+        self.grid_warning.setText(tr('Диапазоны правил обновлены: {p0}', p0='; '.join(resized_rules)) if resized_rules else (tr('Grid confidence is low. Align the photograph and check every guide before recognition.') if template.rows < 2 or template.columns < 2 else ''))
         self.version_label.clear()
         saved_index = self.saved_template_select.findData(template.id)
         self.saved_template_select.setCurrentIndex(max(0, saved_index))
@@ -1555,6 +1559,7 @@ class MainWindow(QMainWindow):
         self.table_page.savedTemplateRequested.connect(self._load_saved_template)
         self.table_page.saveTemplateRequested.connect(self._save_document_template_version)
         self.table_page.rotationRequested.connect(self._rotate_pages)
+        self.table_page.alignmentRequested.connect(self._align_document_photo)
         self.review_page = ReviewPage()
         self.review_page.exportRequested.connect(self.export_current)
         self.review_page.resultChanged.connect(self._result_changed)
@@ -1583,6 +1588,7 @@ class MainWindow(QMainWindow):
         self.template_editor.templateChanged.connect(self._template_editor_changed)
         self.template_editor.saveVersionRequested.connect(self.save_template_version)
         self.template_editor.rotationRequested.connect(self._rotate_template)
+        self.template_editor.alignmentRequested.connect(self._align_template_photo)
         self.templates_stack.addWidget(self.template_library); self.templates_stack.addWidget(self.template_editor)
         templates_layout.addWidget(self.template_back_bar); templates_layout.addWidget(self.templates_stack, 1)
 
@@ -1762,7 +1768,11 @@ class MainWindow(QMainWindow):
             images = open_document(path)
             if not images:
                 raise ValueError(tr('Файл не содержит страниц'))
-            detection = self._detect_or_manual(images[0])
+            from .photo_preparation import prepare_document
+            try:
+                images, detection = prepare_document(path, rotation=0)
+            except ValueError:
+                detection = self._detect_or_manual(images[0])
         except Exception as exc:
             QMessageBox.critical(self, tr('Не удалось открыть образец'), str(exc)); return
         identifier = str(uuid4())
@@ -1770,6 +1780,7 @@ class MainWindow(QMainWindow):
             identifier, f"{Path(path).stem} — template", detection.table_rect,
             detection.row_guides, detection.column_guides,
             template_version=0, family_id=identifier, reference_source_path=path,
+            rotation_degrees=images.rotation, page_transforms=dict(images.transforms),
             reference_page_aspect=images[0].shape[1] / max(1, images[0].shape[0]),
         )
         template.ensure_column_rules()
@@ -1789,7 +1800,7 @@ class MainWindow(QMainWindow):
             if not source:
                 return
         try:
-            images = rotate_document(open_document(source), template.rotation_degrees)
+            images = open_document(source, rotation=template.rotation_degrees, transforms=template.page_transforms)
             if not images:
                 raise ValueError(tr('Файл не содержит страниц'))
             image = images[0]
@@ -1814,7 +1825,7 @@ class MainWindow(QMainWindow):
         self._refresh_templates()
         self.template_library.select_template(saved.id)
         try:
-            image = rotate_document(open_document(saved.reference_source_path), saved.rotation_degrees)[0]
+            image = open_document(saved.reference_source_path, rotation=saved.rotation_degrees, transforms=saved.page_transforms)[0]
             self.template_editor.set_document(image, saved)
         except Exception:
             pass
@@ -1957,7 +1968,11 @@ class MainWindow(QMainWindow):
             images = open_document(copied)
             if not images:
                 raise ValueError(tr('The document contains no pages.'))
-            detection: GridDetection | None = None if reused_template else self._detect_or_manual(images[0])
+            from .photo_preparation import prepare_document
+            try:
+                images, detection = prepare_document(copied, self.store.load_templates())
+            except ValueError:
+                detection = self._detect_or_manual(images[0])
             chosen_template = reused_template
             if reused_template is None:
                 matches = rank_templates(images[0].shape, detection, self.store.load_templates())
@@ -1971,10 +1986,13 @@ class MainWindow(QMainWindow):
                         chosen_template = selected_match.template if selected_match else None
             if chosen_template:
                 template = TableTemplate.from_dict(chosen_template.to_dict())
-                images = rotate_document(images, template.rotation_degrees)
+                template.rotation_degrees = images.rotation
+                template.page_transforms = dict(images.transforms)
                 template = fit_document_template(template, images)
             else:
                 template = self._new_template(path, str(copied), images, detection)
+            template.rotation_degrees = images.rotation
+            template.page_transforms = dict(images.transforms)
             template.resize_grid(template.rows, template.columns)
             template.validate_value_rules()
             self.store.save_draft(new_job_id, template)
@@ -2065,6 +2083,35 @@ class MainWindow(QMainWindow):
             rows, columns = evenly_spaced_guides(rect, 10, 6)
             return GridDetection(rect, rows, columns, [tr('Grid not detected. Rotate if needed, then redraw the table boundary and set its rows and columns.')])
 
+    def _align_document_photo(self):
+        if not self.template or not self.table_page.prepare_current_settings():
+            return
+        from .photo_dialog import edit_photo_alignment
+        try:
+            result = edit_photo_alignment(self.stored_source_path, self.template, self)
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Alignment failed'), str(exc)); return
+        if result:
+            self.images, self.template, notice = result
+            self.result = None
+            self.table_page.set_document(self.images[0], self.template)
+            self.table_page.grid_warning.setText(notice)
+            self._template_changed(self.template)
+
+    def _align_template_photo(self):
+        if not self.template_editor_working or not self.template_editor.prepare_current_settings():
+            return
+        from .photo_dialog import edit_photo_alignment
+        try:
+            result = edit_photo_alignment(self.template_editor_reference, self.template_editor_working, self)
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Alignment failed'), str(exc)); return
+        if result:
+            images, template, notice = result
+            self.template_editor_working = template
+            self.template_editor.set_document(images[0], template)
+            self.template_editor.grid_warning.setText(notice)
+
     def _rotate_template(self, degrees: int) -> None:
         template = self.template_editor_working
         image = self.template_editor.image
@@ -2074,9 +2121,17 @@ class MainWindow(QMainWindow):
             answer = QMessageBox.question(self, tr('Rotate template'), tr('Rotation will detect a new grid and clear fields, rules, template values and exclusions. Continue?'))
             if answer != QMessageBox.StandardButton.Yes:
                 return
-        rotated = rotate_document([image], degrees)[0]
-        detection = self._detect_or_manual(rotated)
-        template.rotation_degrees = (template.rotation_degrees + degrees) % 360
+        rotation = (template.rotation_degrees + degrees) % 360
+        try:
+            if self.template_editor_reference:
+                rotated = open_document(self.template_editor_reference, rotation=rotation)[0]
+            else:
+                rotated = rotate_document([image], degrees)[0]
+            detection = self._detect_or_manual(rotated)
+        except Exception as exc:
+            QMessageBox.warning(self, tr('Alignment failed'), str(exc)); return
+        template.rotation_degrees = rotation
+        template.page_transforms = {}
         template.table_rect = detection.table_rect
         template.row_guides = detection.row_guides
         template.column_guides = detection.column_guides
@@ -2098,9 +2153,13 @@ class MainWindow(QMainWindow):
             if answer != QMessageBox.StandardButton.Yes:
                 return
         rotation = (self.template.rotation_degrees + degrees) % 360
-        self.images = rotate_document(self.images, degrees)
-        detection = self._detect_or_manual(self.images[0])
-        self.template = TableTemplate(str(uuid4()), str(self.template.name), detection.table_rect, detection.row_guides, detection.column_guides, rotation_degrees=rotation)
+        from .photo_preparation import prepare_document
+        try:
+            self.images, detection = prepare_document(self.stored_source_path, rotation=rotation)
+        except ValueError:
+            self.images = open_document(self.stored_source_path, rotation=rotation)
+            detection = self._detect_or_manual(self.images[0])
+        self.template = TableTemplate(str(uuid4()), str(self.template.name), detection.table_rect, detection.row_guides, detection.column_guides, rotation_degrees=rotation, page_transforms=dict(self.images.transforms))
         self.result = None
         self.table_page.set_document(self.images[0], self.template)
         self.table_page.grid_warning.setText(join_text(' ', detection.warnings))
@@ -2126,11 +2185,32 @@ class MainWindow(QMainWindow):
             elif result:
                 template = TableTemplate.from_dict(result.template.to_dict())
             else:
-                # Recover legacy imported jobs which predate automatic drafts.
-                template = self._new_template(metadata["source_path"], metadata["stored_source_path"], images)
+                # Phone imports and older jobs have no draft yet. Use exactly
+                # the same photograph preparation as a file selected in Finder.
+                from .photo_preparation import prepare_document
+                try:
+                    images, detection = prepare_document(metadata["stored_source_path"], self.store.load_templates())
+                except ValueError:
+                    detection = self._detect_or_manual(images[0])
+                matches = rank_templates(images[0].shape, detection, self.store.load_templates())
+                chosen = None
+                if matches and matches[0].score >= .55:
+                    chooser = TemplateChoiceDialog(matches, self)
+                    if chooser.exec() != QDialog.DialogCode.Accepted:
+                        return
+                    chosen = next((m.template for m in matches if m.template.id == chooser.selected_template_id), None)
+                if chosen:
+                    chosen = TableTemplate.from_dict(chosen.to_dict())
+                    chosen.rotation_degrees = images.rotation
+                    chosen.page_transforms = dict(images.transforms)
+                    template = fit_document_template(chosen, images)
+                else:
+                    template = self._new_template(metadata["source_path"], metadata["stored_source_path"], images, detection)
+                    template.rotation_degrees = images.rotation
+                    template.page_transforms = dict(images.transforms)
                 self.store.save_draft(job_id, template)
             template.resize_grid(template.rows, template.columns)
-            images = rotate_document(images, template.rotation_degrees)
+            images = open_document(metadata["stored_source_path"], rotation=template.rotation_degrees, transforms=template.page_transforms)
             images[0]  # Decode the initial page before replacing the active context.
         except Exception as exc:
             QMessageBox.warning(self, tr('Исходник недоступен'), str(exc))
@@ -2181,8 +2261,10 @@ class MainWindow(QMainWindow):
             self.table_page.set_saved_templates(self.store.load_templates())
             QMessageBox.warning(self, tr('Шаблон недоступен'), tr('Не удалось загрузить сохранённый шаблон.'))
             return
-        current_rotation = self.template.rotation_degrees if self.template else 0
-        images = rotate_document(self.images, template.rotation_degrees - current_rotation)
+        images = self.images
+        template = TableTemplate.from_dict(template.to_dict())
+        template.rotation_degrees = self.template.rotation_degrees if self.template else 0
+        template.page_transforms = dict(self.template.page_transforms) if self.template else {}
         try:
             fitted = fit_document_template(template, images)
         except ValueError as exc:

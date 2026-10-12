@@ -151,6 +151,9 @@ class TableTemplate:
     excluded_columns: list[int] = field(default_factory=list)
     excluded_cells: list[CellAddress] = field(default_factory=list)
 
+    # Source-specific transforms; retained for reference previews, replaced on reuse.
+    page_transforms: dict[int, dict] = field(default_factory=dict)
+
     def is_excluded(self, row: int, column: int) -> bool:
         """Explicit preparation exclusions take precedence over template values.
 
@@ -396,6 +399,7 @@ class TableTemplate:
             column_rules=[ColumnRule(**item) for item in data.get("column_rules", [])],
             schema_version=int(data.get("schema_version", 1)),
             rotation_degrees=int(data.get("rotation_degrees", 0)),
+            page_transforms={int(k): v for k, v in data.get("page_transforms", {}).items()},
             cell_rules=[CellRuleRegion(**{k: v for k, v in item.items() if k != "constraints"}, constraints=ValueConstraints(**item.get("constraints", {}))) for item in data.get("cell_rules", [])],
             template_version=int(data.get("template_version", 1)),
             family_id=str(data.get("family_id") or data["id"]),

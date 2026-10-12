@@ -9,6 +9,7 @@ from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from threading import RLock
+import copy
 import math
 import operator
 
@@ -46,6 +47,7 @@ class DocumentPages(Sequence[np.ndarray]):
     """
 
     def __init__(self, path: str | Path, scale: float = 3.0, *, rotation: int = 0,
+                 transforms: dict | None = None,
                  max_dimension: int | None = None, cache_pages: int = 2,
                  cache_bytes: int = 64 * 1024 ** 2,
                  cancelled: Callable[[], bool] | None = None):
@@ -60,6 +62,10 @@ class DocumentPages(Sequence[np.ndarray]):
             raise ValueError('Preview dimension must be positive')
         self.scale = scale
         self.rotation = rotation % 360
+        self.transforms = {int(k): copy.deepcopy(v) for k,v in (transforms or {}).items()}
+        from .photo_geometry import validate_transform
+        for value in self.transforms.values():
+            validate_transform(value)
         self.max_dimension = max_dimension
         self.cache_pages = max(0, cache_pages)
         self.cache_bytes = max(0, cache_bytes)
@@ -79,6 +85,8 @@ class DocumentPages(Sequence[np.ndarray]):
                 self._length = getattr(document, 'n_frames', 1)
                 if document.format == 'HEIF':
                     self._primary_frame = document.tell()
+        if any(index < 0 or index >= self._length for index in self.transforms):
+            raise ValueError(tr('Invalid photograph alignment. Align the four corners again.'))
         self.check_cancelled()
         self.check_unchanged()
 
@@ -154,6 +162,9 @@ class DocumentPages(Sequence[np.ndarray]):
             image = cv2.resize(image, None, fx=ratio, fy=ratio, interpolation=cv2.INTER_AREA)
         if self.rotation:
             image = np.ascontiguousarray(np.rot90(image, self.rotation // 90))
+        if index in self.transforms:
+            from .photo_geometry import apply_transform
+            image = apply_transform(image, self.transforms[index])
         return image
 
     def rotated(self, degrees):
@@ -169,7 +180,7 @@ class DocumentPages(Sequence[np.ndarray]):
     @property
     def rendering(self):
         return dict(version=RENDER_VERSION, scale=self.scale, rotation=self.rotation,
-                    max_dimension=self.max_dimension, pages=len(self))
+                    max_dimension=self.max_dimension, pages=len(self), transforms=copy.deepcopy(self.transforms))
 
     @property
     def cached_bytes(self):

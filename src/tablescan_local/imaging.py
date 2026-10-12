@@ -39,6 +39,8 @@ class GridDetection:
     row_guides: list[float]
     column_guides: list[float]
     warnings: list[str] = field(default_factory=list)
+    transform: dict = field(default_factory=dict)
+    title_text: str = ""
 
 
 def load_document(path: str | Path, scale: float = 3.0) -> list[np.ndarray]:
@@ -187,11 +189,12 @@ def detect_grid(image: np.ndarray) -> GridDetection:
 
     row_guides = normalize_guides(local_rows, y, table_height, height)
     column_guides = normalize_guides(local_columns, x, table_width, width)
+    uncertain = len(local_rows) < 3 or len(local_columns) < 3
     return GridDetection(
         table_rect=NormalizedRect.from_pixels((x, y, table_width, table_height), image.shape),
         row_guides=row_guides,
         column_guides=column_guides,
-        warnings=([tr('Some row boundaries were reconstructed. Check every blue guide.')] if reconstructed else []) + ([tr('Rows under heavy ink were recovered from the label column. Check those guides.')] if recovered_from_margin else []),
+        warnings=([tr('Grid confidence is low. Align the photograph and check every guide before recognition.')] if uncertain else []) + ([tr('Some row boundaries were reconstructed. Check every blue guide.')] if reconstructed else []) + ([tr('Rows under heavy ink were recovered from the label column. Check those guides.')] if recovered_from_margin else []),
     )
 
 

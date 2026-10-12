@@ -4248,5 +4248,115 @@
     "en": "Ready to receive. Scan the QR code with your phone camera.",
     "ru": "Готово к приёму. Отсканируйте QR-код камерой телефона.",
     "cs": "Připraveno k příjmu. Naskenujte QR kód fotoaparátem telefonu."
+  },
+  "Align photograph": {
+    "en": "Align photograph",
+    "cs": "Zarovnat fotografii",
+    "ru": "Выровнять фотографию"
+  },
+  "Align photograph — four corners": {
+    "en": "Align photograph — four corners",
+    "cs": "Zarovnat fotografii — čtyři rohy",
+    "ru": "Выровнять фото — четыре угла"
+  },
+  "Aligned photograph and detected grid": {
+    "en": "Aligned photograph and detected grid",
+    "cs": "Zarovnaná fotografie a nalezená mřížka",
+    "ru": "Выровненная фотография и найденная сетка"
+  },
+  "Alignment failed": {
+    "en": "Alignment failed",
+    "cs": "Zarovnání se nezdařilo",
+    "ru": "Не удалось выровнять"
+  },
+  "Automatic corners are uncertain. Drag the handles onto the table.": {
+    "en": "Automatic corners are uncertain. Drag the handles onto the table.",
+    "cs": "Rohy nebyly spolehlivě nalezeny. Přetáhněte úchyty na rohy tabulky.",
+    "ru": "Углы не определены уверенно. Перетащите маркеры на углы таблицы."
+  },
+  "Corner {p0}": {
+    "en": "Corner {p0}",
+    "cs": "Roh {p0}",
+    "ru": "Угол {p0}"
+  },
+  "Corners changed. Preview the alignment before applying.": {
+    "en": "Corners changed. Preview the alignment before applying.",
+    "cs": "Rohy byly změněny. Před použitím zobrazte náhled zarovnání.",
+    "ru": "Углы изменены. Проверьте предпросмотр перед применением."
+  },
+  "Detected {rows} rows × {columns} columns. Check every guide.": {
+    "en": "Detected {rows} rows × {columns} columns. Check every guide.",
+    "cs": "Nalezeno {rows} řádků × {columns} sloupců. Zkontrolujte všechny vodicí čáry.",
+    "ru": "Найдено строк: {rows}, столбцов: {columns}. Проверьте все направляющие."
+  },
+  "Drag the four orange handles onto the table corners: top left, top right, bottom right, bottom left. Preview the grid, then apply. The original photo is preserved.": {
+    "en": "Drag the four orange handles onto the table corners: top left, top right, bottom right, bottom left. Preview the grid, then apply. The original photo is preserved.",
+    "cs": "Přetáhněte čtyři oranžové úchyty na rohy tabulky: levý horní, pravý horní, pravý dolní, levý dolní. Zkontrolujte náhled mřížky a použijte zarovnání. Původní fotografie zůstane zachována.",
+    "ru": "Перетащите четыре оранжевых маркера на углы таблицы: верхний левый, верхний правый, нижний правый, нижний левый. Проверьте сетку в предпросмотре и примените. Исходное фото сохраняется."
+  },
+  "Find corners automatically": {
+    "en": "Find corners automatically",
+    "cs": "Najít rohy automaticky",
+    "ru": "Найти углы автоматически"
+  },
+  "Grid confidence is low. Align the photograph and check every guide before recognition.": {
+    "en": "Grid confidence is low. Align the photograph and check every guide before recognition.",
+    "cs": "Mřížka nebyla spolehlivě určena. Před rozpoznáváním zarovnejte fotografii a zkontrolujte všechny vodicí čáry.",
+    "ru": "Сетка определена ненадёжно. Выровняйте фотографию и проверьте все направляющие перед распознаванием."
+  },
+  "Grid rules changed. Review their ranges before recognition.": {
+    "en": "Grid rules changed. Review their ranges before recognition.",
+    "cs": "Pravidla mřížky se změnila. Před rozpoznáváním zkontrolujte jejich rozsahy.",
+    "ru": "Правила сетки изменились. Проверьте их диапазоны перед распознаванием."
+  },
+  "Invalid photograph alignment. Align the four corners again.": {
+    "en": "Invalid photograph alignment. Align the four corners again.",
+    "cs": "Neplatné zarovnání fotografie. Znovu určete čtyři rohy.",
+    "ru": "Некорректное выравнивание фотографии. Укажите четыре угла заново."
+  },
+  "Mark all four table corners.": {
+    "en": "Mark all four table corners.",
+    "cs": "Označte všechny čtyři rohy tabulky.",
+    "ru": "Отметьте все четыре угла таблицы."
+  },
+  "Original photograph — four table corners": {
+    "en": "Original photograph — four table corners",
+    "cs": "Původní fotografie — čtyři rohy tabulky",
+    "ru": "Исходная фотография — четыре угла таблицы"
+  },
+  "Photograph aligned. Check the grid and metadata fields.": {
+    "en": "Photograph aligned. Check the grid and metadata fields.",
+    "cs": "Fotografie byla zarovnána. Zkontrolujte mřížku a pole metadat.",
+    "ru": "Фотография выровнена. Проверьте сетку и поля над таблицей."
+  },
+  "Preview alignment": {
+    "en": "Preview alignment",
+    "cs": "Náhled zarovnání",
+    "ru": "Проверить выравнивание"
+  },
+  "Printed title matches the protocol": {
+    "en": "Printed title matches the protocol",
+    "cs": "Tištěný nadpis odpovídá protokolu",
+    "ru": "Печатный заголовок соответствует шаблону"
+  },
+  "Printed title points to another protocol": {
+    "en": "Printed title points to another protocol",
+    "cs": "Tištěný nadpis ukazuje na jiný protokol",
+    "ru": "Печатный заголовок указывает на другой шаблон"
+  },
+  "Similar layouts: confirm the protocol name.": {
+    "en": "Similar layouts: confirm the protocol name.",
+    "cs": "Podobná rozložení: potvrďte název protokolu.",
+    "ru": "Похожие сетки: проверьте название шаблона."
+  },
+  "The four corners must form a non-crossing table boundary.": {
+    "en": "The four corners must form a non-crossing table boundary.",
+    "cs": "Čtyři rohy musí tvořit nekřížící se hranici tabulky.",
+    "ru": "Четыре угла должны образовывать границу таблицы без пересечений."
+  },
+  "The grid and printed title were compared locally. Confirm the protocol and inspect the overlay before recognition.": {
+    "en": "The grid and printed title were compared locally. Confirm the protocol and inspect the overlay before recognition.",
+    "cs": "Mřížka a tištěný nadpis byly porovnány místně. Před rozpoznáváním potvrďte protokol a zkontrolujte překrytí.",
+    "ru": "Сетка и печатный заголовок сопоставлены локально. Подтвердите шаблон и проверьте наложение перед распознаванием."
   }
 }
