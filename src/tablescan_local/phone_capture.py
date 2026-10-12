@@ -50,10 +50,22 @@ def local_addresses():
 
 def qr_matrix(url):
     import qrcode
-    code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, border=4)
-    code.add_data(url)
-    code.make(fit=True)
-    return code.get_matrix()
+    import cv2
+    import numpy as np
+    # Some valid masks confuse camera decoders for particular session tokens.
+    # Retain QR's preferred mask when readable; otherwise try the other standard
+    # masks without changing the URL, token entropy or error correction level.
+    for mask in (None, *range(8)):
+        code = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M,
+                             border=4, mask_pattern=mask)
+        code.add_data(url)
+        code.make(fit=True)
+        matrix = code.get_matrix()
+        pixels = np.repeat(np.repeat((1 - np.asarray(matrix, dtype=np.uint8)) * 255,
+                                     6, axis=0), 6, axis=1)
+        if cv2.QRCodeDetector().detectAndDecode(pixels)[0] == url:
+            return matrix
+    raise ValueError('Unable to create a readable phone QR code. Start a new session.')
 
 
 class PhotoTooLarge(ValueError):

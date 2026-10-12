@@ -195,3 +195,13 @@ def test_new_store_schema_keeps_existing_documents_and_deletion_removes_receipt(
     assert reopened.phone_receipt('a' * 32, 'digest') is None
     assert reopened.connection.execute('PRAGMA integrity_check').fetchone()[0] == 'ok'
     reopened.connection.close()
+
+
+@pytest.mark.parametrize('url', [
+    'http://127.0.0.1:50001/#Wjt40Jc9RtK_Er1brVXQgDFcZo1cWSYDUT7O8khJlGk',
+    *['http://192.168.123.123:54321/#' + hashlib.sha256(str(i).encode()).hexdigest()[:43] for i in range(8)],
+])
+def test_qr_masks_remain_readable_for_different_session_tokens(url):
+    matrix = np.asarray(phone.qr_matrix(url), dtype=np.uint8)
+    pixels = np.repeat(np.repeat((1 - matrix) * 255, 6, axis=0), 6, axis=1)
+    assert cv2.QRCodeDetector().detectAndDecode(pixels)[0] == url

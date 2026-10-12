@@ -72,8 +72,8 @@ jobs:
         run: '"dist/TableScan Local.app/Contents/MacOS/TableScanLocal" --self-test'
       - name: Test packaged application on Windows
         if: runner.os == 'Windows'
-        shell: pwsh
-        run: '& "dist\TableScanLocal\TableScanLocal.exe" --self-test'
+        # Python waits for GUI executables and propagates their actual exit code.
+        run: python -c "import subprocess; subprocess.run([r'dist\TableScanLocal\TableScanLocal.exe', '--self-test'], check=True, timeout=180)"
       - name: Create Ubuntu packages
         if: runner.os == 'Linux'
         run: bash packaging/linux/make_packages.sh
