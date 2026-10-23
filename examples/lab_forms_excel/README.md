@@ -9,14 +9,14 @@ and prints on one A4 portrait sheet. It uses the same numeric measurement column
 and rules as Staircase, with wider cells and no Notes column, and has a separate
 layout template. In the downloadable archive,
 choose `Excel/staircase_portrait.xlsx`, `PDF/staircase_portrait.pdf` and
-`templates/staircase_portrait.json`. Its editable data rows are 7–36; the header
-is worksheet row 6. Select the portrait protocol when recognizing this layout.
+`templates/staircase_portrait.json`. Its editable data rows are 8–37; the header
+is worksheet row 7. Select the portrait protocol when recognizing this layout.
 
 ## Change the number of animals
 
 Save your own copy. Insert or delete complete worksheet data rows **inside the
 table**, preserving ID formulas, borders and uniform row heights. Keep the first
-six worksheet rows, column order and column widths. Clearing cells does not
+six worksheet rows (seven for Staircase portrait), column order and column widths. Clearing cells does not
 remove grid rows. Do not merge measurement cells.
 
 The same protocol supports arbitrary counts within 200 total grid rows (199

@@ -204,8 +204,8 @@ Notes column. Insert or delete complete data rows before printing.
 **Staircase portrait (30 animals)** is an additional A4 portrait form with all
 30 animals on one page, with ID, L1–L7, L drop, R1–R7 and R drop.
 It omits Notes to give the numeric cells more room for handwritten digits.
-Its [Excel workbook](src/tablescan_local/default_templates/staircase_portrait.xlsx),
-[printable PDF](src/tablescan_local/default_templates/staircase_portrait.pdf) and
+Its [Excel workbook](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-staircase_portrait-1.0.10-r1.xlsx),
+[printable PDF](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-staircase_portrait-1.0.10-r1.pdf) and
 [OCR template](src/tablescan_local/default_templates/staircase_portrait.json)
 are included. Existing installations receive this additional template once,
 without replacing edited templates or restoring deleted ones.
@@ -216,9 +216,21 @@ limit**, including the header: with one header row, 1–199 animals. Counts such
 uniform data-row heights and a consistent header. Scan quality must allow the
 individual boundaries to be detected; check the fit preview.
 
-Download [Excel forms](examples/lab_forms_excel/xlsx),
-[protocol JSON files](examples/lab_forms_excel/templates), or the forms ZIP from
-[Downloads](https://github.com/savvykitt-create/tablescan-local/releases/latest).
+Download the [complete forms ZIP (1.0.10-r1)](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-Forms-1.0.10-r1.zip)
+or choose an individual file below. Revision **r1** fixes the Excel worksheet
+loading error and restores the last row's borders in Staircase portrait. Replace
+older downloaded copies with these files; the revised download names are distinct.
+
+| Form | Editable workbook | Printable PDF |
+| --- | --- | --- |
+| Von Frey (20 animals) | [Excel](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-von_frey-1.0.10-r1.xlsx) | [PDF](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-von_frey-1.0.10-r1.pdf) |
+| Plantar (20 animals) | [Excel](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-plantar-1.0.10-r1.xlsx) | [PDF](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-plantar-1.0.10-r1.pdf) |
+| Staircase (20 animals) | [Excel](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-staircase-1.0.10-r1.xlsx) | [PDF](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-staircase-1.0.10-r1.pdf) |
+| Staircase portrait (30 animals) | [Excel](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-staircase_portrait-1.0.10-r1.xlsx) | [PDF](https://github.com/savvykitt-create/tablescan-local/releases/download/v1.0.10/TableScan-staircase_portrait-1.0.10-r1.pdf) |
+
+The ZIP includes all four Excel/PDF forms and their matching OCR protocol JSON files.
+Older application installers and GitHub's tag source archives retain their original
+bundled forms; use the downloads above for the corrected printable forms.
 See the [printing guide](examples/lab_forms_excel/README.md). Pages with different
 grids or animal counts must be analyzed as separate files.
 
