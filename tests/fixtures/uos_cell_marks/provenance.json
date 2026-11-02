@@ -1,0 +1,71 @@
+[
+  {
+    "dataset": "UoS",
+    "document_id": "245",
+    "cell_id": "69",
+    "row": null,
+    "column": null,
+    "position_note": "Original annotation has boxes, no explicit row/column IDs.",
+    "image_path": "245.jpg",
+    "source_annotation": "UoS_Data_Rescue_TDE_dataset.json",
+    "source_split": "unspecified_in_archive",
+    "writing_type": "handwritten",
+    "crop_sha256": "bafceb6ceba0bd8c1a96bc994a93f2934a35f2832c1c8835d2b352d2c93b657d",
+    "annotation_index": 69,
+    "raw_text": "5",
+    "bbox": [
+      2267,
+      2767,
+      2334,
+      2827
+    ],
+    "expected_numeric": "5",
+    "writing_type_method": "Agent visual inspection of pre-inference contact sheets; not independent human annotation."
+  },
+  {
+    "dataset": "UoS",
+    "document_id": "Bear-AG-29-1940-09_48",
+    "cell_id": "446",
+    "row": null,
+    "column": null,
+    "position_note": "Original annotation has boxes, no explicit row/column IDs.",
+    "image_path": "Bear-AG-29-1940-09_48.jpg",
+    "source_annotation": "UoS_Data_Rescue_TDE_dataset.json",
+    "source_split": "unspecified_in_archive",
+    "writing_type": "printed_or_typewritten",
+    "crop_sha256": "d29a070471b39515cd3ca1d6472e38be98408fa44dfc2a77b182c580507a565f",
+    "annotation_index": 446,
+    "raw_text": "7",
+    "bbox": [
+      5757,
+      7432,
+      7395,
+      7591
+    ],
+    "expected_numeric": "7",
+    "writing_type_method": "Agent visual inspection of pre-inference contact sheets; not independent human annotation."
+  },
+  {
+    "dataset": "UoS",
+    "document_id": "TCM_Diego-Suarez_1949_04_001",
+    "cell_id": "89",
+    "row": null,
+    "column": null,
+    "position_note": "Original annotation has boxes, no explicit row/column IDs.",
+    "image_path": "TCM_Diego-Suarez_1949_04_001.jpg",
+    "source_annotation": "UoS_Data_Rescue_TDE_dataset.json",
+    "source_split": "unspecified_in_archive",
+    "writing_type": "printed_or_typewritten",
+    "crop_sha256": "cec781aace0dfa890d6465ff731b90c6e24b3a2e137c8ea2f2eb323942b6b575",
+    "annotation_index": 89,
+    "raw_text": "1",
+    "bbox": [
+      1207,
+      1976,
+      1292,
+      2086
+    ],
+    "expected_numeric": "1",
+    "writing_type_method": "Agent visual inspection of pre-inference contact sheets; not independent human annotation."
+  }
+]

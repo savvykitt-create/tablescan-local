@@ -746,6 +746,7 @@ def cell_mark_kind(crop: np.ndarray) -> str:
     minimum_component = max(3, round(gray.size * .00025))
     kept = np.zeros_like(mask, dtype=bool)
     strike_component = False
+    non_strike_pixels = 0
     for index in range(1, count):
         area = int(stats[index, cv2.CC_STAT_AREA])
         component_x = int(stats[index, cv2.CC_STAT_LEFT])
@@ -754,11 +755,16 @@ def cell_mark_kind(crop: np.ndarray) -> str:
         component_height = int(stats[index, cv2.CC_STAT_HEIGHT])
         horizontal_border = (
             component_width >= width * .55
+            and component_height <= max(3, height * .15)
+            and component_width >= component_height * 5
             and (component_y <= height * .18 or component_y + component_height >= height * .82)
         )
         vertical_border = (
             component_height >= height * .55
-            and component_width <= max(6, round(width * .05))
+            # Rule thickness follows cell height, not the width of a possibly
+            # very wide field. A narrow digit near its edge is still content.
+            and component_width <= max(3, height * .05)
+            and component_height >= component_width * 5
             and (component_x <= width * .10 or component_x + component_width >= width * .90)
         )
         if horizontal_border or vertical_border:
@@ -772,12 +778,16 @@ def cell_mark_kind(crop: np.ndarray) -> str:
                 and height * .15 <= component_center_y <= height * .85
             ):
                 strike_component = True
+            else:
+                non_strike_pixels += area
 
     ink_pixels = int(np.count_nonzero(kept))
     if ink_pixels < max(6, round(gray.size * .001)):
         return "empty"
 
-    if strike_component:
+    # A rule or cancellation-like line beside a number must not suppress the
+    # number. Only a lone stroke, without other substantial ink, is a strike.
+    if strike_component and non_strike_pixels < max(6, round(gray.size * .001)):
         return "strike"
     return "content"
 
