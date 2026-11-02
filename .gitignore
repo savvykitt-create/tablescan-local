@@ -26,6 +26,7 @@ docs/design/
 *.csv
 *.pdf
 *.png
+!tests/fixtures/uos_cell_marks/*.png
 *.jpg
 *.jpeg
 *.tif
