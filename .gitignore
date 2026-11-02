@@ -27,6 +27,7 @@ docs/design/
 *.pdf
 *.png
 !tests/fixtures/uos_cell_marks/*.png
+!tests/fixtures/uos_dashes/*.png
 *.jpg
 *.jpeg
 *.tif

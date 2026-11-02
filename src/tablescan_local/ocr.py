@@ -709,15 +709,76 @@ def remove_edge_rules(crop: np.ndarray) -> np.ndarray:
     return result
 
 
+def _lone_dash(crop: np.ndarray) -> bool:
+    """Recognize a short missing-value dash without removing a number's minus.
+
+    Inspect the original pixels: edge-rule cleanup can erase a low dash in a
+    narrow cell. Only horizontal ink may remain after confirmed boundary rules
+    and scan speckles are ignored. A digit, even a clipped one, vetoes the gate.
+    """
+    gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY) if crop.ndim == 3 else crop
+    height, width = gray.shape
+    threshold = max(80, min(210, round(float(np.percentile(gray, 75)) - 30)))
+    mask = gray < threshold
+    if crop.ndim == 3:
+        blue, green, red = cv2.split(crop.astype(np.int16))
+        signal = blue - np.maximum(green, red)
+        mask |= (signal > max(32, round(float(np.percentile(signal, 60))) + 18)) & (gray < 245)
+    # Disconnect a rectangular frame without the broad bottom inset used by
+    # OCR preprocessing, which can coincide with a low missing-value dash.
+    edge_columns = np.flatnonzero(np.mean(mask, axis=0) > .70)
+    edge_rows = [y for y in np.flatnonzero(np.mean(mask, axis=1) > .80)
+                 if y < height * .05 or y > height * .95]
+    if edge_rows:
+        for x in edge_columns:
+            if x < width * .05 or x > width * .95:
+                mask[:, x] = False
+    for y in edge_rows:
+        mask[y, :] = False
+    count, labels, stats, _ = connected_components(np.uint8(mask))
+    minimum = max(3, round(gray.size * .00025))
+    dash_pixels = other_pixels = 0
+    for index in range(1, count):
+        x, y, w, h, area = map(int, stats[index])
+        if area < minimum:
+            continue
+        near_side = x <= width * .20 or x + w >= width * .80
+        # A broken vertical rule can consist of several components. Require
+        # ink across almost the entire cell height in the same narrow band.
+        band_rows = np.flatnonzero(np.any(mask[:, x:x + w], axis=1))
+        full_height_rule = (
+            near_side and w <= max(2, height * .30) and height >= w * 3
+            and len(band_rows) >= height * .50
+            and band_rows[0] <= 1 and band_rows[-1] >= height - 2
+        )
+        edge_fragment = (
+            w <= 2 and (x <= width * .04 or x + w >= width * .96)
+            and h >= w
+        )
+        horizontal_rule = (
+            w >= width * .80 and h <= max(2, height * .10)
+            and (y <= 1 or y + h >= height - 1)
+        )
+        if full_height_rule or edge_fragment or horizontal_rule:
+            continue
+        if w >= 2 * h and h <= max(2, height * .40):
+            dash_pixels += area
+        else:
+            other_pixels += area
+    return dash_pixels >= max(6, round(gray.size * .001)) and other_pixels < 6
+
+
 def cell_mark_kind(crop: np.ndarray) -> str:
     """Classify a cell as ``empty``, a lone ``strike``, or real ``content``.
 
     The test is deliberately geometric and runs before OCR.  It removes table
     borders, suppresses isolated scan speckles, preserves small decimal marks,
-    and accepts a cancellation stroke only when it spans most of the cell.
+    and accepts a short dash or cancellation stroke only without other content.
     """
     if crop.size == 0:
         return "empty"
+    if _lone_dash(crop):
+        return "strike"
     cleaned = remove_edge_rules(crop)
     gray = cv2.cvtColor(cleaned, cv2.COLOR_BGR2GRAY) if cleaned.ndim == 3 else cleaned
     height, width = gray.shape

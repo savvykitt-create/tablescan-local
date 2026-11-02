@@ -19,6 +19,14 @@ non-numeric mark consensus across a row is evaluated after OCR. These checks fla
 suspected crossings without automatically excluding rows. Manual row and column
 exclusions retain values for reversible review.
 
+Short missing-value dashes are checked on the original crop before edge-rule
+cleanup, since a low dash can otherwise be erased while border fragments remain.
+Only horizontal ink may remain after confirmed rules and scan speckles are
+ignored. Visible digits veto this check, including digits beside a minus sign
+or intruding from a neighboring row. Fast, High and adaptive High share this
+gate; text fields retain literal dashes. The licensed regression crops and their
+source coordinates are in [tests/fixtures/uos_dashes](../tests/fixtures/uos_dashes).
+
 Text cells use PP-OCRv5 Server on normal and thresholded crops. Free-text fields
 use RapidOCR's bundled `ch_PP-OCRv4_det_infer.onnx` detector followed by the
 configured PP-OCRv5 Server recognizer, then spatial reading order. The field
