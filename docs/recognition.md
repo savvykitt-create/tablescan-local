@@ -11,6 +11,18 @@ Slow mode forces `high_accuracy=True` before the engine is created. The current
 template supplies geometry, ignored columns, headers, identifier columns and
 cell-specific value rules.
 
+Grid localization tolerates mildly slanted printed boundaries before selecting
+the table contour, preserving narrow outer ID and Notes columns. Reduced forms
+can occupy only part of a page: repeated horizontal and vertical rules establish
+a small table, and padding scales with the form rather than the page. A nearby
+metadata underline is excluded only when the table's vertical rules do not
+cross it; genuine short headers remain part of the grid. The fitted template
+retains its original value constraints.
+
+Accuracy comparisons for a protocol must include those constraints. Tests that
+pass only a generic numeric rule measure unconstrained cell recognition, not the
+normal template-based workflow.
+
 OpenCV crops each cell with alternative grid-aware boundaries. Blank detection
 checks all available source crops so a clipped primary crop does not alone erase
 a digit. A numeric cell containing only empty/strike evidence returns an empty

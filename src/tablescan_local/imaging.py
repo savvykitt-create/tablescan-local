@@ -98,6 +98,27 @@ def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
     return corrected, corrected != lines
 
 
+def _trim_metadata_edges(rows: list[int], columns: list[int], vertical: np.ndarray) -> list[int]:
+    """Drop a nearby metadata underline only when the table columns do not cross it."""
+    rows = list(rows)
+    if len(rows) < 4 or len(columns) < 3:
+        return rows
+    pitch = float(np.median(np.diff(rows)))
+
+    def crossed(y: int) -> bool:
+        intersections = [bool(np.any(vertical[max(0, y-2):y+3, max(0, x-2):x+3]))
+                         for x in columns]
+        # Merged headers can have only the two outer borders at their top.
+        return (intersections[0] and intersections[-1]) or sum(intersections) >= len(columns) * .6
+
+    # Preserve genuine short headers: their vertical rules reach the boundary.
+    while len(rows) >= 4 and rows[1]-rows[0] < pitch*.7 and not crossed(rows[0]):
+        rows.pop(0)
+    while len(rows) >= 4 and rows[-1]-rows[-2] < pitch*.7 and not crossed(rows[-1]):
+        rows.pop()
+    return rows
+
+
 def rotate_document(images, degrees: int):
     """Rotate copies counterclockwise; original source files are unchanged."""
     if degrees % 90:
@@ -120,8 +141,15 @@ def detect_grid(image: np.ndarray) -> GridDetection:
 
     horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (max(30, width // 18), 1))
     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, max(30, height // 18)))
-    horizontal = cv2.morphologyEx(binary, cv2.MORPH_OPEN, horizontal_kernel)
-    vertical = cv2.morphologyEx(binary, cv2.MORPH_OPEN, vertical_kernel)
+    # Preserve mildly slanted scan lines while locating the whole table too.
+    # Applying this tolerance only after selecting a contour can permanently
+    # crop off the narrow ID column or the outer edge of the Notes column.
+    horizontal = cv2.morphologyEx(
+        cv2.dilate(binary, np.ones((3, 1), np.uint8)), cv2.MORPH_OPEN, horizontal_kernel,
+    )
+    vertical = cv2.morphologyEx(
+        cv2.dilate(binary, np.ones((1, 3), np.uint8)), cv2.MORPH_OPEN, vertical_kernel,
+    )
     grid_mask = cv2.bitwise_or(horizontal, vertical)
     grid_mask = cv2.dilate(grid_mask, np.ones((3, 3), np.uint8), iterations=1)
 
@@ -129,15 +157,26 @@ def detect_grid(image: np.ndarray) -> GridDetection:
     candidates: list[tuple[float, tuple[int, int, int, int]]] = []
     for contour in contours:
         x, y, candidate_width, candidate_height = cv2.boundingRect(contour)
-        if candidate_width < width * 0.35 or candidate_height < height * 0.2:
+        if candidate_width < width * 0.12 or candidate_height < height * 0.08:
             continue
+        if candidate_width < width * 0.35 or candidate_height < height * 0.2:
+            # A form may occupy only a small part of a scanned page. Admit it
+            # based on repeated rules on both axes, not page coverage alone;
+            # a small title box or isolated underline is not a table.
+            candidate_h = horizontal[y:y + candidate_height, x:x + candidate_width]
+            candidate_v = vertical[y:y + candidate_height, x:x + candidate_width]
+            if (len(_projection_lines(candidate_h, axis=1, threshold_ratio=.45)) < 3
+                    or len(_projection_lines(candidate_v, axis=0, threshold_ratio=.45)) < 3):
+                continue
         aspect_bonus = min(candidate_width / width, 1.0)
         candidates.append((candidate_width * candidate_height * aspect_bonus, (x, y, candidate_width, candidate_height)))
     if not candidates:
         raise ValueError(tr('No table grid was detected. Draw the table boundary manually.'))
 
     _, (x, y, table_width, table_height) = max(candidates, key=lambda item: item[0])
-    padding = max(2, round(min(width, height) * 0.002))
+    # Keep padding local to the form: page-sized padding can pull the nearby
+    # metadata box into a reduced table and invent an extra header row.
+    padding = max(2, round(min(table_width, table_height) * 0.002))
     x = max(0, x - padding)
     y = max(0, y - padding)
     table_width = min(width - x, table_width + padding * 2)
@@ -156,8 +195,9 @@ def detect_grid(image: np.ndarray) -> GridDetection:
     roi_h = horizontal_flexible[y : y + table_height, x : x + table_width]
     roi_v = vertical_flexible[y : y + table_height, x : x + table_width]
     local_rows = _projection_lines(roi_h, axis=1, threshold_ratio=0.45)
-    local_rows, reconstructed = regular_row_guides(local_rows)
     local_columns = _projection_lines(roi_v, axis=0, threshold_ratio=0.45)
+    local_rows = _trim_metadata_edges(local_rows, local_columns, roi_v)
+    local_rows, reconstructed = regular_row_guides(local_rows)
     recovered_from_margin = False
     if len(local_columns) >= 3 and len(local_rows) >= 9:
         spacing = np.diff(local_rows)
