@@ -1,6 +1,7 @@
 """Package printable workbooks, PDFs and importable OCR templates."""
 from pathlib import Path
 import posixpath
+import shutil
 from zipfile import ZipFile, ZIP_DEFLATED
 from xml.etree import ElementTree
 import sys
@@ -9,7 +10,7 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / 'src'))
 from tablescan_local import __version__
 
-FORM_KEYS = ('von_frey', 'plantar', 'staircase', 'staircase_portrait')
+FORM_KEYS = ('von_frey', 'plantar', 'staircase', 'staircase_portrait', 'maxspeed')
 SHEET_NS = '{http://schemas.openxmlformats.org/spreadsheetml/2006/main}'
 REL_NS = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 # These worksheet children form an ordered sequence in SpreadsheetML.
@@ -72,7 +73,19 @@ def make_archive(output: Path, source: Path, readme: Path) -> Path:
     return output
 
 
+def make_release_files(output: Path, source: Path, readme: Path, version: str) -> list[Path]:
+    archive = make_archive(output / f'TableScan-Forms-{version}.zip', source, readme)
+    files = [archive]
+    for key in FORM_KEYS:
+        for extension in ('xlsx', 'pdf', 'json'):
+            target = output / f'TableScan-{key}-{version}.{extension}'
+            shutil.copyfile(source / f'{key}.{extension}', target)
+            files.append(target)
+    return files
+
+
 if __name__ == '__main__':
-    print(make_archive(root / 'release' / f'TableScan-Forms-{__version__}.zip',
-                       root / 'src/tablescan_local/default_templates',
-                       root / 'examples/lab_forms_excel/README.md'))
+    for path in make_release_files(root / 'release',
+                                   root / 'src/tablescan_local/default_templates',
+                                   root / 'examples/lab_forms_excel/README.md', __version__):
+        print(path)

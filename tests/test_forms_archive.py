@@ -24,6 +24,7 @@ HEADERS = {
                   'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R drop', 'Notes'],
 }
 HEADERS['staircase_portrait'] = HEADERS['staircase'][:-1]
+HEADERS['maxspeed'] = ['ID', *range(1, 11), 'Notes']
 
 
 @pytest.mark.parametrize('path', sorted(SOURCE.glob('*.xlsx')) +
@@ -33,6 +34,18 @@ def test_shipped_workbooks_have_excel_compatible_print_settings(path):
     forms.validate_workbook(path)
     if path.parent != SOURCE:
         assert path.read_bytes() == (SOURCE / path.name).read_bytes()
+
+
+def test_release_files_include_every_form_as_individual_downloads(tmp_path):
+    files = forms.make_release_files(tmp_path, SOURCE, README, '1.0.12')
+    assert {p.name for p in files} == {'TableScan-Forms-1.0.12.zip'} | {
+        f'TableScan-{key}-1.0.12.{extension}'
+        for key in HEADERS for extension in ('xlsx', 'pdf', 'json')
+    }
+    for key in HEADERS:
+        for extension in ('xlsx', 'pdf', 'json'):
+            assert (tmp_path / f'TableScan-{key}-1.0.12.{extension}').read_bytes() == (
+                SOURCE / f'{key}.{extension}').read_bytes()
 
 
 def test_archive_contains_readable_complete_forms(tmp_path):
@@ -48,7 +61,7 @@ def test_archive_contains_readable_complete_forms(tmp_path):
             workbook = load_workbook(BytesIO(data))
             cached = load_workbook(BytesIO(data), data_only=True)
             sheet = workbook.active
-            last_row = 37 if key == 'staircase_portrait' else 26
+            last_row = {'staircase_portrait': 37, 'maxspeed': 46}.get(key, 26)
             header_row = 7 if key == 'staircase_portrait' else 6
             assert sheet.max_row == last_row
             assert sheet.max_column == len(HEADERS[key])
@@ -62,7 +75,8 @@ def test_archive_contains_readable_complete_forms(tmp_path):
                     assert all(getattr(getattr(cell.border, side), 'style', None)
                                for side in ('left', 'right', 'top', 'bottom')), cell.coordinate
             assert sheet.page_setup.paperSize == int(sheet.PAPERSIZE_A4)
-            assert sheet.page_setup.orientation == ('portrait' if 'portrait' in key else 'landscape')
+            portrait = key in {'staircase_portrait', 'maxspeed'}
+            assert sheet.page_setup.orientation == ('portrait' if portrait else 'landscape')
             assert sheet.page_setup.fitToWidth == sheet.page_setup.fitToHeight == 1
             assert sheet.sheet_properties.pageSetUpPr.fitToPage
             workbook.close()
@@ -73,13 +87,13 @@ def test_archive_contains_readable_complete_forms(tmp_path):
                 assert len(pdf) == 1
                 page = pdf[0]
                 width, height = page.get_size()
-                assert (width < height) == ('portrait' in key)
+                assert (width < height) == portrait
                 assert sorted((width, height)) == pytest.approx((595.28, 841.89), abs=.1)
                 text = page.get_textpage().get_text_range()
-                title = key.removesuffix('_portrait').replace('_', ' ').title()
+                title = 'MaxSpeed' if key == 'maxspeed' else key.removesuffix('_portrait').replace('_', ' ').title()
                 assert title in text
                 for header in HEADERS[key]:
-                    assert header in text
+                    assert str(header) in text
                 assert re.search(rf'(?m)^{last_row - header_row}\r?$', text)
                 pixels = page.render(scale=1).to_pil().convert('L')
                 dark_pixels = sum(pixels.histogram()[:128])

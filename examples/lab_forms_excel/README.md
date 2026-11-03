@@ -12,6 +12,13 @@ choose `Excel/staircase_portrait.xlsx`, `PDF/staircase_portrait.pdf` and
 `templates/staircase_portrait.json`. Its editable data rows are 8–37; the header
 is worksheet row 7. Select the portrait protocol when recognizing this layout.
 
+**MaxSpeed** starts with 40 animals and prints on one A4 portrait sheet. Its
+columns are ID, test numbers 1–10 and Notes. Data rows are 7–46; row 6 is the
+header. Use `Excel/maxspeed.xlsx`, `PDF/maxspeed.pdf` and `templates/maxspeed.json`
+from the forms archive (1.0.12 or newer), and choose the MaxSpeed protocol
+in TableScan. This template describes the new blank form; the original handwritten
+worksheet has a different layout and requires its own alignment.
+
 ## Change the number of animals
 
 Save your own copy. Insert or delete complete worksheet data rows **inside the
@@ -27,7 +34,7 @@ scaled to one page; use sufficient paper size and scan resolution for legibility
 ## Print, scan and recognize
 
 1. Check print preview: landscape A4 is the default (portrait for the new
-   30-animal Staircase form), with 10 mm margins and one
+   30-animal Staircase form and MaxSpeed), with 10 mm margins and one
    page in each direction. All metadata and outer borders must be visible.
 2. Fill the printed form by hand. Blank measurements mean missing values, not zero.
 3. Scan the complete page. In TableScan Local, select the matching built-in
@@ -46,6 +53,7 @@ page layouts or row counts within one PDF require separate analysis jobs.
 | Von Frey | L1–L5 and R1–R5; 0.0–200.0, exactly one decimal place |
 | Plantar | L1–L5 and R1–R5; 0.0–35.0, exactly one decimal place |
 | Staircase | L1–L7, L drop, R1–R7, R drop; nonnegative integers |
+| MaxSpeed | 1–10; nonnegative integers or decimals, no fixed maximum; free-text Notes |
 
 Cell comments explain default rules but do not print. The blank source workbook
 is reusable; export creates a separate workbook with the recognized results.

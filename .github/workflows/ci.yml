@@ -136,7 +136,7 @@ jobs:
           (
             cd release
             shopt -s nullglob
-            sha256sum -- *.dmg *.exe *.deb *.tar.gz *.AppImage *.zip > SHA256SUMS
+            sha256sum -- *.dmg *.exe *.deb *.tar.gz *.AppImage *.zip *.pdf *.xlsx *.json > SHA256SUMS
           )
           gh release view "$RELEASE_TAG"
           for FILE in release/*; do

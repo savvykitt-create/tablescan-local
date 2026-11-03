@@ -21,23 +21,30 @@ class LocalStore:
         self._upgrade_unchanged_default_templates()
         # Independently seed newly shipped families on existing installations.
         # Their marker also preserves an intentional deletion after installation.
-        addition = self.root / '.default-staircase-portrait-installed'
-        if marker.exists() and not addition.exists():
-            bundled = Path(__file__).parent / 'default_templates'
-            template = TableTemplate.from_dict(json.loads((bundled / 'staircase_portrait.json').read_text(encoding='utf-8')))
-            if template.family_id not in {item.family_id for item in self.load_templates()}:
-                self.save_template(template, bundled / 'staircase_portrait.pdf')
-            addition.write_text('installed\n', encoding='utf-8')
-        if marker.exists():
-            return
+        additions = {
+            'staircase_portrait': self.root / '.default-staircase-portrait-installed',
+            'maxspeed': self.root / '.default-maxspeed-installed',
+        }
         bundled = Path(__file__).parent / 'default_templates'
+        if marker.exists():
+            existing_families = {item.family_id for item in self.load_templates()}
+            for key, addition in additions.items():
+                if addition.exists():
+                    continue
+                template = TableTemplate.from_dict(json.loads((bundled / f'{key}.json').read_text(encoding='utf-8')))
+                if template.family_id not in existing_families:
+                    self.save_template(template, bundled / f'{key}.pdf')
+                    existing_families.add(template.family_id)
+                addition.write_text('installed\n', encoding='utf-8')
+            return
         existing_families = {item.family_id for item in self.load_templates()}
         for path in sorted(bundled.glob('*.json')):
             template = TableTemplate.from_dict(json.loads(path.read_text(encoding='utf-8')))
             if template.family_id not in existing_families:
                 self.save_template(template, bundled / f'{path.stem}.pdf')
         marker.write_text('installed\n', encoding='utf-8')
-        addition.write_text('installed\n', encoding='utf-8')
+        for addition in additions.values():
+            addition.write_text('installed\n', encoding='utf-8')
 
     def _upgrade_unchanged_default_templates(self) -> None:
         """Upgrade identified factory templates, preserving user edits and jobs."""

@@ -21,6 +21,7 @@ PYTHON_CACHED_SHA256 = '8515944637be89aab89d2dc5d247bc21331e9c4179dc25e2fc24df51
 STORE_FILES = {'jobs', 'templates', 'template-samples', 'tablescan.db',
                'tablescan.db-wal', 'tablescan.db-shm', 'tablescan.db-journal',
                'preferences.ini', '.default-templates-installed',
+               '.default-staircase-portrait-installed', '.default-maxspeed-installed',
                'analysis-queue.json', 'analysis-queue.tmp'}
 
 
