@@ -88,12 +88,13 @@ def test_legacy_templates_still_use_ocr():
 
 
 def test_all_fixed_template_does_not_load_ocr_models(monkeypatch):
-    from tablescan_local import pipeline, template_fit
+    from tablescan_local import pipeline, document_analysis
     t = template()
     for r in range(t.rows):
         for c in range(t.columns):
             t.set_fixed_value(r, c, str(r * 10 + c))
-    monkeypatch.setattr(template_fit, 'fit_document_template', lambda template, images: template)
+    monkeypatch.setattr(document_analysis, 'fit_document_template',
+                        lambda template, images, cancelled: template)
     engine = Mock(side_effect=AssertionError('OCR models must not load'))
     monkeypatch.setattr(pipeline, 'LocalOcrEngine', engine)
     result = pipeline.process_document([np.full((300, 200, 3), 255, np.uint8)], 'fixed', t)
