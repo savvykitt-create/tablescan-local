@@ -14,9 +14,11 @@ is worksheet row 7. Select the portrait protocol when recognizing this layout.
 
 **MaxSpeed** starts with 40 animals and prints on one A4 portrait sheet. Its
 columns are ID, test numbers 1–10 and Notes. Data rows are 7–46; row 6 is the
-header. Use `Excel/maxspeed.xlsx`, `PDF/maxspeed.pdf` and `templates/maxspeed.json`
-from the forms archive (1.0.12 or newer), and choose the MaxSpeed protocol
-in TableScan. This template describes the new blank form; the original handwritten
+header. The files are available here: [Excel workbook](xlsx/maxspeed.xlsx),
+[printable PDF](fixtures/maxspeed_40.pdf) and [OCR template](templates/maxspeed.json).
+They are also included in the forms archive (1.0.12 or newer) as
+`Excel/maxspeed.xlsx`, `PDF/maxspeed.pdf` and `templates/maxspeed.json`.
+Choose the MaxSpeed protocol in TableScan. This template describes the new blank form; the original handwritten
 worksheet has a different layout and requires its own alignment.
 
 ## Change the number of animals
