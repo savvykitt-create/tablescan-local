@@ -358,6 +358,7 @@ class TablePage(QWidget):
         ):
             toolbar = QToolBar()
             toolbar.setMovable(False)
+            toolbar.setStyleSheet("QToolButton#qt_toolbar_ext_button { padding: 0; }")
             for text, callback in actions:
                 action = QAction(text, toolbar)
                 action.triggered.connect(callback)
@@ -1467,7 +1468,9 @@ class MainWindow(QMainWindow):
         top.setFixedHeight(56)
         set_theme_style(top, fmt('border-bottom: 1px solid {p0};', p0=BORDER))
         top_layout = QHBoxLayout(top)
+        top_layout.setContentsMargins(9, 4, 9, 4)
         brand = QLabel(fmt('TableScan Local {p0}', p0=__version__))
+        brand.setWordWrap(True)
         set_theme_style(brand, "font-size: 17px; font-weight: 750; border: 0;")
         local = QLabel(tr('●  Полностью локально'))
         set_theme_style(local, fmt('color: {p0}; border: 0;', p0=GREEN))
@@ -1479,6 +1482,7 @@ class MainWindow(QMainWindow):
         top_layout.addStretch()
         top_layout.addWidget(self.file_title)
         self.save_status = QLabel("")
+        self.save_status.setWordWrap(True)
         top_layout.addWidget(self.save_status)
         self.queue_button = QPushButton(tr('Analysis queue'))
         self.queue_button.clicked.connect(self.show_analysis_queue)

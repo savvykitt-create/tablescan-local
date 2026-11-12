@@ -19,7 +19,8 @@ def layout_sizes(window, page):
                page.document_split, page.document_split.widget(0), page.canvas,
                page.tabs, page.tabs.tabBar()]
     widgets.extend(window.centralWidget().findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly))
-    return "\n".join(str((type(widget).__name__, widget.minimumSizeHint().toTuple(),
+    widgets.extend(window.file_title.parentWidget().findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly))
+    return "\n".join(str((type(widget).__name__, getattr(widget, "text", lambda: "")()[:80], widget.minimumSizeHint().toTuple(),
                          widget.minimumSize().toTuple(), widget.size().toTuple())) for widget in widgets)
 
 
