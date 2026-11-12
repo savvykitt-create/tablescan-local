@@ -1,9 +1,27 @@
 import importlib.util
+import ast
 import json
+import re
+import tomllib
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
+
+def test_installer_versions_match_the_application():
+    from tablescan_local import __version__
+
+    root = Path(__file__).parents[1]
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    assert project["project"]["version"] == __version__
+    installer = (root / "packaging/windows/TableScanLocal.iss").read_text(encoding="utf-8")
+    assert re.search(r'#define MyAppVersion "([^"]+)"', installer).group(1) == __version__
+    spec = ast.parse((root / "packaging/tablescan_local.spec").read_text(encoding="utf-8"))
+    bundle = next(node for node in ast.walk(spec) if isinstance(node, ast.Call)
+                  and isinstance(node.func, ast.Name) and node.func.id == "BUNDLE")
+    info = ast.literal_eval(next(arg.value for arg in bundle.keywords if arg.arg == "info_plist"))
+    assert info["CFBundleShortVersionString"] == info["CFBundleVersion"] == __version__
 
 
 def module(name, relative):
