@@ -123,7 +123,7 @@ def test_editor_header_selection_exclusion_restore_undo_and_new_document(qtbot):
     page = TablePage(); qtbot.addWidget(page); page.resize(1200, 800); page.show()
     t = template(); page.set_document(np.full((500, 500, 3), 255, np.uint8), t)
     page.exclusions_button.click(); qtbot.wait(20)
-    assert page.canvas.selection_enabled and page.tabs.currentWidget() is page.exclusions_panel
+    assert page.canvas.selection_enabled and page.tabs.currentWidget().widget() is page.exclusions_panel
     point = page.canvas.mapFromScene(QPointF(300, 50-page.canvas._header_band()/2))
     QTest.mouseClick(page.canvas.viewport(), Qt.MouseButton.LeftButton, pos=point)
     assert page.canvas.selected_cells == {(r, 2) for r in range(4)}

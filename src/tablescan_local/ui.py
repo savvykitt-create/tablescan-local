@@ -15,7 +15,7 @@ from uuid import uuid4
 import numpy as np
 from PySide6.QtCore import QEvent, QLockFile, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QInputDialog, QMessageBox, QScrollArea, QSplitter, QStackedWidget, QVBoxLayout
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QInputDialog, QLayout, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QVBoxLayout
 
 from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
 
@@ -291,18 +291,14 @@ class TemplateLibraryPage(QWidget):
                 return
 
 
-class PreparationTabs(QTabWidget):
-    """Do not let a hidden, tall rules form stretch the exclusion workspace."""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.currentChanged.connect(lambda _index: self.updateGeometry())
-
-    def minimumSizeHint(self):
-        hint = super().minimumSizeHint()
-        widget = self.currentWidget()
-        if widget is not None:
-            hint.setHeight(widget.minimumSizeHint().height() + self.tabBar().sizeHint().height() + 8)
-        return hint
+def preparation_scroll_area(content: QWidget) -> QScrollArea:
+    """Keep form constraints inside the viewport, including after live edits."""
+    content.layout().setSizeConstraint(QLayout.SizeConstraint.SetMinAndMaxSize)
+    scroll = QScrollArea()
+    scroll.setWidgetResizable(True)
+    scroll.setFrameShape(QFrame.Shape.NoFrame)
+    scroll.setWidget(content)
+    return scroll
 
 
 class TablePage(QWidget):
@@ -358,17 +354,20 @@ class TablePage(QWidget):
         fit.clicked.connect(self._fit_canvas)
         for button in (zoom_out, zoom_in, fit):
             tools.addWidget(button)
+        tools.addStretch()
+        self.exclusions_button = QToolButton(text=tr('Exclusions'))
+        self.exclusions_button.clicked.connect(lambda: self.tabs.setCurrentWidget(self.exclusions_tab))
+        tools.addWidget(self.exclusions_button)
+        left_layout.addLayout(tools)
+        rotation_tools = QHBoxLayout()
         rotate_left = QToolButton(text=tr('↶ Повернуть'))
         rotate_right = QToolButton(text=tr('Повернуть ↷'))
         rotate_left.clicked.connect(lambda: self.rotationRequested.emit(90))
         rotate_right.clicked.connect(lambda: self.rotationRequested.emit(-90))
-        tools.addWidget(rotate_left)
-        tools.addWidget(rotate_right)
-        self.exclusions_button = QToolButton(text=tr('Exclusions'))
-        self.exclusions_button.clicked.connect(lambda: self.tabs.setCurrentWidget(self.exclusions_panel))
-        tools.addWidget(self.exclusions_button)
-        tools.addStretch()
-        left_layout.addLayout(tools)
+        rotation_tools.addWidget(rotate_left)
+        rotation_tools.addWidget(rotate_right)
+        rotation_tools.addStretch()
+        left_layout.addLayout(rotation_tools)
         self.canvas = DocumentCanvas()
         self.canvas.regionCreated.connect(self._region_created)
         self.canvas.geometryChanged.connect(lambda: self.templateChanged.emit(self.template))
@@ -377,20 +376,21 @@ class TablePage(QWidget):
         left_layout.addWidget(self.canvas)
         split.addWidget(left)
 
-        self.tabs = PreparationTabs()
-        self.tabs.setMinimumWidth(400)
+        self.tabs = QTabWidget()
+        self.tabs.setMinimumWidth(340)
         self.tabs.setMaximumWidth(640)
-        self.tabs.addTab(self._build_grid_tab(), tr('Сетка'))
-        self.tabs.addTab(self._build_fields_tab(), tr('Поля'))
-        self.tabs.addTab(self._build_cell_rules_tab(), tr('Правила'))
+        self.tabs.addTab(preparation_scroll_area(self._build_grid_tab()), tr('Сетка'))
+        self.tabs.addTab(preparation_scroll_area(self._build_fields_tab()), tr('Поля'))
+        self.tabs.addTab(preparation_scroll_area(self._build_cell_rules_tab()), tr('Правила'))
         from .fixed_cells import FixedCellsPanel
         self.fixed_panel = FixedCellsPanel(lambda: self.template, self.canvas)
         self.fixed_panel.changed.connect(self.templateChanged.emit)
-        self.tabs.addTab(self.fixed_panel, tr('Template values'))
+        self.tabs.addTab(preparation_scroll_area(self.fixed_panel), tr('Template values'))
         from .exclusions import ExclusionsPanel
         self.exclusions_panel = ExclusionsPanel(lambda: self.template, self.canvas)
         self.exclusions_panel.changed.connect(self._exclusions_changed)
-        self.tabs.addTab(self.exclusions_panel, tr('Exclusions'))
+        self.exclusions_tab = preparation_scroll_area(self.exclusions_panel)
+        self.tabs.addTab(self.exclusions_tab, tr('Exclusions'))
         self.tabs.currentChanged.connect(self._tab_changed)
         split.addWidget(self.tabs)
         split.setSizes([820, 440])
@@ -588,11 +588,7 @@ class TablePage(QWidget):
         actions.addWidget(save)
         layout.addLayout(actions)
         self.field_list.setMinimumHeight(120)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(tab)
-        return scroll
+        return tab
 
     def _build_columns_tab(self) -> QWidget:
         tab = QWidget()
@@ -721,11 +717,7 @@ class TablePage(QWidget):
         layout.addWidget(column_heading)
         layout.addStretch()
         self._quick_preview()
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setWidget(tab)
-        return scroll
+        return tab
 
     def _selection_changed(self, cells: set[tuple[int, int]]) -> None:
         if self._quick_dirty and not self._quick_pending_cells and cells:
@@ -1423,7 +1415,6 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle(fmt('TableScan Local {p0}', p0=__version__))
-        self.resize(1440, 900)
         configured_root = os.getenv("TABLESCAN_DATA_DIR")
         app_root = Path(configured_root) if configured_root else Path(
             QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppDataLocation)
@@ -1467,6 +1458,9 @@ class MainWindow(QMainWindow):
         self.files_page.historyRequested.connect(self.refresh_recent)
         self.refresh_recent()
         self.setWindowIcon(QIcon(str(Path(__file__).parent / "assets" / "savvykit.png")))
+        available = self.screen().availableGeometry()
+        self.resize(min(1440, int(available.width() * .9)),
+                    min(900, int(available.height() * .9)))
 
     def _build_ui(self) -> None:
         root = QWidget()
@@ -1482,6 +1476,7 @@ class MainWindow(QMainWindow):
         local = QLabel(tr('●  Полностью локально'))
         set_theme_style(local, fmt('color: {p0}; border: 0;', p0=GREEN))
         self.file_title = QLabel("")
+        self.file_title.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         set_theme_style(self.file_title, fmt('color: {p0}; border: 0;', p0=MUTED))
         top_layout.addWidget(brand)
         local.hide()
