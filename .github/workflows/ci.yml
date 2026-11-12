@@ -42,12 +42,16 @@ jobs:
       - name: Install Windows OCR acceleration runtime
         if: runner.os == 'Windows'
         run: python packaging/install_ocr_acceleration.py
+      - name: Check small-window layout
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: pytest tests/test_window_layout.py
       - name: Test on Linux
         if: runner.os == 'Linux'
-        run: QT_QPA_PLATFORM=offscreen pytest
+        run: QT_QPA_PLATFORM=offscreen pytest --ignore=tests/test_window_layout.py
       - name: Test on Windows or macOS
         if: runner.os != 'Linux'
-        run: pytest
+        run: pytest --ignore=tests/test_window_layout.py
       - name: Configure macOS release signing
         if: runner.os == 'macOS' && github.event_name == 'workflow_dispatch' && inputs.sign_macos
         env:

@@ -14,6 +14,14 @@ from tablescan_local.i18n import set_language
 from tablescan_local.ui import MainWindow, create_application
 
 
+def layout_sizes(window, page):
+    widgets = [window, window.centralWidget(), window.main_stack, page,
+               page.document_split, page.document_split.widget(0), page.canvas,
+               page.tabs, page.tabs.tabBar()]
+    return [(type(widget).__name__, widget.minimumSizeHint().toTuple(),
+             widget.minimumSize().toTuple(), widget.size().toTuple()) for widget in widgets]
+
+
 @pytest.mark.parametrize("mode", ["document", "template"])
 @pytest.mark.parametrize("language", ["en", "ru", "cs"])
 def test_preparation_tabs_scroll_without_growing_window(qtbot, monkeypatch, tmp_path, mode, language):
@@ -40,7 +48,7 @@ def test_preparation_tabs_scroll_without_growing_window(qtbot, monkeypatch, tmp_
         for index in range(page.tabs.count()):
             page.tabs.setCurrentIndex(index)
             qtbot.wait(30)
-            assert window.width() == 960
+            assert window.width() == 960, layout_sizes(window, page)
             assert window.height() == 600
             scroll = page.tabs.currentWidget()
             assert isinstance(scroll, QScrollArea)
