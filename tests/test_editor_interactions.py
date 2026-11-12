@@ -34,7 +34,7 @@ def test_template_rotate_buttons_change_image_and_save_orientation(qtbot, monkey
     t = sample(); window.template_editor_working = t
     image = np.full((200, 400, 3), 255, np.uint8)
     window.template_editor.set_document(image, t)
-    from tablescan_local.ui import QToolButton
+    from PySide6.QtWidgets import QToolButton
     buttons = [b for b in window.template_editor.findChildren(QToolButton) if "Rotate" in b.text()]
     buttons[0].click()
     assert window.template_editor.image.shape == (400, 200, 3)

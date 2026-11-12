@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 from PySide6.QtCore import QPoint, QPointF, QRect, Qt
 from PySide6.QtGui import QWheelEvent
-from PySide6.QtWidgets import QApplication, QGroupBox, QScrollArea
+from PySide6.QtWidgets import QApplication, QGroupBox, QScrollArea, QWidget
 
 from tablescan_local.domain import NormalizedRect, TableTemplate
 from tablescan_local.i18n import set_language
@@ -18,8 +18,9 @@ def layout_sizes(window, page):
     widgets = [window, window.centralWidget(), window.main_stack, page,
                page.document_split, page.document_split.widget(0), page.canvas,
                page.tabs, page.tabs.tabBar()]
-    return [(type(widget).__name__, widget.minimumSizeHint().toTuple(),
-             widget.minimumSize().toTuple(), widget.size().toTuple()) for widget in widgets]
+    widgets.extend(window.centralWidget().findChildren(QWidget, options=Qt.FindChildOption.FindDirectChildrenOnly))
+    return "\n".join(str((type(widget).__name__, widget.minimumSizeHint().toTuple(),
+                         widget.minimumSize().toTuple(), widget.size().toTuple())) for widget in widgets)
 
 
 @pytest.mark.parametrize("mode", ["document", "template"])

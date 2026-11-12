@@ -15,7 +15,7 @@ from uuid import uuid4
 import numpy as np
 from PySide6.QtCore import QEvent, QLockFile, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QInputDialog, QLayout, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QVBoxLayout
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QInputDialog, QLayout, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QToolBar, QVBoxLayout
 
 from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
 
@@ -326,6 +326,7 @@ class TablePage(QWidget):
         outer.setContentsMargins(20, 18, 20, 20)
         header = QHBoxLayout()
         title = QLabel(tr('Редактор шаблона') if mode == "template" else tr('Совмещение документа'))
+        title.setWordWrap(True)
         set_theme_style(title, "font-size: 23px; font-weight: 750;")
         self.version_label = QLabel("")
         set_theme_style(self.version_label, fmt('color: {p0}; font-weight: 650;', p0=MUTED))
@@ -345,29 +346,24 @@ class TablePage(QWidget):
         left = QWidget()
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 0, 14, 0)
-        tools = QHBoxLayout()
-        zoom_out = QToolButton(text="−")
-        zoom_in = QToolButton(text="+")
-        fit = QToolButton(text=tr('Вписать'))
-        zoom_out.clicked.connect(lambda: self.canvas.zoom_by(0.85))
-        zoom_in.clicked.connect(lambda: self.canvas.zoom_by(1.18))
-        fit.clicked.connect(self._fit_canvas)
-        for button in (zoom_out, zoom_in, fit):
-            tools.addWidget(button)
-        tools.addStretch()
-        self.exclusions_button = QToolButton(text=tr('Exclusions'))
-        self.exclusions_button.clicked.connect(lambda: self.tabs.setCurrentWidget(self.exclusions_tab))
-        tools.addWidget(self.exclusions_button)
-        left_layout.addLayout(tools)
-        rotation_tools = QHBoxLayout()
-        rotate_left = QToolButton(text=tr('↶ Повернуть'))
-        rotate_right = QToolButton(text=tr('Повернуть ↷'))
-        rotate_left.clicked.connect(lambda: self.rotationRequested.emit(90))
-        rotate_right.clicked.connect(lambda: self.rotationRequested.emit(-90))
-        rotation_tools.addWidget(rotate_left)
-        rotation_tools.addWidget(rotate_right)
-        rotation_tools.addStretch()
-        left_layout.addLayout(rotation_tools)
+        # Native toolbars move overflowing actions into an extension menu instead
+        # of forcing the document pane wider on platforms with larger controls.
+        for actions in (
+            [("−", lambda: self.canvas.zoom_by(0.85)),
+             ("+", lambda: self.canvas.zoom_by(1.18)),
+             (tr('Вписать'), self._fit_canvas)],
+            [(tr('↶ Повернуть'), lambda: self.rotationRequested.emit(90)),
+             (tr('Повернуть ↷'), lambda: self.rotationRequested.emit(-90)),
+             (tr('Exclusions'), lambda: self.tabs.setCurrentWidget(self.exclusions_tab))],
+        ):
+            toolbar = QToolBar()
+            toolbar.setMovable(False)
+            for text, callback in actions:
+                action = QAction(text, toolbar)
+                action.triggered.connect(callback)
+                toolbar.addAction(action)
+            left_layout.addWidget(toolbar)
+        self.exclusions_button = toolbar.widgetForAction(action)
         self.canvas = DocumentCanvas()
         self.canvas.regionCreated.connect(self._region_created)
         self.canvas.geometryChanged.connect(lambda: self.templateChanged.emit(self.template))
