@@ -4978,5 +4978,10 @@
     "en": "Create an editable Excel form that preserves the template grid and field positions for printing and recognition.",
     "ru": "Создать редактируемый Excel-бланк с исходной сеткой и расположением полей для печати и распознавания.",
     "cs": "Vytvořit upravitelný formulář Excel se zachováním mřížky šablony a poloh polí pro tisk a rozpoznávání."
+  },
+  "Auto-fit rows": {
+    "en": "Auto-fit rows",
+    "ru": "Подгонять строки автоматически",
+    "cs": "Automaticky přizpůsobit řádky"
   }
 }

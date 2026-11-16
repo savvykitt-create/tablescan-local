@@ -58,6 +58,9 @@ def test_start_analysis_stays_visible_on_every_preparation_tab(qtbot, monkeypatc
             assert page.mode_selector.height() <= 150
             assert page.mode_selector.mapTo(page, QPoint(0, 0)).x() >= page.document_split.widget(0).width()
             assert not page.preparation_sidebar.isAncestorOf(button)
+            if index == 0:
+                # Compact mode controls must not widen the scrollable grid form.
+                assert page.tabs.currentWidget().horizontalScrollBar().maximum() == 0
         assert not page.high_accuracy.isVisible()
         assert not page.slow_mode.isVisible()
         assert not page.adaptive.isVisible()

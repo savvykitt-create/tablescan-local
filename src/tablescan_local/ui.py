@@ -505,7 +505,7 @@ class TablePage(QWidget):
         geometry_layout.addLayout(form)
         layout.addWidget(geometry)
         layout.addWidget(self.crossed)
-        self.auto_fit_rows = QCheckBox(tr('Автоматически подгонять строки шаблона'))
+        self.auto_fit_rows = QCheckBox(tr('Auto-fit rows'))
         self.auto_fit_rows.setToolTip(tr('Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.'))
         self.auto_fit_rows.toggled.connect(self._save_common)
         layout.addWidget(button_with_help(self.auto_fit_rows, tr('Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.')))
