@@ -7,8 +7,8 @@ from PySide6.QtCore import QPointF, QRectF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QHBoxLayout, QSlider, QVBoxLayout
 
-from .i18n import bind, tr
-from .button_help import HelpButton, button_with_help
+from .i18n import bind, join_text, tr
+from .button_help import HelpButton
 from .localized_widgets import QLabel, QPushButton, QToolButton, QWidget
 from .theme import colors, set_theme_style
 
@@ -41,7 +41,7 @@ class _ModeSlider(QSlider):
         self.setSingleStep(1)
         self.setPageStep(1)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        self.setMinimumHeight(40)
+        self.setFixedHeight(32)
         self.valueChanged.connect(self._enforce_available)
 
     def set_available_maximum(self, maximum: int) -> None:
@@ -157,12 +157,9 @@ class ModeSelector(QWidget):
         set_theme_style(self.title, "font-weight: 700;")
         heading = QHBoxLayout()
         heading.addWidget(self.title, 1)
-        heading.addWidget(HelpButton(tr("Move the slider or choose a mode below it. Slower modes add verification; all results still need review.")))
-        self.install_button = QPushButton(tr("Install modes…"))
-        set_theme_style(self.install_button, "min-height: 26px; padding: 0 6px;")
-        self.install_button.clicked.connect(self.setupRequested)
-        self.install_action = button_with_help(self.install_button, _lock_note())
-        heading.addWidget(self.install_action)
+        self._context_help = None
+        self.help_button = HelpButton("")
+        heading.addWidget(self.help_button)
         layout.addLayout(heading)
         self.slider = _ModeSlider(self)
         name = tr("Analysis mode")
@@ -172,25 +169,25 @@ class ModeSelector(QWidget):
         labels = QHBoxLayout()
         labels.setSpacing(2)
         self.mode_buttons = []
-        self.mode_help = []
         for index, label in enumerate(_labels()):
             button = QToolButton()
             button.setText(label)
             button.setCheckable(True)
-            button.setToolTip(_descriptions()[index])
+            button.setProperty('hasActionHelp', True)
+            button.setAccessibleDescription(_descriptions()[index])
             button.clicked.connect(lambda _checked=False, i=index: self.setCurrentIndex(i))
             set_theme_style(button, "QToolButton { padding: 0; min-height: 26px; border: 0; font-size: 12px; } "
                             "QToolButton:checked { background: #EAF1FF; font-weight: 700; }")
-            action = button_with_help(button, _descriptions()[index])
-            labels.addWidget(action, 1)
-            self.mode_help.append(action.help_button)
+            labels.addWidget(button, 1)
             self.mode_buttons.append(button)
         layout.addLayout(labels)
-        self.availability_note = QLabel(tr("Install extra models to unlock Slow and Adaptive."))
-        self.availability_note.setToolTip(_lock_note())
-        self.availability_note.setWordWrap(True)
-        set_theme_style(self.availability_note, "color: #68707C;")
-        layout.addWidget(self.availability_note)
+        self.install_button = QPushButton(tr("Install modes…"))
+        self.install_button.setProperty('hasActionHelp', True)
+        self.install_button.setAccessibleDescription(_lock_note())
+        set_theme_style(self.install_button, "min-height: 24px; padding: 0 6px; font-size: 12px;")
+        self.install_button.clicked.connect(self.setupRequested)
+        self.install_action = self.install_button
+        layout.addWidget(self.install_button, 0, Qt.AlignmentFlag.AlignLeft)
         self.slider.valueChanged.connect(self._slider_changed)
         self.set_slow_available(self._slow_available)
         self.slider.setValue(self._index)
@@ -214,13 +211,24 @@ class ModeSelector(QWidget):
             button.setEnabled(available)
             button.setText(_labels()[index] if available else tr("{mode}\nLocked", mode=_labels()[index]))
             description = _descriptions()[index] if available else _lock_note()
-            button.setToolTip(description)
-            button.setWhatsThis(description)
-            self.mode_help[index].setToolTip(description)
-            self.mode_help[index].setWhatsThis(description)
-            self.mode_help[index].setAccessibleDescription(description)
-        self.availability_note.setVisible(not available)
+            button.setAccessibleDescription(description)
         self.install_action.setVisible(not available)
+        self._refresh_help()
+
+    def set_context_help(self, extra_text) -> None:
+        self._context_help = extra_text
+        self._refresh_help()
+
+    def _refresh_help(self) -> None:
+        parts = list(_descriptions())
+        if not self._slow_available:
+            parts.append(_lock_note())
+        if self._context_help:
+            parts.append(self._context_help)
+        text = join_text('\n\n', parts)
+        self.help_button.setToolTip(text)
+        self.help_button.setWhatsThis(text)
+        self.help_button.setAccessibleDescription(text)
 
     def _slider_changed(self, index: int) -> None:
         # Native accessibility actions can bypass Python's setValue override.
@@ -234,14 +242,11 @@ class ModeSelector(QWidget):
         self.modeChanged.emit(self.currentData())
 
     def _update_labels(self) -> None:
-        self.title.setToolTip(_descriptions()[self._index])
         for index, button in enumerate(self.mode_buttons):
             button.setChecked(index == self._index)
         description = _descriptions()[self._index]
         self.slider.setAccessibleDescription(str(description))
         bind(self.slider, "setAccessibleDescription", "setAccessibleDescription", (description,))
-        self.slider.setToolTip(str(description))
-        bind(self.slider, "setToolTip", "setToolTip", (description,))
 
     def currentData(self) -> str:
         return MODES[self._index]

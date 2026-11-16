@@ -32,7 +32,7 @@ def test_locked_modes_cannot_be_chosen_by_click_keyboard_or_program(qtbot):
     assert selector.currentData() == "medium"
     assert not selector.mode_buttons[2].isEnabled()
     assert not selector.mode_buttons[3].isEnabled()
-    assert selector.availability_note.isVisible()
+    assert selector.install_button.isVisible()
     events = []
     selector.modeChanged.connect(events.append)
     selector.setMode("slow")
@@ -58,7 +58,7 @@ def test_installation_unlocks_modes_and_removal_resets_to_medium(qtbot):
     state[0] = True
     selector.refresh_availability()
     assert selector.mode_buttons[3].isEnabled()
-    assert not selector.availability_note.isVisible()
+    assert not selector.install_button.isVisible()
     qtbot.mouseClick(selector.mode_buttons[3], Qt.MouseButton.LeftButton)
     assert selector.currentData() == "adaptive"
     state[0] = False
@@ -97,7 +97,7 @@ def test_clicking_current_mode_preserves_selection_highlight(qtbot):
 
 
 @pytest.mark.parametrize("language", ["en", "ru", "cs"])
-def test_locked_selector_fits_laptop_footer_with_native_metrics(qtbot, qapp, language):
+def test_locked_selector_fits_compact_sidebar_with_native_metrics(qtbot, qapp, language):
     # Keep the platform's native style/font so Windows CI exercises its own
     # button metrics, not a simulated macOS screenshot or a fixed test font.
     apply_theme(qapp, "light")
@@ -105,13 +105,13 @@ def test_locked_selector_fits_laptop_footer_with_native_metrics(qtbot, qapp, lan
     try:
         selector = ModeSelector(slow_available=False)
         qtbot.addWidget(selector)
-        selector.resize(700, 160)
+        selector.resize(324, 150)
         selector.show()
         qtbot.wait(20)
-        assert selector.size().toTuple() == (700, 160)
-        assert selector.minimumSizeHint().width() <= 700
-        assert selector.minimumSizeHint().height() <= 160
-        for widget in [selector.install_button, *selector.mode_buttons, *selector.mode_help]:
+        assert selector.size().toTuple() == (324, 150)
+        assert selector.minimumSizeHint().width() <= 324
+        assert selector.minimumSizeHint().height() <= 150
+        for widget in [selector.install_button, *selector.mode_buttons, selector.help_button]:
             assert widget.isVisible()
             assert selector.rect().contains(widget.mapTo(selector, widget.rect().topLeft()))
             assert selector.rect().contains(widget.mapTo(selector, widget.rect().bottomRight()))

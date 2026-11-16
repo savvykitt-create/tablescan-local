@@ -56,8 +56,8 @@ are an [optional release mode](docs/macos-release-signing.md).
    Use **Skip cells** to omit unused rows, columns or individual cells before
    recognition. Click row numbers or column letters, or drag across cells, then
    choose **Skip selected cells**. Ctrl/Cmd adds to the selection; Shift extends it.
-3. **Analyze:** use the slider to choose **Fast**, **Medium**, **Slow** or **Adaptive**,
-   then click **Start Analysis** in the persistent bottom panel. Medium is the
+3. **Analyze:** use the compact slider in the right sidebar to choose **Fast**,
+   **Medium**, **Slow** or **Adaptive**, then click **Start Analysis** at the bottom. Medium is the
    former High accuracy mode. Slow and Adaptive remain locked until the optional
    models are installed. Standard recognition
    models are included; install optional Slow analysis from **Settings → Slow mode →
@@ -90,14 +90,18 @@ or **Save PDF…**. These are the original GitHub release files, bundled with th
 so saving also works offline.
 
 For a custom template, select **Save Excel form…** in the library, or use
-**Grid → Template actions → Export printable Excel…** in the editor. Choose A4 or
-Letter, page orientation, and whether to fit everything onto one page. The workbook
-contains an editable blank grid, fixed labels and values, and metadata fields above
-the table. It does not reproduce the original scan's exact metadata positions or
-export recognized measurements. Check Excel's Print Preview before printing.
+**Grid → Template actions → Export printable Excel…** in the editor. The workbook
+keeps the template's page proportions, grid boundaries, cell sizes and field
+positions, including blank margins. Fixed values stay in their original cells.
+This lets the same TableScan template recognize the printed and scanned form.
 
-Preparation actions are grouped by function. Hover over a button or click its
-adjacent **?** for an explanation, including when the action is unavailable.
+Print at **100% / actual size** on the indicated paper. Do not resize rows or
+columns, move fields, or split the form across pages if you intend to reuse the
+same template. Page layout is preserved automatically rather than reflowing the
+form. OCR rules remain in TableScan; editable measurement cells remain blank.
+
+Contextual help appears only when hovering over or clicking **?**. Standard zoom,
+fit and rotation controls stay compact without extra help buttons.
 
 Choose English, Czech or Russian in **Settings → Language**. Document contents
 and custom protocol names remain in the language in which you entered them.

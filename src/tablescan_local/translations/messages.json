@@ -4918,5 +4918,65 @@
     "en": "Queue the included files with their prepared templates and run them in the selected analysis mode.",
     "ru": "Добавить включённые файлы с подготовленными шаблонами в очередь и запустить их в выбранном режиме.",
     "cs": "Zařadit zahrnuté soubory s připravenými šablonami do fronty a spustit je ve vybraném režimu."
+  },
+  "Choose a page layout that matches the template.": {
+    "en": "Choose a page layout that matches the template.",
+    "ru": "Выберите макет страницы, соответствующий шаблону.",
+    "cs": "Zvolte rozvržení stránky odpovídající šabloně."
+  },
+  "A reusable template must print on one page. Multiple-page scaling changes its geometry.": {
+    "en": "A reusable template must print on one page. Multiple-page scaling changes its geometry.",
+    "ru": "Бланк для повторного распознавания должен печататься на одной странице. Разбиение на страницы меняет его геометрию.",
+    "cs": "Formulář pro opětovné rozpoznání se musí vytisknout na jednu stránku. Rozdělení na více stránek mění jeho geometrii."
+  },
+  "The template page proportions are invalid.": {
+    "en": "The template page proportions are invalid.",
+    "ru": "Неверные пропорции страницы шаблона.",
+    "cs": "Neplatný poměr stran stránky šablony."
+  },
+  "Changing the page orientation would make this form incompatible with its template.": {
+    "en": "Changing the page orientation would make this form incompatible with its template.",
+    "ru": "Изменение ориентации страницы сделает бланк несовместимым с его шаблоном.",
+    "cs": "Změna orientace stránky by způsobila nekompatibilitu formuláře s jeho šablonou."
+  },
+  "The selected paper proportions differ from the template. Use the template page layout.": {
+    "en": "The selected paper proportions differ from the template. Use the template page layout.",
+    "ru": "Пропорции выбранной бумаги отличаются от шаблона. Используйте исходный макет страницы.",
+    "cs": "Poměr stran zvoleného papíru se liší od šablony. Použijte rozvržení stránky šablony."
+  },
+  "Some grid cells are too small to print without changing the template geometry.": {
+    "en": "Some grid cells are too small to print without changing the template geometry.",
+    "ru": "Некоторые ячейки слишком малы для печати с сохранением геометрии шаблона.",
+    "cs": "Některé buňky jsou příliš malé pro tisk bez změny geometrie šablony."
+  },
+  "Keeps the grid, cell sizes and field positions on the original page so this template can recognize the printed form. Print at 100% without resizing rows or columns.": {
+    "en": "Keeps the grid, cell sizes and field positions on the original page so this template can recognize the printed form. Print at 100% without resizing rows or columns.",
+    "ru": "Сохраняет сетку, размеры ячеек и расположение полей на исходной странице, чтобы этот же шаблон распознал распечатанный бланк. Печатайте в масштабе 100%, не меняя размеры строк и столбцов.",
+    "cs": "Zachová mřížku, rozměry buněk a polohy polí na původní stránce, aby stejná šablona rozpoznala vytištěný formulář. Tiskněte v měřítku 100 % bez změny rozměrů řádků nebo sloupců."
+  },
+  "Template page: {width} × {height} mm. One page, original scale.": {
+    "en": "Template page: {width} × {height} mm. One page, original scale.",
+    "ru": "Страница шаблона: {width} × {height} мм. Одна страница, исходный масштаб.",
+    "cs": "Stránka šablony: {width} × {height} mm. Jedna stránka, původní měřítko."
+  },
+  "The grid and fields must fit inside the template page before exporting.": {
+    "en": "The grid and fields must fit inside the template page before exporting.",
+    "ru": "Перед экспортом сетка и поля должны находиться в пределах страницы шаблона.",
+    "cs": "Před exportem musí být mřížka a pole uvnitř stránky šablony."
+  },
+  "A field crosses the table boundary. Move it fully inside or outside the table before exporting.": {
+    "en": "A field crosses the table boundary. Move it fully inside or outside the table before exporting.",
+    "ru": "Поле пересекает границу таблицы. Перед экспортом поместите его полностью внутри или снаружи таблицы.",
+    "cs": "Pole protíná okraj tabulky. Před exportem jej umístěte zcela dovnitř nebo vně tabulky."
+  },
+  "Overlapping fields cannot be printed as separate editable boxes. Adjust their boundaries before exporting.": {
+    "en": "Overlapping fields cannot be printed as separate editable boxes. Adjust their boundaries before exporting.",
+    "ru": "Перекрывающиеся поля нельзя напечатать как отдельные редактируемые области. Перед экспортом исправьте их границы.",
+    "cs": "Překrývající se pole nelze vytisknout jako samostatné upravitelné oblasti. Před exportem upravte jejich hranice."
+  },
+  "Create an editable Excel form that preserves the template grid and field positions for printing and recognition.": {
+    "en": "Create an editable Excel form that preserves the template grid and field positions for printing and recognition.",
+    "ru": "Создать редактируемый Excel-бланк с исходной сеткой и расположением полей для печати и распознавания.",
+    "cs": "Vytvořit upravitelný formulář Excel se zachováním mřížky šablony a poloh polí pro tisk a rozpoznávání."
   }
 }

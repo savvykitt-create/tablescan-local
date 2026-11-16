@@ -54,6 +54,10 @@ def test_start_analysis_stays_visible_on_every_preparation_tab(qtbot, monkeypatc
             assert window.rect().contains(button.mapTo(window, QPoint(0, 0)))
             assert window.rect().contains(button.mapTo(window, button.rect().bottomRight()))
             assert page.mode_selector.isVisible()
+            assert page.preparation_sidebar.isAncestorOf(page.mode_selector)
+            assert page.mode_selector.height() <= 150
+            assert page.mode_selector.mapTo(page, QPoint(0, 0)).x() >= page.document_split.widget(0).width()
+            assert not page.preparation_sidebar.isAncestorOf(button)
         assert not page.high_accuracy.isVisible()
         assert not page.slow_mode.isVisible()
         assert not page.adaptive.isVisible()

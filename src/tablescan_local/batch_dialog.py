@@ -13,6 +13,7 @@ from .domain import TableTemplate
 from .i18n import tr
 from .imaging import open_document, rotate_document, detect_grid
 from .mode_selector import ModeSelector
+from .button_help import set_action_help
 from .localized_widgets import (QDialog, QLabel, QPushButton, QComboBox, QCheckBox,
                                 QTableWidget, QTableWidgetItem, QDialogButtonBox)
 
@@ -213,7 +214,7 @@ class BatchPreparationDialog(QDialog):
         self.common_template.addItem(tr('Blank protocol'), '__blank__')
         common.addWidget(self.common_template, 1)
         apply = QPushButton(tr('Apply to all'))
-        apply.setToolTip(tr('Apply the selected protocol to every included file. Inspect each fitted grid before starting.'))
+        set_action_help(apply, tr('Apply the selected protocol to every included file. Inspect each fitted grid before starting.'))
         apply.clicked.connect(self.apply_all)
         common.addWidget(apply)
         layout.addLayout(common)
@@ -257,22 +258,22 @@ class BatchPreparationDialog(QDialog):
         self.preview_detail.setMaximumWidth(380)
         preview_details.addWidget(self.preview_detail, 1)
         fit_preview = QPushButton(tr('Fit preview'))
-        fit_preview.setToolTip(tr('Fit the selected document into the preview.'))
+        fit_preview.setAccessibleDescription(tr('Fit the selected document into the preview.'))
         fit_preview.clicked.connect(self.preview.fit)
         preview_details.addWidget(fit_preview)
         preview_row.addLayout(preview_details, 1)
         layout.addLayout(preview_row, 1)
         self.edit_button = QPushButton(tr('Open / adjust selected file'))
-        self.edit_button.setToolTip(tr('Edit the grid, fields and rules for this file before adding it to the analysis queue.'))
+        set_action_help(self.edit_button, tr('Edit the grid, fields and rules for this file before adding it to the analysis queue.'))
         self.edit_button.clicked.connect(lambda: self.edit_file(self.table.currentRow()))
         layout.addWidget(self.edit_button)
         self.progress = QLabel(tr('Checking files: {p0} / {p1}', p0=0, p1=len(paths)))
         layout.addWidget(self.progress)
         self.mode = ModeSelector()
         setup_help = tr('Close batch preparation and open Settings to install extra models. Unsubmitted per-file edits in this dialog will be discarded.')
-        self.mode.install_button.setToolTip(setup_help)
-        self.mode.install_action.help_button.setToolTip(setup_help)
-        self.mode.install_action.help_button.setAccessibleDescription(setup_help)
+        self.mode.install_button.setToolTip('')
+        self.mode.install_button.setAccessibleDescription(setup_help)
+        self.mode.set_context_help(setup_help)
         self.mode.title.setText(tr('Analysis mode for the batch'))
         self.mode.setupRequested.connect(self.request_setup)
         layout.addWidget(self.mode)
@@ -283,10 +284,10 @@ class BatchPreparationDialog(QDialog):
         self.update_mode()
         actions = QHBoxLayout()
         cancel = QPushButton(tr('Отмена'))
-        cancel.setToolTip(tr('Close batch preparation without adding files to the queue.'))
+        cancel.setAccessibleDescription(tr('Close batch preparation without adding files to the queue.'))
         cancel.clicked.connect(self.reject)
         self.start_button = QPushButton(tr('Start Analysis'))
-        self.start_button.setToolTip(tr('Queue the included files with their prepared templates and run them in the selected analysis mode.'))
+        set_action_help(self.start_button, tr('Queue the included files with their prepared templates and run them in the selected analysis mode.'))
         self.start_button.setProperty('primary', True)
         self.start_button.clicked.connect(self.submit)
         actions.addWidget(cancel)
@@ -442,7 +443,10 @@ class BatchPreparationDialog(QDialog):
         selected = [i for i, (include, _) in enumerate(self.rows) if include.isChecked()]
         self.start_button.setEnabled(self.worker is None and bool(selected) and all(
             self.assessment(i) and self.assessment(i).template is not None for i in selected))
-        self.start_button.setToolTip(tr('Wait for checking to finish. Files that cannot be fitted must be opened and adjusted, or excluded.'))
+        set_action_help(self.start_button,
+            tr('Queue the included files with their prepared templates and run them in the selected analysis mode.')
+            if self.start_button.isEnabled() else
+            tr('Wait for checking to finish. Files that cannot be fitted must be opened and adjusted, or excluded.'))
 
     def edit_file(self, index):
         if index < 0 or self.items[index] is None or self.items[index].error:

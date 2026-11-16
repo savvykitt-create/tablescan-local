@@ -102,7 +102,9 @@ def test_help_remains_available_for_disabled_action(qtbot, monkeypatch):
     monkeypatch.setattr(QToolTip, 'showText', lambda *args: calls.append(args))
     wrapped.help_button.click()
     assert wrapped.help_button.isEnabled()
-    assert calls[0][1] == button.toolTip() == 'Why this action is unavailable.'
+    assert calls[0][1] == wrapped.help_button.toolTip() == 'Why this action is unavailable.'
+    assert button.toolTip() == ''
+    assert button.accessibleDescription() == 'Why this action is unavailable.'
 
 
 def test_hidden_action_does_not_leave_orphan_help(qtbot):

@@ -281,7 +281,10 @@ class TemplateLibraryPage(QWidget):
         template = self._templates.get(item.data(Qt.ItemDataRole.UserRole)) if item else None
         if template:
             from .printable_templates import PrintableTemplateDialog
-            PrintableTemplateDialog(template, self).exec()
+            try:
+                PrintableTemplateDialog(template, self).exec()
+            except (OSError, ValueError) as exc:
+                QMessageBox.warning(self, tr('Could not save form'), str(exc))
 
     def _emit_selected(self, signal) -> None:
         item = self.list.currentItem()
@@ -360,7 +363,7 @@ class TablePage(QWidget):
         set_theme_style(title, "font-size: 23px; font-weight: 750;")
         self.version_label = QLabel("")
         set_theme_style(self.version_label, fmt('color: {p0}; font-weight: 650;', p0=MUTED))
-        header.addWidget(title); header.addWidget(self.version_label); header.addStretch()
+        header.addWidget(title, 1); header.addWidget(self.version_label); header.addStretch()
         if mode == "template":
             validate = QPushButton(tr('Проверить шаблон'))
             validate.clicked.connect(self._validate_template)
@@ -422,18 +425,24 @@ class TablePage(QWidget):
         self.exclusions_tab = preparation_scroll_area(self.exclusions_panel)
         self.tabs.addTab(self.exclusions_tab, tr('Skip cells'))
         self.tabs.currentChanged.connect(self._tab_changed)
-        split.addWidget(self.tabs)
+        self.preparation_sidebar = QWidget()
+        self.preparation_sidebar.setMinimumWidth(340)
+        self.preparation_sidebar.setMaximumWidth(640)
+        sidebar_layout = QVBoxLayout(self.preparation_sidebar)
+        sidebar_layout.setContentsMargins(0, 0, 0, 0)
+        sidebar_layout.setSpacing(10)
+        sidebar_layout.addWidget(self.tabs, 1)
+        if mode != "template":
+            self.mode_selector = ModeSelector()
+            self.mode_selector.setContentsMargins(8, 0, 8, 0)
+            self.mode_selector.modeChanged.connect(self._analysis_mode_changed)
+            sidebar_layout.addWidget(self.mode_selector)
+        split.addWidget(self.preparation_sidebar)
         split.setSizes([820, 440])
         outer.addWidget(split, 1)
         if mode != "template":
-            analysis = QGroupBox(tr('Analysis'))
-            analysis_layout = QVBoxLayout(analysis)
-            self.mode_selector = ModeSelector()
-            self.mode_selector.modeChanged.connect(self._analysis_mode_changed)
-            analysis_layout.addWidget(self.mode_selector, 1)
             self.continue_button.setMinimumHeight(42)
-            analysis_layout.addWidget(button_with_help(self.continue_button, tr('Start recognition using the current grid, fields and rules. Results open for review when analysis finishes.')))
-            outer.addWidget(analysis)
+            outer.addWidget(self.continue_button)
         self._add_preparation_help()
 
     def _analysis_mode_changed(self, _mode: str) -> None:
@@ -446,7 +455,10 @@ class TablePage(QWidget):
         if self.template is None or not self.prepare_current_settings():
             return
         from .printable_templates import PrintableTemplateDialog
-        PrintableTemplateDialog(self.template, self).exec()
+        try:
+            PrintableTemplateDialog(self.template, self).exec()
+        except (OSError, ValueError) as exc:
+            QMessageBox.warning(self, tr('Could not save form'), str(exc))
 
     def _add_preparation_help(self) -> None:
         from .preparation_help import add_preparation_help
@@ -496,7 +508,7 @@ class TablePage(QWidget):
         self.auto_fit_rows = QCheckBox(tr('Автоматически подгонять строки шаблона'))
         self.auto_fit_rows.setToolTip(tr('Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.'))
         self.auto_fit_rows.toggled.connect(self._save_common)
-        layout.addWidget(self.auto_fit_rows)
+        layout.addWidget(button_with_help(self.auto_fit_rows, tr('Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.')))
         fit_grid = QPushButton(tr('Подогнать шаблон к таблице'))
         fit_grid.clicked.connect(self.fit_current_grid)
 

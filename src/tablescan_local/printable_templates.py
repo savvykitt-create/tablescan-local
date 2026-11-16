@@ -11,114 +11,223 @@ from tempfile import NamedTemporaryFile
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.comments import Comment
+from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.page import PageMargins
+from openpyxl.worksheet.merge import MergedCellRange
 from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QSizePolicy, QVBoxLayout
 
 from .domain import TableTemplate
 from .button_help import HelpButton
 from .exporter import _save_workbook
 from .i18n import tr
-from .localized_widgets import (QComboBox, QDialog, QFileDialog, QFormLayout,
+from .localized_widgets import (QComboBox, QDialog, QFileDialog,
                                 QGroupBox, QLabel, QPushButton)
 from .ui_common import notify
 
 
 @dataclass(frozen=True)
 class PrintOptions:
-    paper: str = "A4"
+    # Page geometry belongs to the recognition template. Reflow and pagination
+    # would create a different form, so those options are deliberately refused.
+    paper: str = "Template"
     orientation: str = "auto"
     single_page: bool = True
 
 
-def _orientation(template: TableTemplate, options: PrintOptions) -> str:
-    if options.orientation != "auto":
-        return options.orientation
+@dataclass(frozen=True)
+class TemplatePage:
+    width_mm: float
+    height_mm: float
+    paper: str
+
+    @property
+    def orientation(self):
+        return "landscape" if self.width_mm > self.height_mm else "portrait"
+
+
+def template_page(template: TableTemplate, options: PrintOptions = PrintOptions()) -> TemplatePage:
+    if options.paper not in {"Template", "A4", "Letter"} or options.orientation not in {"auto", "portrait", "landscape"}:
+        raise ValueError(tr("Choose a page layout that matches the template."))
+    if not options.single_page:
+        raise ValueError(tr("A reusable template must print on one page. Multiple-page scaling changes its geometry."))
     aspect = template.reference_page_aspect
+    if aspect is None and template.reference_source_path:
+        source = Path(template.reference_source_path)
+        if source.is_file():
+            from .imaging import open_document
+            image = open_document(source, rotation=template.rotation_degrees, transforms=template.page_transforms)[0]
+            aspect = image.shape[1] / image.shape[0]
     if aspect is None:
-        aspect = template.table_rect.width / max(template.table_rect.height, .001)
-    return "landscape" if aspect > 1 else "portrait"
+        # Old templates without a reference page used normalized A4 coordinates.
+        aspect = 210 / 297
+    if not math.isfinite(aspect) or not .1 <= aspect <= 10:
+        raise ValueError(tr("The template page proportions are invalid."))
+    orientation = "landscape" if aspect > 1 else "portrait"
+    if options.orientation not in {"auto", orientation}:
+        raise ValueError(tr("Changing the page orientation would make this form incompatible with its template."))
+    candidates = [("A4", 210., 297.), ("Letter", 215.9, 279.4)]
+    for name, width, height in candidates:
+        if orientation == "landscape":
+            width, height = height, width
+        if abs(width / height / aspect - 1) <= .002 and options.paper in {"Template", name}:
+            return TemplatePage(width, height, name)
+    if options.paper != "Template":
+        raise ValueError(tr("The selected paper proportions differ from the template. Use the template page layout."))
+    # Preserve nonstandard source pages instead of squeezing them onto A4.
+    if aspect > 1:
+        height = min(210., 297. / aspect)
+        return TemplatePage(height * aspect, height, "Custom")
+    width = min(210., 297. * aspect)
+    return TemplatePage(width, width / aspect, "Custom")
+
+
+def _orientation(template: TableTemplate, options: PrintOptions) -> str:
+    return template_page(template, options).orientation
+
+
+def _overlaps(a, b):
+    return min(a[2], b[2]) > max(a[0], b[0]) and min(a[3], b[3]) > max(a[1], b[1])
 
 
 def export_template_excel(template: TableTemplate, target: str | Path,
                           options: PrintOptions = PrintOptions()) -> Path:
-    """Write a blank form, keeping fixed text and relative grid proportions.
+    """Print the same page-coordinate grid and field regions used for OCR.
 
-    OCR rules and recognition exclusions do not remove the printed grid or its
-    fixed labels. Excluded empty cells receive a light fill. No scan pixels or
-    previously recognized values are included. The source template is untouched.
+    Worksheet rows/columns form a page lattice, not a reordered data table.
+    Native cells are merged at original cell/field boundaries. No title rows,
+    moved metadata, repeated headers, extra margins, or print scaling are added.
+    Fixed-source metadata inside the table is semantic metadata, not another
+    physical box: the grid's printed fixed cells retain precedence there.
     """
     template = deepcopy(template)
-    if options.paper not in {"A4", "Letter"} or options.orientation not in {"auto", "portrait", "landscape"}:
-        raise ValueError(tr("Choose A4 or Letter paper and a valid page orientation."))
+    page = template_page(template, options)
     if not 1 <= template.rows <= 10000 or not 1 <= template.columns <= 256:
         raise ValueError(tr("The printable grid must contain 1–10000 rows and 1–256 columns."))
     for guides in (template.row_guides, template.column_guides):
         if any(not math.isfinite(value) for value in guides) or any(b <= a for a, b in zip(guides, guides[1:])):
             raise ValueError(tr("Grid lines must be in increasing order before exporting."))
+        if guides[0] < 0 or guides[-1] > 1:
+            raise ValueError(tr("The grid and fields must fit inside the template page before exporting."))
     template.validate_value_rules()
+    # Excel stores column widths in maximum-digit units. Courier New 10 has an
+    # eight-pixel digit at 96 dpi, i.e. six points per stored width unit. Content
+    # cells override this metric-only font. Quantizing cumulative boundaries
+    # avoids accumulating each individual column's pixel-rounding error.
+    # Stored width already includes padding (ECMA-376 spreadsheet col width):
+    # https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.column
+    width_px = math.floor(page.width_mm / 25.4 * 96)
+    height_px = math.floor(page.height_mm / 25.4 * 96)
+    def x(value): return round(value * width_px)
+    def y(value): return round(value * height_px)
+    grid_x = [x(v) for v in template.column_guides]
+    grid_y = [y(v) for v in template.row_guides]
+    if len(set(grid_x)) != len(grid_x) or len(set(grid_y)) != len(grid_y):
+        raise ValueError(tr("Some grid cells are too small to print without changing the template geometry."))
+    table_box = (grid_x[0], grid_y[0], grid_x[-1], grid_y[-1])
+    fields = []
+    for index, field in sorted(enumerate(template.fields), key=lambda item: item[1].source == "fixed"):
+        r = field.rect
+        if (not all(math.isfinite(v) for v in (r.x, r.y, r.width, r.height)) or
+                r.x < 0 or r.y < 0 or r.width <= 0 or r.height <= 0 or
+                r.x + r.width > 1.000001 or r.y + r.height > 1.000001):
+            raise ValueError(tr("The grid and fields must fit inside the template page before exporting."))
+        box = (x(r.x), y(r.y), x(min(1., r.x + r.width)), y(min(1., r.y + r.height)))
+        if box[0] == box[2] or box[1] == box[3]:
+            raise ValueError(tr("Some grid cells are too small to print without changing the template geometry."))
+        # A field crop within the grid already reads from the printed table.
+        # Printing another rectangle/value there would overwrite real cells.
+        if _overlaps(box, table_box):
+            if field.source == "fixed" or (box[0] >= table_box[0] and box[1] >= table_box[1]
+                    and box[2] <= table_box[2] and box[3] <= table_box[3]):
+                continue
+            raise ValueError(tr("A field crosses the table boundary. Move it fully inside or outside the table before exporting."))
+        if any(_overlaps(box, other[2]) for other in fields):
+            if field.source == "fixed":
+                continue
+            raise ValueError(tr("Overlapping fields cannot be printed as separate editable boxes. Adjust their boundaries before exporting."))
+        fields.append((index, field, box))
+    x_edges = sorted({0, width_px, *grid_x, *(v for _, _, box in fields for v in (box[0], box[2]))})
+    y_edges = sorted({0, height_px, *grid_y, *(v for _, _, box in fields for v in (box[1], box[3]))})
+    # Excel caps a single row at 409.5 points. Split only blank lattice spans;
+    # merged logical cells remain single editable cells across these splits.
+    extra = []
+    for start, end in zip(y_edges, y_edges[1:]):
+        extra.extend(range(start + 500, end, 500))
+    y_edges = sorted({*y_edges, *extra})
+    x_indices = {value: index + 1 for index, value in enumerate(x_edges)}
+    y_indices = {value: index + 1 for index, value in enumerate(y_edges)}
     workbook = Workbook()
+    workbook._fonts[0] = Font(name="Courier New", size=10)
+    workbook._named_styles["Normal"].font = Font(name="Courier New", size=10)
     sheet = workbook.active
     sheet.title = "Printable form"
     sheet.sheet_view.showGridLines = False
-    last_column = get_column_letter(template.columns)
-
-    def full_width_row(row: int, value: str, *, title: bool = False) -> None:
-        if template.columns > 1:
-            sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=template.columns)
-        cell = sheet.cell(row, 1, value)
-        cell.font = Font(name="Calibri", size=16 if title else 11, bold=title)
-        cell.alignment = Alignment(vertical="center", wrap_text=True)
-        sheet.row_dimensions[row].height = 30 if title else 25
-
-    full_width_row(1, template.name, title=True)
-    row = 2
-    for field in template.fields:
-        label = field.printed_label.strip() or field.name
-        value = field.fixed_value if field.source == "fixed" else "________________________________"
-        full_width_row(row, f"{label}: {value}")
-        row += 1
-    sheet.row_dimensions[row].height = 10
-    grid_start = row + 1
-    thin = Side(style="thin", color="444444")
+    for col, (a, b) in enumerate(zip(x_edges, x_edges[1:]), 1):
+        sheet.column_dimensions[get_column_letter(col)].width = (b - a) / 8
+    for row, (a, b) in enumerate(zip(y_edges, y_edges[1:]), 1):
+        sheet.row_dimensions[row].height = (b - a) * .75
+    thin = Side(style="thin", color="222222")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    def write_box(box, value=None, *, heading=False, comment=None, top=False, defined_name=None):
+        c1, r1 = x_indices[box[0]], y_indices[box[1]]
+        c2, r2 = x_indices[box[2]] - 1, y_indices[box[3]] - 1
+        if c1 != c2 or r1 != r2:
+            sheet.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+        cell = sheet.cell(r1, c1, value)
+        cell.border = border
+        cell.font = Font(name="Arial", size=10, bold=heading)
+        cell.alignment = Alignment(horizontal="left" if top else "center",
+                                   vertical="top" if top else "center", wrap_text=True)
+        if heading:
+            cell.fill = PatternFill("solid", fgColor="E9EDF2")
+        if comment:
+            cell.comment = Comment(comment, "TableScan")
+        # Propagate borders to merged-cell edges after assigning the anchor.
+        if c1 != c2 or r1 != r2:
+            MergedCellRange(sheet, f"{get_column_letter(c1)}{r1}:{get_column_letter(c2)}{r2}").format()
+        if defined_name:
+            ref = f"'Printable form'!${get_column_letter(c1)}${r1}:${get_column_letter(c2)}${r2}"
+            workbook.defined_names.add(DefinedName(defined_name, attr_text=ref))
+
     fixed = {(cell.row, cell.column): cell.value for cell in template.fixed_cells}
-    excluded = template.exclusion_mask()
     for r in range(template.rows):
         for c in range(template.columns):
             value = fixed.get((r, c))
             if value is None and template.header_rows and r == template.header_rows - 1:
                 value = template.column_rules[c].name
-            cell = sheet.cell(grid_start + r, c + 1, value)
-            cell.border = border
-            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            cell.font = Font(name="Calibri", size=11, bold=r < template.header_rows)
-            if r < template.header_rows:
-                cell.fill = PatternFill("solid", fgColor="E9EDF2")
-            elif (r, c) in excluded and value is None:
-                cell.fill = PatternFill("solid", fgColor="F0F0F0")
-    spans = [b - a for a, b in zip(template.column_guides, template.column_guides[1:])]
-    # Excel widths use character units. Scaling the whole grid to a printable
-    # page retains the source proportions without imposing an OCR-sized font.
-    total_width = 140 if _orientation(template, options) == "landscape" else 95
-    for c, span in enumerate(spans, 1):
-        sheet.column_dimensions[get_column_letter(c)].width = max(2, total_width * span / sum(spans))
-    heights = [b - a for a, b in zip(template.row_guides, template.row_guides[1:])]
-    median = sorted(heights)[len(heights) // 2]
-    for r, span in enumerate(heights, grid_start):
-        sheet.row_dimensions[r].height = max(14, min(100, 27 * span / median))
-    last_row = grid_start + template.rows - 1
+            write_box((grid_x[c], grid_y[r], grid_x[c+1], grid_y[r+1]), value,
+                      heading=r < template.header_rows,
+                      defined_name=f"TableScan_Cell_{r+1}_{c+1}")
+    for index, field, box in fields:
+        # Only labels explicitly configured for OCR label removal may be put
+        # inside an OCR crop. User-facing field names remain Excel comments.
+        label = field.printed_label.strip()
+        value = field.fixed_value if field.source == "fixed" else ""
+        text = "\n".join(part for part in (label, value) if part) or None
+        write_box(box, text, comment=field.name, top=True,
+                  defined_name=f"TableScan_Field_{index+1}")
+    last_column = get_column_letter(len(x_edges) - 1)
+    last_row = len(y_edges) - 1
+    # Make the entire original page, including blank margins, an explicit
+    # print area. Styling the final cell prevents applications trimming it.
+    sheet.cell(last_row, len(x_edges) - 1).fill = PatternFill("solid", fgColor="FFFFFF")
     sheet.print_area = f"A1:{last_column}{last_row}"
-    if template.header_rows:
-        sheet.print_title_rows = f"{grid_start}:{grid_start + template.header_rows - 1}"
-    sheet.freeze_panes = f"A{grid_start + template.header_rows}"
-    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4 if options.paper == "A4" else sheet.PAPERSIZE_LETTER
-    sheet.page_setup.orientation = _orientation(template, options)
-    sheet.page_setup.fitToWidth = 1
-    sheet.page_setup.fitToHeight = 1 if options.single_page else 0
-    sheet.sheet_properties.pageSetUpPr.fitToPage = True
-    sheet.print_options.horizontalCentered = True
-    sheet.page_margins = PageMargins(left=.25, right=.25, top=.3, bottom=.3, header=.1, footer=.1)
+    sheet.page_setup.orientation = page.orientation
+    if page.paper == "A4":
+        sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    elif page.paper == "Letter":
+        sheet.page_setup.paperSize = sheet.PAPERSIZE_LETTER
+    else:
+        sheet.page_setup.paperWidth = f"{min(page.width_mm, page.height_mm):.6f}mm"
+        sheet.page_setup.paperHeight = f"{max(page.width_mm, page.height_mm):.6f}mm"
+    sheet.page_setup.scale = 100
+    sheet.sheet_properties.pageSetUpPr.fitToPage = False
+    sheet.print_options.horizontalCentered = False
+    sheet.print_options.verticalCentered = False
+    sheet.page_margins = PageMargins(left=0, right=0, top=0, bottom=0, header=0, footer=0)
     target = Path(target)
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -190,7 +299,7 @@ class BundledFormsPanel(QGroupBox):
             (self.save_excel, "xlsx", tr("Save the original editable Excel workbook, with its print layout and formulas. This does not change your saved templates.")),
             (self.save_pdf, "pdf", tr("Save the original PDF form, ready to print without opening Excel.")),
         ):
-            button.setToolTip(help_text)
+            button.setAccessibleDescription(help_text)
             button.setProperty('hasActionHelp', True)
             button.clicked.connect(lambda _checked=False, ext=extension: self._save(ext))
             button.setEnabled(self.forms.count() > 0)
@@ -227,36 +336,25 @@ class PrintableTemplateDialog(QDialog):
         title = QLabel(template.name)
         title.setWordWrap(True)
         layout.addWidget(title)
-        note = QLabel(tr("Creates an editable blank form with your grid, fixed text and fields. Recognition rules stay in TableScan. Review Print Preview in Excel before printing."))
+        note = QLabel(tr("Keeps the grid, cell sizes and field positions on the original page so this template can recognize the printed form. Print at 100% without resizing rows or columns."))
         note.setWordWrap(True)
         layout.addWidget(note)
-        form = QFormLayout()
-        self.paper = QComboBox()
-        self.paper.addItems(["A4", "Letter"])
-        self.orientation = QComboBox()
-        self.orientation.addItem(tr("Automatic"), "auto")
-        self.orientation.addItem(tr("Portrait"), "portrait")
-        self.orientation.addItem(tr("Landscape"), "landscape")
-        self.pagination = QComboBox()
-        self.pagination.addItem(tr("Fit entire form on one page"), True)
-        self.pagination.addItem(tr("One page wide; allow multiple pages"), False)
-        form.addRow(tr("Paper size"), self.paper)
-        form.addRow(tr("Orientation"), self.orientation)
-        form.addRow(tr("Print scaling"), self.pagination)
-        layout.addLayout(form)
+        page = template_page(template)
+        dimensions = QLabel(tr("Template page: {width} × {height} mm. One page, original scale.",
+                              width=f"{page.width_mm:.1f}", height=f"{page.height_mm:.1f}"))
+        dimensions.setWordWrap(True)
+        layout.addWidget(dimensions)
         actions = QHBoxLayout()
         self.cancel_button = QPushButton(tr("Отмена"))
-        self.cancel_button.setToolTip(tr("Close without exporting or changing the template."))
         self.cancel_button.setProperty('hasActionHelp', True)
         self.cancel_button.clicked.connect(self.reject)
         actions.addWidget(self.cancel_button)
-        actions.addWidget(_help(self, tr("Close without exporting or changing the template.")))
         actions.addStretch()
         self.save_button = QPushButton(tr("Save Excel…"))
         self.save_button.setProperty("primary", True)
         self.save_button.setProperty('hasActionHelp', True)
         help_text = tr("Choose where to save the printable workbook. Fixed values are kept; measurement cells remain blank for handwriting or editing in Excel.")
-        self.save_button.setToolTip(help_text)
+        self.save_button.setAccessibleDescription(help_text)
         self.save_button.clicked.connect(self._save)
         actions.addWidget(self.save_button)
         actions.addWidget(_help(self, help_text))
@@ -271,9 +369,7 @@ class PrintableTemplateDialog(QDialog):
         if not target.lower().endswith(".xlsx"):
             target += ".xlsx"
         try:
-            self.saved_path = export_template_excel(self.template, target, PrintOptions(
-                paper=self.paper.currentText(), orientation=self.orientation.currentData(),
-                single_page=self.pagination.currentData()))
+            self.saved_path = export_template_excel(self.template, target)
         except (OSError, ValueError) as exc:
             QMessageBox.warning(self, tr("Could not save form"), str(exc))
             return

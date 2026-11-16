@@ -82,6 +82,12 @@ def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
     step = float(np.median(differences))
     if step < 12 or abs(differences[0] / step - 1) > .15:
         return lines, False
+    # Coherent observed spacing is already stronger evidence than an ideal
+    # lattice spanning the outer borders. A mildly taller header plus raster
+    # rounding can shift that lattice enough to move real interior lines.
+    # Reconstruct only when an anomalous gap suggests missing/extra boundaries.
+    if np.all((differences >= step * .85) & (differences <= step * 1.15)):
+        return lines, False
     estimate = round((lines[-1] - lines[0]) / step)
     choices = []
     for count in range(max(8, estimate - 2), estimate + 3):

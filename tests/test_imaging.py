@@ -56,6 +56,45 @@ def test_nonuniform_header_not_regularized():
     assert regular_row_guides(lines) == (lines, False)
 
 
+
+def test_complete_mildly_unequal_rows_keep_their_observed_boundaries():
+    from tablescan_local.imaging import regular_row_guides
+    # A 14% taller header and ordinary 1px print/raster rounding. Although each
+    # gap is coherent, a single global lattice drifts away from real boundaries.
+    gaps = [57] + [51, 50, 49, 50] * 8
+    lines = np.cumsum([6] + gaps).tolist()
+    assert regular_row_guides(lines) == (lines, False)
+
+
+def test_missing_boundary_still_requires_reconstruction_warning():
+    from tablescan_local.imaging import regular_row_guides
+    expected = list(range(10, 1511, 50))
+    observed = [line for line in expected if line != 510]
+    corrected, changed = regular_row_guides(observed)
+    assert corrected == expected
+    assert changed
+
+
+def test_spurious_boundary_is_not_treated_as_coherent_spacing():
+    from tablescan_local.imaging import regular_row_guides
+    expected = list(range(10, 1511, 50))
+    corrected, changed = regular_row_guides(sorted(expected + [533]))
+    assert corrected == expected
+    assert changed
+
+
+def test_detect_grid_preserves_slightly_taller_printed_header():
+    rows = np.cumsum([120, 57] + [51, 50, 49, 50] * 8).tolist()
+    image = np.full((1900, 1200, 3), 255, np.uint8)
+    for x in range(100, 1101, 100):
+        cv2.line(image, (x, rows[0]), (x, rows[-1]), (30, 30, 30), 2)
+    for y in rows:
+        cv2.line(image, (100, y), (1100, y), (30, 30, 30), 2)
+    detection = detect_grid(image)
+    assert not detection.warnings
+    np.testing.assert_allclose(np.array(detection.row_guides) * image.shape[0], rows, atol=2)
+
+
 def test_rotation_roundtrip_does_not_mutate_source():
     from tablescan_local.imaging import rotate_document
     image = synthetic_table()
