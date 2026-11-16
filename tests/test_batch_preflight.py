@@ -22,6 +22,33 @@ def fixture(rats):
     return str(ROOT / f'examples/lab_forms_excel/fixtures/plantar_{rats}.pdf')
 
 
+def stop_batch_preflight(dialog):
+    # pytest-qt deletes registered widgets even when reject() defers closing.
+    # Finish the current geometry operation before destroying its child thread.
+    worker = dialog.worker
+    if worker is not None:
+        dialog.reject()
+        worker.wait()
+
+
+@pytest.fixture
+def batch_dialog_factory(qtbot, monkeypatch):
+    # These UI tests exercise real preparation, fitting and protocol selection.
+    # Title recognition has separate coverage and must not make their worker
+    # lifetime depend on native OCR speed on a shared CI runner.
+    monkeypatch.setattr('tablescan_local.photo_preparation.read_printed_title',
+                        lambda image, detection: '')
+
+    def create(paths, templates, **kwargs):
+        dialog = BatchPreparationDialog(paths, templates,
+                                        lambda: TablePage(mode='template', private_copy=True),
+                                        **kwargs)
+        qtbot.addWidget(dialog, before_close_func=stop_batch_preflight)
+        return dialog
+
+    return create
+
+
 def test_preflight_fits_variable_rows_and_rejects_wrong_protocol():
     templates = [builtin('plantar'), builtin('staircase'), builtin('von_frey')]
     before = [t.to_dict() for t in templates]
@@ -80,11 +107,9 @@ def test_incompatible_legacy_protocol_cannot_silently_keep_old_coordinates():
     assert 'columns' in result.error
 
 
-def test_default_batch_selects_best_protocol_and_explicit_choice_overrides(qtbot):
+def test_default_batch_selects_best_protocol_and_explicit_choice_overrides(qtbot, batch_dialog_factory):
     templates = [builtin('staircase'), builtin('plantar')]
-    dialog = BatchPreparationDialog([fixture(5)], templates,
-                                    lambda: TablePage(mode='template', private_copy=True))
-    qtbot.addWidget(dialog)
+    dialog = batch_dialog_factory([fixture(5)], templates)
     qtbot.waitUntil(lambda: dialog.worker is None, timeout=20000)
     assert dialog.rows[0][1].currentData() == templates[1].id
     assert dialog.start_button.isEnabled()
@@ -141,14 +166,12 @@ def test_retry_of_old_queue_runs_preflight_before_ocr(qtbot, tmp_path, monkeypat
 
 
 @pytest.mark.parametrize('mode, options', [(0, (False, False)), (1, (True, False)), (2, (True, True))])
-def test_batch_preview_selects_per_file_protocol_and_excludes_bad_input(qtbot, tmp_path, monkeypatch, mode, options):
+def test_batch_preview_selects_per_file_protocol_and_excludes_bad_input(qtbot, tmp_path, monkeypatch, batch_dialog_factory, mode, options):
     from tablescan_local import slow_mode
     monkeypatch.setattr(slow_mode, 'runtime_config', lambda: {})
     bad = tmp_path / 'bad.pdf'; bad.write_bytes(b'broken')
     templates = [builtin('plantar'), builtin('staircase')]
-    dialog = BatchPreparationDialog([fixture(5), fixture(10), str(bad)], templates,
-                                    lambda: TablePage(mode='template', private_copy=True))
-    qtbot.addWidget(dialog)
+    dialog = batch_dialog_factory([fixture(5), fixture(10), str(bad)], templates)
     qtbot.waitUntil(lambda: dialog.worker is None, timeout=15000)
     assert dialog.start_button.isEnabled() and not dialog.rows[2][0].isChecked()
     for _, select in dialog.rows[:2]:
@@ -204,11 +227,9 @@ def test_many_files_keep_individual_templates_and_slow_options(qtbot, tmp_path, 
     assert not window.analysis_queue.entries[1]['message']
 
 
-def test_private_protocol_can_be_reselected_and_bulk_reset(qtbot, monkeypatch):
+def test_private_protocol_can_be_reselected_and_bulk_reset(qtbot, monkeypatch, batch_dialog_factory):
     templates = [builtin('plantar'), builtin('staircase')]
-    dialog = BatchPreparationDialog([fixture(5), fixture(10)], templates,
-                                    lambda: TablePage(mode='template', private_copy=True))
-    qtbot.addWidget(dialog)
+    dialog = batch_dialog_factory([fixture(5), fixture(10)], templates)
     qtbot.waitUntil(lambda: dialog.worker is None, timeout=15000)
     def edit_and_save(editor_dialog):
         editor_dialog.editor.header_rows_spin.setValue(0)
@@ -241,13 +262,11 @@ def test_missing_slow_runtime_does_not_queue_or_downgrade(qtbot, tmp_path, monke
     assert not window.analysis_queue.entries and warnings == ['missing models']
 
 
-def test_batch_can_start_from_scratch_and_save_template_for_other_files(qtbot, tmp_path, monkeypatch):
+def test_batch_can_start_from_scratch_and_save_template_for_other_files(qtbot, tmp_path, monkeypatch, batch_dialog_factory):
     from tablescan_local.storage import LocalStore
     store = LocalStore(tmp_path / 'store')
-    dialog = BatchPreparationDialog([fixture(5), fixture(5)], [],
-                                    lambda: TablePage(mode='template', private_copy=True),
-                                    save_template=store.save_template_version)
-    qtbot.addWidget(dialog)
+    dialog = batch_dialog_factory([fixture(5), fixture(5)], [],
+                                  save_template=store.save_template_version)
     qtbot.waitUntil(lambda: dialog.worker is None, timeout=15000)
     assert dialog.rows[0][1].currentData() == '__blank__'
     assert not dialog.start_button.isEnabled()
