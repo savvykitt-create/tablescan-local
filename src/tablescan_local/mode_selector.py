@@ -194,10 +194,29 @@ class ModeSelector(QWidget):
         self._update_labels()
         self.timer = QTimer(self)
         self.timer.setInterval(1500)
-        self.timer.timeout.connect(self.refresh_availability)
+        self.timer.timeout.connect(self._poll_availability)
+        if self._availability is not None:
+            # Populate the initial state for callers configuring a hidden
+            # dialog, but only keep polling while this control is visible.
+            self.refresh_availability()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
         if self._availability is not None:
             self.refresh_availability()
             self.timer.start()
+
+    def hideEvent(self, event) -> None:
+        self.timer.stop()
+        super().hideEvent(event)
+
+    def _poll_availability(self) -> None:
+        # A previously queued timeout must not probe Slow mode after a page
+        # switch or after the containing dialog has closed.
+        if self.isVisible():
+            self.refresh_availability()
+        else:
+            self.timer.stop()
 
     def refresh_availability(self) -> None:
         if self._availability is not None:

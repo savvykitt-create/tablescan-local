@@ -42,10 +42,10 @@ jobs:
       - name: Install Windows OCR acceleration runtime
         if: runner.os == 'Windows'
         run: python packaging/install_ocr_acceleration.py
-      - name: Check small-window layout
+      - name: Check preparation interface and small-window layout
         env:
           QT_QPA_PLATFORM: offscreen
-        run: pytest tests/test_window_layout.py
+        run: pytest tests/test_window_layout.py tests/test_analysis_mode_ui.py tests/test_mode_selector.py tests/test_mode_selector_lifecycle.py tests/test_contextual_help.py
       - name: Test on Linux
         if: runner.os == 'Linux'
         run: QT_QPA_PLATFORM=offscreen pytest --ignore=tests/test_window_layout.py

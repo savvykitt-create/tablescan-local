@@ -2,6 +2,7 @@
 import os
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
 
+import pytest
 from PySide6.QtCore import QEvent, QPoint, Qt
 from PySide6.QtGui import QHelpEvent
 from PySide6.QtWidgets import QApplication, QToolBar, QToolTip
@@ -14,9 +15,25 @@ from tablescan_local.ui import TablePage
 
 
 def hover_help(widget):
+    QApplication.processEvents()
     position = QPoint(4, 4)
     QApplication.sendEvent(widget, QHelpEvent(QEvent.Type.ToolTip, position,
                                              widget.mapToGlobal(position)))
+    QApplication.processEvents()
+
+
+def clear_tooltip(qtbot):
+    # QToolTip is application-global, and hiding it can be delayed on Windows.
+    # Wait for the old popup to disappear before checking another hover.
+    QToolTip.hideText()
+    qtbot.waitUntil(lambda: not QToolTip.isVisible(), timeout=2000)
+
+
+@pytest.fixture(autouse=True)
+def isolated_tooltip(qtbot):
+    clear_tooltip(qtbot)
+    yield
+    clear_tooltip(qtbot)
 
 
 def test_only_question_mark_shows_help_and_accepts_keyboard(qtbot):
@@ -24,17 +41,17 @@ def test_only_question_mark_shows_help_and_accepts_keyboard(qtbot):
     wrapper = button_with_help(action, 'Apply the displayed rule to selected cells.')
     qtbot.addWidget(wrapper)
     wrapper.show()
-    QToolTip.showText(QPoint(), '')
     hover_help(action)
     assert not QToolTip.isVisible()
     assert action.toolTip() == ''
     hover_help(wrapper.help_button)
+    qtbot.waitUntil(QToolTip.isVisible)
     assert QToolTip.text() == 'Apply the displayed rule to selected cells.'
-    QToolTip.showText(QPoint(), '')
+    clear_tooltip(qtbot)
     wrapper.help_button.setFocus()
     qtbot.keyClick(wrapper.help_button, Qt.Key.Key_Space)
+    qtbot.waitUntil(QToolTip.isVisible)
     assert QToolTip.text() == 'Apply the displayed rule to selected cells.'
-    QToolTip.showText(QPoint(), '')
 
 
 def test_dynamic_action_help_stays_on_question_mark(qtbot):
@@ -49,6 +66,10 @@ def test_dynamic_action_help_stays_on_question_mark(qtbot):
     action.setToolTip('Review the selected files first.')
     assert action.toolTip() == ''
     assert wrapper.help_button.toolTip() == 'Review the selected files first.'
+    hover_help(wrapper.help_button)
+    qtbot.waitUntil(QToolTip.isVisible)
+    assert QToolTip.text() == 'Review the selected files first.'
+    clear_tooltip(qtbot)
     hover_help(action)
     assert not QToolTip.isVisible()
 

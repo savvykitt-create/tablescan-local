@@ -100,6 +100,8 @@ def test_clicking_current_mode_preserves_selection_highlight(qtbot):
 def test_locked_selector_fits_compact_sidebar_with_native_metrics(qtbot, qapp, language):
     # Keep the platform's native style/font so Windows CI exercises its own
     # button metrics, not a simulated macOS screenshot or a fixed test font.
+    from PySide6.QtGui import QFontDatabase
+    assert QFontDatabase.families(), "Qt must load installed fonts for meaningful layout measurements"
     apply_theme(qapp, "light")
     set_language(language)
     try:
