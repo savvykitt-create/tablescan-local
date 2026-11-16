@@ -6,6 +6,8 @@ import pytest
 from PySide6.QtCore import QPoint, Qt
 
 from tablescan_local.mode_selector import ModeSelector
+from tablescan_local.i18n import set_language
+from tablescan_local.theme import apply_theme
 
 
 @pytest.mark.parametrize("mode,expected", [
@@ -92,3 +94,26 @@ def test_clicking_current_mode_preserves_selection_highlight(qtbot):
     assert selector.currentData() == "medium"
     assert selector.mode_buttons[1].isChecked()
     assert sum(button.isChecked() for button in selector.mode_buttons) == 1
+
+
+@pytest.mark.parametrize("language", ["en", "ru", "cs"])
+def test_locked_selector_fits_laptop_footer_with_native_metrics(qtbot, qapp, language):
+    # Keep the platform's native style/font so Windows CI exercises its own
+    # button metrics, not a simulated macOS screenshot or a fixed test font.
+    apply_theme(qapp, "light")
+    set_language(language)
+    try:
+        selector = ModeSelector(slow_available=False)
+        qtbot.addWidget(selector)
+        selector.resize(700, 160)
+        selector.show()
+        qtbot.wait(20)
+        assert selector.size().toTuple() == (700, 160)
+        assert selector.minimumSizeHint().width() <= 700
+        assert selector.minimumSizeHint().height() <= 160
+        for widget in [selector.install_button, *selector.mode_buttons, *selector.mode_help]:
+            assert widget.isVisible()
+            assert selector.rect().contains(widget.mapTo(selector, widget.rect().topLeft()))
+            assert selector.rect().contains(widget.mapTo(selector, widget.rect().bottomRight()))
+    finally:
+        set_language("en")
