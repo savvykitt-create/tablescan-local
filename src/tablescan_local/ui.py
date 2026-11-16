@@ -367,6 +367,9 @@ class TablePage(QWidget):
             save_version = QPushButton(tr('Use for this file') if private_copy else tr('Сохранить шаблон'))
             save_version.setProperty("primary", True)
             save_version.clicked.connect(self._continue)
+            outer.addLayout(header)
+            header = QHBoxLayout()
+            header.addStretch()
             header.addWidget(validate); header.addWidget(save_version)
         outer.addLayout(header)
 
@@ -424,11 +427,11 @@ class TablePage(QWidget):
         outer.addWidget(split, 1)
         if mode != "template":
             analysis = QGroupBox(tr('Analysis'))
-            analysis_layout = QHBoxLayout(analysis)
+            analysis_layout = QVBoxLayout(analysis)
             self.mode_selector = ModeSelector()
             self.mode_selector.modeChanged.connect(self._analysis_mode_changed)
             analysis_layout.addWidget(self.mode_selector, 1)
-            self.continue_button.setMinimumHeight(48)
+            self.continue_button.setMinimumHeight(42)
             analysis_layout.addWidget(button_with_help(self.continue_button, tr('Start recognition using the current grid, fields and rules. Results open for review when analysis finishes.')))
             outer.addWidget(analysis)
         self._add_preparation_help()
