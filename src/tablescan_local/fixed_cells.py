@@ -1,7 +1,8 @@
 """Template values that bypass recognition while retaining table coordinates."""
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout
+from PySide6.QtWidgets import QVBoxLayout
 
+from .button_help import button_with_help
 from .domain import excel_column_name
 from .i18n import tr
 from .localized_widgets import QWidget, QLabel, QLineEdit, QPushButton, QListWidget, QListWidgetItem
@@ -23,16 +24,17 @@ class FixedCellsPanel(QWidget):
         self.value = QLineEdit()
         self.value.setPlaceholderText(tr('Constant value (may be empty)'))
         layout.addWidget(self.value)
-        buttons = QHBoxLayout()
+        buttons = QVBoxLayout()
         self.apply = QPushButton(tr('Set template value'))
         self.apply.clicked.connect(self.set_values)
         self.restore = QPushButton(tr('Recognize with OCR'))
         self.restore.clicked.connect(self.restore_ocr)
-        buttons.addWidget(self.apply); buttons.addWidget(self.restore)
+        buttons.addWidget(button_with_help(self.apply, tr('Fill every selected cell with this constant text, including an empty value. These cells will not be recognized.')))
+        buttons.addWidget(button_with_help(self.restore, tr('Remove constant values from the selected cells so OCR can read them. Cells marked to skip must also be included in the Skip cells tab.')))
         layout.addLayout(buttons)
         self.headers = QPushButton(tr('Fill column headers'))
         self.headers.clicked.connect(self.fill_headers)
-        layout.addWidget(self.headers)
+        layout.addWidget(button_with_help(self.headers, tr('Fill the first header row with column names from Rules. Existing constants in that row are replaced.')))
         self.summary = QLabel()
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
@@ -41,7 +43,8 @@ class FixedCellsPanel(QWidget):
         layout.addWidget(self.cells, 1)
         self.remove = QPushButton(tr('Remove selected template value'))
         self.remove.clicked.connect(self.remove_item)
-        layout.addWidget(self.remove)
+        layout.addWidget(button_with_help(self.remove, tr('Remove the highlighted constant from this list. The cell can then be recognized unless it is marked to skip.')))
+        self.remove.setEnabled(False)
         canvas.cellSelectionChanged.connect(self.selection_changed)
         self.selection_changed(set())
 
@@ -77,6 +80,7 @@ class FixedCellsPanel(QWidget):
         self._changed()
 
     def select_item(self, item, previous):
+        self.remove.setEnabled(item is not None)
         if item is not None:
             self.canvas.select_cells({tuple(item.data(Qt.ItemDataRole.UserRole))})
 
@@ -96,6 +100,7 @@ class FixedCellsPanel(QWidget):
         template = self.template()
         self.cells.blockSignals(True)
         self.cells.clear()
+        self.remove.setEnabled(False)
         if template:
             for cell in sorted(template.fixed_cells, key=lambda item: (item.row, item.column)):
                 item = QListWidgetItem(f'{excel_column_name(cell.column)}{cell.row + 1}  =  {cell.value!r}')

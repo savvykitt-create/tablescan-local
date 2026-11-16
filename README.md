@@ -53,10 +53,13 @@ are an [optional release mode](docs/macos-release-signing.md).
 2. **Alignment:** choose a protocol and check the detected rotation, boundary,
    rows and columns. Adjust the grid if needed. Mark metadata outside the grid
    under **Fields** and configure expected values under **Rules**.
-   Use **Exclusions** to omit unused rows, columns or individual cells before
+   Use **Skip cells** to omit unused rows, columns or individual cells before
    recognition. Click row numbers or column letters, or drag across cells, then
-   choose **Exclude selection**. Ctrl/Cmd adds to the selection; Shift extends it.
-3. **Analyze:** choose Fast, High accuracy or Slow analysis. Standard recognition
+   choose **Skip selected cells**. Ctrl/Cmd adds to the selection; Shift extends it.
+3. **Analyze:** use the slider to choose **Fast**, **Medium**, **Slow** or **Adaptive**,
+   then click **Start Analysis** in the persistent bottom panel. Medium is the
+   former High accuracy mode. Slow and Adaptive remain locked until the optional
+   models are installed. Standard recognition
    models are included; install optional Slow analysis from **Settings → Slow mode →
    Install Slow mode**. Windows and Apple Silicon macOS prepare Python, an isolated virtual environment,
    and the models automatically. Setup can be cancelled from Settings.
@@ -73,13 +76,28 @@ leaves rule conflicts for individual review. **Exclude this row** and
 
 Preparation exclusions are saved with the document and with any template you
 save from it. They skip OCR and Slow verification, keep their original positions
-and export blank values. **Restore selection**, undo/redo and **Clear all
-exclusions** make them reversible, including a single cell within an excluded
+and export blank values. **Include selected cells**, undo/redo and **Include all cells** make them reversible, including a single cell within an excluded
 row or column. Whole excluded axes also cover newly added cells on those axes;
 individual addresses stay fixed. Shrinking the grid past an exclusion requires
 editing or clearing it. Explicit preparation exclusions take precedence over
 fixed template values without deleting the saved constants. To read an area
 excluded before analysis, restore it in preparation and analyze the file again.
+
+## Printable templates
+
+In **Templates → Ready-to-print forms**, select a protocol and use **Save Excel…**
+or **Save PDF…**. These are the original GitHub release files, bundled with the app
+so saving also works offline.
+
+For a custom template, select **Save Excel form…** in the library, or use
+**Grid → Template actions → Export printable Excel…** in the editor. Choose A4 or
+Letter, page orientation, and whether to fit everything onto one page. The workbook
+contains an editable blank grid, fixed labels and values, and metadata fields above
+the table. It does not reproduce the original scan's exact metadata positions or
+export recognized measurements. Check Excel's Print Preview before printing.
+
+Preparation actions are grouped by function. Hover over a button or click its
+adjacent **?** for an explanation, including when the action is unavailable.
 
 Choose English, Czech or Russian in **Settings → Language**. Document contents
 and custom protocol names remain in the language in which you entered them.

@@ -75,6 +75,33 @@ def test_field_corner_drag_updates_persisted_geometry(qtbot):
     assert TableTemplate.from_dict(t.to_dict()).fields[0].rect == t.fields[0].rect
 
 
+@pytest.mark.parametrize('scale', [.15, .4663265306122449, 2.0])
+def test_field_corner_handles_keep_screen_sized_hit_area_after_zoom(qtbot, scale):
+    page = TablePage(); qtbot.addWidget(page); page.resize(1200, 800); page.show()
+    t = sample(); page.set_document(np.full((1000, 1000, 3), 255, np.uint8), t)
+    page._region_created('field', QRectF(200, 200, 200, 200))
+    page.tabs.setCurrentIndex(1)
+    qtbot.wait(20)
+    canvas = page.canvas
+    canvas.zoom_by(scale / canvas.transform().m11())
+    canvas.centerOn(400, 400)
+    item = next(i for i in canvas.scene().items() if isinstance(i, OverlayRectItem) and i.label)
+    # A visible handle must remain clickable slightly outside its thin border,
+    # including when scene-to-viewport rounding puts the corner outside it.
+    start = canvas.mapFromScene(QPointF(400, 400))
+    start.setX(start.x() + 4); start.setY(start.y() + 4)
+    end = canvas.mapFromScene(QPointF(500, 450))
+    assert canvas.viewport().rect().contains(start)
+    assert item in canvas.items(start)
+    QTest.mousePress(canvas.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    assert canvas.scene().mouseGrabberItem() is item
+    QTest.mouseMove(canvas.viewport(), end, delay=20)
+    QTest.mouseRelease(canvas.viewport(), Qt.MouseButton.LeftButton, pos=end)
+    qtbot.wait(20)
+    assert t.fields[0].rect.width == pytest.approx(.3, abs=.01)
+    assert t.fields[0].rect.height == pytest.approx(.25, abs=.01)
+
+
 @pytest.mark.parametrize("locale", ["en", "ru", "cs"])
 def test_generated_names_are_english_in_every_locale(qtbot, tmp_path, locale):
     from tablescan_local.i18n import set_language

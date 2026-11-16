@@ -139,9 +139,9 @@ class AnalysisQueueDialog(QDialog):
         self.table.setCurrentCell(-1, -1)
         self.table.setRowCount(len(visible))
         for row, entry in enumerate(visible):
-            mode = tr('Slow analysis') if entry.get('slow_mode') else (tr('High accuracy') if entry.get('high_accuracy', True) else tr('Fast analysis'))
+            mode = tr('Slow') if entry.get('slow_mode') else (tr('Medium') if entry.get('high_accuracy', True) else tr('Fast'))
             if entry.get('adaptive'):
-                mode = tr('Adaptive + Slow') if entry.get('slow_mode') else tr('Adaptive analysis (experimental)')
+                mode = tr('Adaptive')
             prepared = entry.get('preparation', {})
             preparation = tr('Manually checked') if prepared.get('status') == 'manual' else tr('Fitted')
             preparation = (fmt("{label} · {rotation}° · {rows}×{columns}", label=preparation, rotation=prepared["rotation"], rows=prepared["rows"], columns=prepared["columns"])

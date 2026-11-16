@@ -15,7 +15,7 @@ from uuid import uuid4
 import numpy as np
 from PySide6.QtCore import QEvent, QLockFile, QRectF, Qt, QThread, QStandardPaths, QTimer, QSettings, Signal
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QHeaderView, QInputDialog, QLayout, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QToolBar, QVBoxLayout
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QGridLayout, QHeaderView, QInputDialog, QLayout, QMessageBox, QScrollArea, QSizePolicy, QSplitter, QStackedWidget, QToolBar, QVBoxLayout
 
 from .localized_widgets import QAction, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QFrame, QGroupBox, QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QRadioButton, QPushButton, QSpinBox, QTabWidget, QTableWidget, QTableWidgetItem, QToolButton, QWidget
 
@@ -38,6 +38,8 @@ from .queue_dialog import AnalysisQueueDialog
 from .ui_common import BLUE, LIGHT_BLUE, AMBER, GREEN, BORDER, TEXT, MUTED, SURFACE, pixmap_from_bgr, notify
 from .document_canvas import DocumentCanvas, OverlayRectItem, GuideLineItem
 from .review_page import ReviewPage, CropPreview
+from .button_help import button_with_help, HelpButton
+from .mode_selector import ModeSelector
 
 
 class DropArea(QFrame):
@@ -229,7 +231,7 @@ class TemplateLibraryPage(QWidget):
     def __init__(self) -> None:
         super().__init__()
         self._template_signature: tuple[tuple[str, int, str, int], ...] = ()
-        layout = QVBoxLayout(self); layout.setContentsMargins(30, 26, 30, 26); layout.setSpacing(16)
+        layout = QVBoxLayout(self); layout.setContentsMargins(24, 18, 24, 18); layout.setSpacing(10)
         header = QHBoxLayout()
         title_box = QVBoxLayout()
         title = QLabel(tr('Шаблоны')); set_theme_style(title, "font-size: 25px; font-weight: 750;")
@@ -237,22 +239,49 @@ class TemplateLibraryPage(QWidget):
         set_theme_style(subtitle, fmt('color: {p0};', p0=MUTED))
         title_box.addWidget(title); title_box.addWidget(subtitle)
         create = QPushButton(tr('Создать из образца')); create.setProperty("primary", True); create.clicked.connect(self.createRequested)
-        header.addLayout(title_box); header.addStretch(); header.addWidget(create)
+        subtitle.setWordWrap(True)
+        header.addLayout(title_box, 1)
+        layout.addLayout(header)
+        create_actions = QHBoxLayout()
+        create_actions.addWidget(create)
         import_button = QPushButton(tr('Импорт JSON'))
         import_button.clicked.connect(self.importRequested)
-        header.addWidget(import_button)
-        layout.addLayout(header)
+        create_actions.addWidget(import_button)
+        layout.addLayout(create_actions)
+        from .printable_templates import BundledFormsPanel
+        self.bundled_forms = BundledFormsPanel()
+        layout.addWidget(self.bundled_forms)
+        self._templates = {}
         self.list = QListWidget()
         self.list.setSpacing(5)
         set_theme_style(self.list, fmt('QListWidget {{ border: 1px solid {p0}; border-radius: 9px; padding: 8px; }}QListWidget::item {{ min-height: 54px; padding: 9px 12px; border-radius: 7px; }}QListWidget::item:selected {{ background: {p1}; color: {p2}; border: 1px solid #A5B4FC; }}', p0=BORDER, p1=LIGHT_BLUE, p2=TEXT))
         self.list.itemDoubleClicked.connect(lambda _item: self._emit_selected(self.openRequested))
         layout.addWidget(self.list, 1)
-        actions = QHBoxLayout(); actions.addStretch()
+        actions = QGridLayout()
         duplicate = QPushButton(tr('Дублировать')); duplicate.clicked.connect(lambda: self._emit_selected(self.duplicateRequested))
         delete = QPushButton(tr('Удалить')); delete.setProperty("danger", True); delete.clicked.connect(lambda: self._emit_selected(self.deleteRequested))
         open_button = QPushButton(tr('Открыть редактор')); open_button.setProperty("primary", True); open_button.clicked.connect(lambda: self._emit_selected(self.openRequested))
-        actions.addWidget(duplicate); actions.addWidget(delete); actions.addWidget(open_button)
+        export_button = QPushButton(tr('Save Excel form…'))
+        export_button.clicked.connect(self._export_selected_template)
+        actions.addWidget(duplicate, 0, 0); actions.addWidget(delete, 0, 1)
+        actions.addWidget(export_button, 1, 0); actions.addWidget(open_button, 1, 1)
         layout.addLayout(actions)
+        from .preparation_help import add_preparation_help
+        add_preparation_help(self)
+        self.selection_actions = (duplicate, delete, export_button, open_button)
+        self.list.currentItemChanged.connect(self._update_actions)
+        self._update_actions()
+
+    def _update_actions(self, *_args):
+        for button in self.selection_actions:
+            button.setEnabled(self.list.currentItem() is not None)
+
+    def _export_selected_template(self):
+        item = self.list.currentItem()
+        template = self._templates.get(item.data(Qt.ItemDataRole.UserRole)) if item else None
+        if template:
+            from .printable_templates import PrintableTemplateDialog
+            PrintableTemplateDialog(template, self).exec()
 
     def _emit_selected(self, signal) -> None:
         item = self.list.currentItem()
@@ -266,6 +295,7 @@ class TemplateLibraryPage(QWidget):
             if key not in latest or template.template_version > latest[key].template_version:
                 latest[key] = template
         ordered = sorted(latest.values(), key=lambda item: item.name.casefold())
+        self._templates = {item.id: item for item in ordered}
         signature = tuple((item.id, item.template_version, item.name, len(item.cell_rules)) for item in ordered)
         if signature == self._template_signature:
             return
@@ -354,7 +384,7 @@ class TablePage(QWidget):
              (tr('Вписать'), self._fit_canvas)],
             [(tr('↶ Повернуть'), lambda: self.rotationRequested.emit(90)),
              (tr('Повернуть ↷'), lambda: self.rotationRequested.emit(-90)),
-             (tr('Exclusions'), lambda: self.tabs.setCurrentWidget(self.exclusions_tab))],
+             (tr('Skip cells'), lambda: self.tabs.setCurrentWidget(self.exclusions_tab))],
         ):
             toolbar = QToolBar()
             toolbar.setMovable(False)
@@ -387,17 +417,44 @@ class TablePage(QWidget):
         self.exclusions_panel = ExclusionsPanel(lambda: self.template, self.canvas)
         self.exclusions_panel.changed.connect(self._exclusions_changed)
         self.exclusions_tab = preparation_scroll_area(self.exclusions_panel)
-        self.tabs.addTab(self.exclusions_tab, tr('Exclusions'))
+        self.tabs.addTab(self.exclusions_tab, tr('Skip cells'))
         self.tabs.currentChanged.connect(self._tab_changed)
         split.addWidget(self.tabs)
         split.setSizes([820, 440])
         outer.addWidget(split, 1)
+        if mode != "template":
+            analysis = QGroupBox(tr('Analysis'))
+            analysis_layout = QHBoxLayout(analysis)
+            self.mode_selector = ModeSelector()
+            self.mode_selector.modeChanged.connect(self._analysis_mode_changed)
+            analysis_layout.addWidget(self.mode_selector, 1)
+            self.continue_button.setMinimumHeight(48)
+            analysis_layout.addWidget(button_with_help(self.continue_button, tr('Start recognition using the current grid, fields and rules. Results open for review when analysis finishes.')))
+            outer.addWidget(analysis)
+        self._add_preparation_help()
+
+    def _analysis_mode_changed(self, _mode: str) -> None:
+        flags = self.mode_selector.flags()
+        self.high_accuracy.setChecked(flags['high_accuracy'])
+        self.slow_mode.setChecked(flags['slow_mode'])
+        self.adaptive.setChecked(flags['adaptive'])
+
+    def _export_printable_template(self) -> None:
+        if self.template is None or not self.prepare_current_settings():
+            return
+        from .printable_templates import PrintableTemplateDialog
+        PrintableTemplateDialog(self.template, self).exec()
+
+    def _add_preparation_help(self) -> None:
+        from .preparation_help import add_preparation_help
+        add_preparation_help(self)
 
     def _build_grid_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(14, 18, 8, 8)
         form = QFormLayout()
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         form.setSpacing(12)
         self.saved_template_select = QComboBox()
         # User selection applies the complete template, not just its label.
@@ -414,7 +471,7 @@ class TablePage(QWidget):
         self.row_labels_spin.setRange(0, 20)
         self.crossed = QCheckBox(tr('Находить зачёркнутые строки'))
         self.crossed.setChecked(True)
-        self.high_accuracy = QCheckBox(tr('Максимальная точность (медленнее)'))
+        self.high_accuracy = QCheckBox(self)
         self.high_accuracy.setChecked(True)
         self.high_accuracy.setToolTip(tr('Многоэтапно сравнивает модели, внутренние варианты чисел, повторные вырезы, разделитель и независимую проверку цифр. Всё работает локально.'))
         form.addRow(tr('Сохранённый шаблон'), self.saved_template_select)
@@ -428,7 +485,10 @@ class TablePage(QWidget):
             label = form.labelForField(self.saved_template_select)
             if label:
                 label.hide()
-        layout.addLayout(form)
+        geometry = QGroupBox(tr('Grid geometry'))
+        geometry_layout = QVBoxLayout(geometry)
+        geometry_layout.addLayout(form)
+        layout.addWidget(geometry)
         layout.addWidget(self.crossed)
         self.auto_fit_rows = QCheckBox(tr('Автоматически подгонять строки шаблона'))
         self.auto_fit_rows.setToolTip(tr('Для регулярных таблиц: определяет число строк, переносит правила и поля. Столбцы должны совпадать.'))
@@ -436,18 +496,18 @@ class TablePage(QWidget):
         layout.addWidget(self.auto_fit_rows)
         fit_grid = QPushButton(tr('Подогнать шаблон к таблице'))
         fit_grid.clicked.connect(self.fit_current_grid)
-        layout.addWidget(fit_grid)
-        layout.addWidget(self.high_accuracy)
-        self.slow_mode = QCheckBox(tr('Slow mode — дополнительная перепроверка'))
+
+        self.high_accuracy.hide()
+        self.slow_mode = QCheckBox(self)
         self.slow_mode.setToolTip(tr('Две дополнительные модели перепроверяют спорные измерения. Время зависит от компьютера и размера таблицы; на CPU проверка может быть длительной. Всё работает локально; исправления остаются доступными для проверки.'))
         self.slow_mode.toggled.connect(lambda checked: self.high_accuracy.setChecked(True) if checked else None)
         self.high_accuracy.toggled.connect(lambda checked: self.slow_mode.setChecked(False) if not checked else None)
-        layout.addWidget(self.slow_mode)
-        self.adaptive = QCheckBox(tr('Adaptive analysis (experimental)'))
+        self.slow_mode.hide()
+        self.adaptive = QCheckBox(self)
         self.adaptive.setToolTip(tr('Short analysis when models agree; complete analysis otherwise. Short-pass values still require review.'))
         self.adaptive.toggled.connect(lambda checked: self.high_accuracy.setChecked(True) if checked else None)
         self.high_accuracy.toggled.connect(lambda checked: self.adaptive.setChecked(False) if not checked else None)
-        layout.addWidget(self.adaptive)
+        self.adaptive.hide()
         accuracy_note = QLabel(tr('Рекомендуется для ячеек с форматом «Число». Для 100 ячеек на современном компьютере обычно требуется несколько минут; программа тратит дополнительное время на альтернативы и проверки.'))
         accuracy_note.setWordWrap(True)
         set_theme_style(accuracy_note, fmt('color: {p0};', p0=MUTED))
@@ -462,29 +522,38 @@ class TablePage(QWidget):
         layout.addWidget(self.grid_warning)
         align = QPushButton(tr('Align photograph — four corners'))
         align.clicked.connect(self.alignmentRequested)
-        layout.addWidget(align)
+
         detect = QPushButton(tr('Найти сетку заново'))
         detect.clicked.connect(self.detect_again)
         load_saved = QPushButton(tr('Применить выбранный шаблон'))
         load_saved.clicked.connect(self._request_saved_template)
         redraw = QPushButton(tr('Перерисовать границу таблицы'))
         redraw.clicked.connect(lambda: self.canvas.begin_draw("table"))
-        layout.addWidget(load_saved)
+
         settings_note = QLabel(tr('Распознавание использует текущие настройки. Сохранённый шаблон — только основа.'))
         settings_note.setWordWrap(True)
         layout.addWidget(settings_note)
-        layout.addWidget(detect)
-        layout.addWidget(redraw)
+        adjust = QGroupBox(tr('Adjust document'))
+        adjust_layout = QVBoxLayout(adjust)
+        for button in (fit_grid, align, detect, redraw):
+            adjust_layout.addWidget(button)
+        layout.addWidget(adjust)
         save_as_template = QPushButton(tr('Сохранить шаблон'))
         save_as_template.clicked.connect(self._save_current_template)
         save_as_template.setVisible(self.mode != "template")
-        layout.addWidget(save_as_template)
+        templates = QGroupBox(tr('Template actions'))
+        templates_layout = QVBoxLayout(templates)
+        templates_layout.addWidget(load_saved)
+        templates_layout.addWidget(save_as_template)
+        self.print_template_button = QPushButton(tr('Export printable Excel…'))
+        self.print_template_button.clicked.connect(self._export_printable_template)
+        templates_layout.addWidget(self.print_template_button)
+        layout.addWidget(templates)
         layout.addStretch()
-        self.continue_button = QPushButton(tr('Сохранить сетку и продолжить'))
+        self.continue_button = QPushButton(tr('Start Analysis'))
         self.continue_button.setProperty("primary", True)
         self.continue_button.clicked.connect(self._continue)
         self.continue_button.setVisible(self.mode != "template")
-        layout.addWidget(self.continue_button)
         if self.mode == "template":
             self.high_accuracy.hide(); accuracy_note.hide(); load_saved.hide()
             self.slow_mode.hide()
@@ -502,7 +571,7 @@ class TablePage(QWidget):
 
     def set_recognition_running(self, running: bool) -> None:
         self.continue_button.setEnabled(not running)
-        self.continue_button.setText(tr('Analysis queued or running') if running else tr('Add to analysis queue'))
+        self.continue_button.setText(tr('Analysis queued or running') if running else tr('Start Analysis'))
 
     def set_saved_templates(self, templates: list[TableTemplate]) -> None:
         from .template_matcher import latest_template_versions
@@ -527,7 +596,7 @@ class TablePage(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(14, 18, 8, 8)
-        buttons = QHBoxLayout()
+        buttons = QVBoxLayout()
         add = QPushButton(tr('+ Добавить область'))
         add.clicked.connect(lambda: self.canvas.begin_draw("field"))
         suggest = QPushButton(tr('Предложить автоматически'))
@@ -540,6 +609,7 @@ class TablePage(QWidget):
         layout.addWidget(self.field_list, 1)
 
         form = QFormLayout()
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         self.field_name = QLineEdit()
         self.field_kind = QComboBox()
         for label, code in ((tr('Текст'), "text"), (tr('Дата'), "date"), (tr('Целое число'), "integer"), (tr('Десятичное число'), "numeric"), (tr('Сложная запись'), "complex_numeric")):
@@ -571,7 +641,7 @@ class TablePage(QWidget):
         only_label.setWordWrap(True)
         set_theme_style(only_label, fmt('color: {p0};', p0=MUTED))
         only_label.hide()
-        actions = QHBoxLayout()
+        actions = QVBoxLayout()
         redraw = QPushButton(tr('Перерисовать область'))
         redraw.clicked.connect(self.redraw_selected_field)
         delete = QPushButton(tr('Удалить поле'))
@@ -592,6 +662,7 @@ class TablePage(QWidget):
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(14, 18, 8, 8)
         form = QFormLayout()
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
         self.column_select = QComboBox()
         self.column_select.currentIndexChanged.connect(self._column_selected)
         self.column_name = QLineEdit()
@@ -628,7 +699,7 @@ class TablePage(QWidget):
         self.canvas.setToolTip(help_text.text())
         help_text.hide()
 
-        selection_row = QHBoxLayout()
+        selection_row = QVBoxLayout()
         self.selection_label = QLabel(tr('Ячейки не выбраны'))
         set_theme_style(self.selection_label, "font-weight: 700;")
         select_all = QPushButton(tr('Все измерения'))
@@ -685,7 +756,7 @@ class TablePage(QWidget):
         self.quick_require_decimal.toggled.connect(self._quick_edited)
         self.quick_allow_empty.toggled.connect(self._quick_edited)
 
-        actions = QHBoxLayout()
+        actions = QVBoxLayout()
         apply_rule = QPushButton(tr('Применить к выделению')); apply_rule.setProperty("primary", True); apply_rule.clicked.connect(self._apply_quick_rule)
         advanced = QPushButton(tr('Дополнительно…')); advanced.clicked.connect(self._advanced_for_selection)
         self.apply_rule_button = apply_rule
@@ -699,7 +770,7 @@ class TablePage(QWidget):
         layout.addWidget(self.rule_list)
         self.rule_summary = QLabel(); self.rule_summary.setWordWrap(True); set_theme_style(self.rule_summary, fmt('color: {p0};', p0=MUTED))
         layout.addWidget(self.rule_summary)
-        actions = QHBoxLayout()
+        actions = QVBoxLayout()
         edit = QPushButton(tr('Изменить…')); edit.clicked.connect(self._edit_selected_rule)
         remove = QPushButton(tr('Удалить правило')); remove.clicked.connect(self._remove_selected_rule)
         actions.addWidget(edit); actions.addWidget(remove); layout.addLayout(actions)
@@ -1615,6 +1686,7 @@ class MainWindow(QMainWindow):
         self.update_settings.updateAvailable.connect(self._update_available)
         settings_layout.addWidget(self.update_settings)
         from .slow_settings import SlowSettings
+        self.table_page.mode_selector.setupRequested.connect(self._show_slow_settings)
         self.slow_settings = SlowSettings(self, busy=self._has_background_work)
         settings_layout.addWidget(self.slow_settings)
         settings_layout.addStretch()
@@ -1653,6 +1725,10 @@ class MainWindow(QMainWindow):
         self.update_notice.setVisible(release is not None)
         if release is not None:
             self.update_notice.setText(tr('Update {version} is available — open update settings', version=release.version))
+
+    def _show_slow_settings(self) -> None:
+        self._navigate_section(2)
+        self.settings_scroll.ensureWidgetVisible(self.slow_settings)
 
     def _show_app_update(self) -> None:
         self._navigate_section(2)
@@ -1908,8 +1984,9 @@ class MainWindow(QMainWindow):
         dialog = BatchPreparationDialog(paths, templates,
                                         lambda: TablePage(mode="template", private_copy=True), self,
                                         save_template=self._save_batch_template)
+        dialog.setupRequested.connect(self._show_slow_settings)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.enqueue_prepared_files(dialog.jobs, *dialog.analysis_options, preparations=dialog.preparations)
+            self.enqueue_prepared_files(dialog.jobs, *dialog.analysis_options, preparations=dialog.preparations, adaptive=dialog.adaptive)
         dialog.deleteLater()
 
     def _save_batch_template(self, template, source):
@@ -1920,7 +1997,9 @@ class MainWindow(QMainWindow):
     def enqueue_files(self, paths, template, high_accuracy=True, slow_mode=False):
         self.enqueue_prepared_files([(path, template) for path in paths], high_accuracy, slow_mode)
 
-    def enqueue_prepared_files(self, jobs, high_accuracy=True, slow_mode=False, *, preparations=None):
+    def enqueue_prepared_files(self, jobs, high_accuracy=True, slow_mode=False, *, preparations=None, adaptive=False):
+        slow_mode = bool(slow_mode or adaptive)
+        high_accuracy = bool(high_accuracy or adaptive)
         if not self._flush_draft():
             return
         if slow_mode:
@@ -1943,7 +2022,7 @@ class MainWindow(QMainWindow):
                 job_id, copied = self.store.import_source(path)
                 self.store.save_draft(job_id, template)
                 self.analysis_queue.enqueue(job_id, str(path), str(copied), template, high_accuracy, slow_mode,
-                                            preparation=(preparations or {}).get(path))
+                                            preparation=(preparations or {}).get(path), adaptive=adaptive)
             except Exception as exc:
                 if job_id:
                     self.store.delete_job(job_id)

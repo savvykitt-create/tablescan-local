@@ -2,7 +2,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QImage, QPixmap, QPen, QBrush
 from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QVBoxLayout, QMessageBox,
                               QGraphicsView, QGraphicsScene)
@@ -12,11 +12,9 @@ from .batch_preflight import Compatibility, PreflightWorker, assess_geometry, as
 from .domain import TableTemplate
 from .i18n import tr
 from .imaging import open_document, rotate_document, detect_grid
+from .mode_selector import ModeSelector
 from .localized_widgets import (QDialog, QLabel, QPushButton, QComboBox, QCheckBox,
                                 QTableWidget, QTableWidgetItem, QDialogButtonBox)
-
-
-MODES = ((False, False), (True, False), (True, True))
 
 
 class ProtocolPreview(QGraphicsView):
@@ -24,7 +22,7 @@ class ProtocolPreview(QGraphicsView):
     def __init__(self):
         super().__init__()
         self.setScene(QGraphicsScene(self))
-        self.setMinimumHeight(220)
+        self.setMinimumHeight(160)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
 
@@ -185,6 +183,8 @@ class FileProtocolDialog(QDialog):
 
 
 class BatchPreparationDialog(QDialog):
+    setupRequested = Signal()
+
     def __init__(self, paths, templates, editor_factory, parent=None, *, save_template=None):
         super().__init__(parent)
         self.setWindowTitle(tr('Prepare batch'))
@@ -196,6 +196,8 @@ class BatchPreparationDialog(QDialog):
         self.custom = {}
         self.rows = []
         self._closing = False
+        self._setup_requested = False
+        self.finished.connect(self._dialog_finished)
         self.jobs = []
         self.worker = PreflightWorker(paths, templates, self)
         layout = QVBoxLayout(self)
@@ -211,6 +213,7 @@ class BatchPreparationDialog(QDialog):
         self.common_template.addItem(tr('Blank protocol'), '__blank__')
         common.addWidget(self.common_template, 1)
         apply = QPushButton(tr('Apply to all'))
+        apply.setToolTip(tr('Apply the selected protocol to every included file. Inspect each fitted grid before starting.'))
         apply.clicked.connect(self.apply_all)
         common.addWidget(apply)
         layout.addLayout(common)
@@ -254,22 +257,25 @@ class BatchPreparationDialog(QDialog):
         self.preview_detail.setMaximumWidth(380)
         preview_details.addWidget(self.preview_detail, 1)
         fit_preview = QPushButton(tr('Fit preview'))
+        fit_preview.setToolTip(tr('Fit the selected document into the preview.'))
         fit_preview.clicked.connect(self.preview.fit)
         preview_details.addWidget(fit_preview)
         preview_row.addLayout(preview_details, 1)
         layout.addLayout(preview_row, 1)
         self.edit_button = QPushButton(tr('Open / adjust selected file'))
+        self.edit_button.setToolTip(tr('Edit the grid, fields and rules for this file before adding it to the analysis queue.'))
         self.edit_button.clicked.connect(lambda: self.edit_file(self.table.currentRow()))
         layout.addWidget(self.edit_button)
         self.progress = QLabel(tr('Checking files: {p0} / {p1}', p0=0, p1=len(paths)))
         layout.addWidget(self.progress)
-        modes = QHBoxLayout()
-        modes.addWidget(QLabel(tr('Analysis mode for the batch')))
-        self.mode = QComboBox()
-        self.mode.addItems([tr('Fast analysis'), tr('High accuracy'), tr('Slow analysis — additional model verification')])
-        self.mode.setCurrentIndex(1)
-        modes.addWidget(self.mode, 1)
-        layout.addLayout(modes)
+        self.mode = ModeSelector()
+        setup_help = tr('Close batch preparation and open Settings to install extra models. Unsubmitted per-file edits in this dialog will be discarded.')
+        self.mode.install_button.setToolTip(setup_help)
+        self.mode.install_action.help_button.setToolTip(setup_help)
+        self.mode.install_action.help_button.setAccessibleDescription(setup_help)
+        self.mode.title.setText(tr('Analysis mode for the batch'))
+        self.mode.setupRequested.connect(self.request_setup)
+        layout.addWidget(self.mode)
         self.mode_note = QLabel('')
         self.mode_note.setWordWrap(True)
         layout.addWidget(self.mode_note)
@@ -277,14 +283,18 @@ class BatchPreparationDialog(QDialog):
         self.update_mode()
         actions = QHBoxLayout()
         cancel = QPushButton(tr('Отмена'))
+        cancel.setToolTip(tr('Close batch preparation without adding files to the queue.'))
         cancel.clicked.connect(self.reject)
-        self.start_button = QPushButton(tr('Add selected files to queue'))
+        self.start_button = QPushButton(tr('Start Analysis'))
+        self.start_button.setToolTip(tr('Queue the included files with their prepared templates and run them in the selected analysis mode.'))
         self.start_button.setProperty('primary', True)
         self.start_button.clicked.connect(self.submit)
         actions.addWidget(cancel)
         actions.addStretch()
         actions.addWidget(self.start_button)
         layout.addLayout(actions)
+        from .preparation_help import add_preparation_help
+        add_preparation_help(self)
         self.worker.prepared.connect(self.prepared)
         self.worker.progress.connect(self.preflight_progress)
         self.worker.finished.connect(self.preflight_finished)
@@ -299,8 +309,18 @@ class BatchPreparationDialog(QDialog):
 
     def update_mode(self):
         self.mode_note.setText(tr('Files run sequentially in the selected mode. Slow analysis requires the local slow-mode module.')
-                              if self.mode.currentIndex() == 2 else
+                              if self.mode.currentIndex() >= 2 else
                               tr('Files run sequentially. You can review completed results while the queue continues.'))
+
+    def request_setup(self):
+        # Stop preflight and leave the modal dialog before opening Settings.
+        self._setup_requested = True
+        self.reject()
+
+    def _dialog_finished(self, _result):
+        if self._setup_requested:
+            self._setup_requested = False
+            self.setupRequested.emit()
 
     def prepared(self, index, item):
         self.items[index] = item
@@ -513,12 +533,16 @@ class BatchPreparationDialog(QDialog):
     def submit(self):
         if not self.start_button.isEnabled():
             return
-        if self.mode.currentIndex() == 2:
+        if self.mode.flags()['slow_mode']:
             from .slow_mode import runtime_config
+            from .slow_setup import setup_status
             try:
                 runtime_config()
             except RuntimeError as exc:
                 QMessageBox.warning(self, tr('Slow mode недоступен'), str(exc))
+                return
+            if setup_status() != 'ready':
+                self.mode.refresh_availability()
                 return
         self.jobs = [(self.paths[i], TableTemplate.from_dict(self.assessment(i).template.to_dict()))
                      for i, (include, _) in enumerate(self.rows) if include.isChecked()]
@@ -526,7 +550,12 @@ class BatchPreparationDialog(QDialog):
 
     @property
     def analysis_options(self):
-        return MODES[self.mode.currentIndex()]
+        flags = self.mode.flags()
+        return flags['high_accuracy'], flags['slow_mode']
+
+    @property
+    def adaptive(self):
+        return self.mode.flags()['adaptive']
 
     @property
     def preparations(self):

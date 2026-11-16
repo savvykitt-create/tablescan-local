@@ -4358,5 +4358,565 @@
     "en": "The grid and printed title were compared locally. Confirm the protocol and inspect the overlay before recognition.",
     "cs": "Mřížka a tištěný nadpis byly porovnány místně. Před rozpoznáváním potvrďte protokol a zkontrolujte překrytí.",
     "ru": "Сетка и печатный заголовок сопоставлены локально. Подтвердите шаблон и проверьте наложение перед распознаванием."
+  },
+  "Automatic": {
+    "en": "Automatic",
+    "ru": "Автоматически",
+    "cs": "Automaticky"
+  },
+  "Choose A4 or Letter paper and a valid page orientation.": {
+    "en": "Choose A4 or Letter paper and a valid page orientation.",
+    "ru": "Выберите бумагу A4 или Letter и ориентацию страницы.",
+    "cs": "Vyberte papír A4 nebo Letter a platnou orientaci stránky."
+  },
+  "Choose a bundled Excel or PDF form.": {
+    "en": "Choose a bundled Excel or PDF form.",
+    "ru": "Выберите готовый бланк Excel или PDF.",
+    "cs": "Vyberte přiložený formulář Excel nebo PDF."
+  },
+  "Choose where to save the printable workbook. Fixed values are kept; measurement cells remain blank for handwriting or editing in Excel.": {
+    "en": "Choose where to save the printable workbook. Fixed values are kept; measurement cells remain blank for handwriting or editing in Excel.",
+    "ru": "Выберите, куда сохранить бланк. Фиксированные значения сохраняются; ячейки измерений остаются пустыми для заполнения вручную или в Excel.",
+    "cs": "Vyberte, kam uložit sešit k tisku. Pevné hodnoty zůstanou zachovány; buňky měření zůstanou prázdné pro ruční vyplnění nebo úpravy v Excelu."
+  },
+  "Close without exporting or changing the template.": {
+    "en": "Close without exporting or changing the template.",
+    "ru": "Закрыть без экспорта и изменения шаблона.",
+    "cs": "Zavřít bez exportu nebo změny šablony."
+  },
+  "Could not save form": {
+    "en": "Could not save form",
+    "ru": "Не удалось сохранить бланк",
+    "cs": "Formulář se nepodařilo uložit"
+  },
+  "Creates an editable blank form with your grid, fixed text and fields. Recognition rules stay in TableScan. Review Print Preview in Excel before printing.": {
+    "en": "Creates an editable blank form with your grid, fixed text and fields. Recognition rules stay in TableScan. Review Print Preview in Excel before printing.",
+    "ru": "Создаёт редактируемый бланк с вашей сеткой, фиксированным текстом и полями. Правила распознавания остаются в TableScan. Перед печатью проверьте предварительный просмотр в Excel.",
+    "cs": "Vytvoří upravitelný prázdný formulář s vaší mřížkou, pevným textem a poli. Pravidla rozpoznávání zůstávají v TableScan. Před tiskem zkontrolujte náhled tisku v Excelu."
+  },
+  "Export printable Excel": {
+    "en": "Export printable Excel",
+    "ru": "Экспорт бланка в Excel",
+    "cs": "Export formuláře do Excelu"
+  },
+  "Fit entire form on one page": {
+    "en": "Fit entire form on one page",
+    "ru": "Весь бланк на одной странице",
+    "cs": "Celý formulář na jednu stránku"
+  },
+  "Grid lines must be in increasing order before exporting.": {
+    "en": "Grid lines must be in increasing order before exporting.",
+    "ru": "Перед экспортом линии сетки должны идти по возрастанию координат.",
+    "cs": "Před exportem musí být čáry mřížky ve vzestupném pořadí."
+  },
+  "Help": {
+    "en": "Help",
+    "ru": "Справка",
+    "cs": "Nápověda"
+  },
+  "Landscape": {
+    "en": "Landscape",
+    "ru": "Альбомная",
+    "cs": "Na šířku"
+  },
+  "One page wide; allow multiple pages": {
+    "en": "One page wide; allow multiple pages",
+    "ru": "Одна страница в ширину; несколько в высоту",
+    "cs": "Jedna stránka na šířku; více na výšku"
+  },
+  "Orientation": {
+    "en": "Orientation",
+    "ru": "Ориентация",
+    "cs": "Orientace"
+  },
+  "Original Excel and PDF forms from the TableScan GitHub release. Included with the app and available offline.": {
+    "en": "Original Excel and PDF forms from the TableScan GitHub release. Included with the app and available offline.",
+    "ru": "Оригинальные бланки Excel и PDF из выпуска TableScan на GitHub. Включены в приложение и доступны без интернета.",
+    "cs": "Původní formuláře Excel a PDF z vydání TableScan na GitHubu. Jsou součástí aplikace a dostupné i bez internetu."
+  },
+  "PDF (*.pdf)": {
+    "en": "PDF (*.pdf)",
+    "ru": "PDF (*.pdf)",
+    "cs": "PDF (*.pdf)"
+  },
+  "Paper size": {
+    "en": "Paper size",
+    "ru": "Размер бумаги",
+    "cs": "Velikost papíru"
+  },
+  "Portrait": {
+    "en": "Portrait",
+    "ru": "Книжная",
+    "cs": "Na výšku"
+  },
+  "Print scaling": {
+    "en": "Print scaling",
+    "ru": "Масштаб печати",
+    "cs": "Měřítko tisku"
+  },
+  "Ready-to-print form": {
+    "en": "Ready-to-print form",
+    "ru": "Готовый бланк",
+    "cs": "Formulář k tisku"
+  },
+  "Ready-to-print forms": {
+    "en": "Ready-to-print forms",
+    "ru": "Готовые бланки для печати",
+    "cs": "Hotové formuláře k tisku"
+  },
+  "Save Excel…": {
+    "en": "Save Excel…",
+    "ru": "Сохранить Excel…",
+    "cs": "Uložit Excel…"
+  },
+  "Save PDF…": {
+    "en": "Save PDF…",
+    "ru": "Сохранить PDF…",
+    "cs": "Uložit PDF…"
+  },
+  "Save printable form": {
+    "en": "Save printable form",
+    "ru": "Сохранить бланк для печати",
+    "cs": "Uložit formulář k tisku"
+  },
+  "Save the original PDF form, ready to print without opening Excel.": {
+    "en": "Save the original PDF form, ready to print without opening Excel.",
+    "ru": "Сохранить оригинальный PDF-бланк для печати без Excel.",
+    "cs": "Uložit původní formulář PDF připravený k tisku bez otevření Excelu."
+  },
+  "Save the original editable Excel workbook, with its print layout and formulas. This does not change your saved templates.": {
+    "en": "Save the original editable Excel workbook, with its print layout and formulas. This does not change your saved templates.",
+    "ru": "Сохранить оригинальный редактируемый бланк Excel с настройками печати и формулами. Ваши сохранённые шаблоны не изменятся.",
+    "cs": "Uložit původní upravitelný sešit Excel s nastavením tisku a vzorci. Vaše uložené šablony se nezmění."
+  },
+  "Saved to {path}": {
+    "en": "Saved to {path}",
+    "ru": "Сохранено: {path}",
+    "cs": "Uloženo do {path}"
+  },
+  "The printable grid must contain 1–10000 rows and 1–256 columns.": {
+    "en": "The printable grid must contain 1–10000 rows and 1–256 columns.",
+    "ru": "Сетка для печати должна содержать 1–10000 строк и 1–256 столбцов.",
+    "cs": "Mřížka k tisku musí obsahovat 1–10000 řádků a 1–256 sloupců."
+  },
+  "Fast": {
+    "en": "Fast",
+    "ru": "Быстрый",
+    "cs": "Rychlý"
+  },
+  "Medium": {
+    "en": "Medium",
+    "ru": "Средний",
+    "cs": "Střední"
+  },
+  "Slow": {
+    "en": "Slow",
+    "ru": "Медленный",
+    "cs": "Pomalý"
+  },
+  "Adaptive": {
+    "en": "Adaptive",
+    "ru": "Адаптивный",
+    "cs": "Adaptivní"
+  },
+  "Install modes…": {
+    "en": "Install modes…",
+    "ru": "Установить режимы…",
+    "cs": "Nainstalovat režimy…"
+  },
+  "{mode}\nLocked": {
+    "en": "{mode}\nLocked",
+    "ru": "{mode}\nНедоступен",
+    "cs": "{mode}\nUzamčeno"
+  },
+  "Fast: a short local recognition pass. Review the results before export.": {
+    "en": "Fast: a short local recognition pass. Review the results before export.",
+    "ru": "Быстрый: короткое локальное распознавание. Проверьте результаты перед экспортом.",
+    "cs": "Rychlý: krátké místní rozpoznání. Před exportem zkontrolujte výsledky."
+  },
+  "Medium: compares local models and checks uncertain numbers.": {
+    "en": "Medium: compares local models and checks uncertain numbers.",
+    "ru": "Средний: сравнивает локальные модели и проверяет неоднозначные числа.",
+    "cs": "Střední: porovnává místní modely a kontroluje nejistá čísla."
+  },
+  "Slow: adds local model verification for uncertain measurements.": {
+    "en": "Slow: adds local model verification for uncertain measurements.",
+    "ru": "Медленный: дополнительно проверяет неоднозначные измерения локальными моделями.",
+    "cs": "Pomalý: přidává ověření nejistých měření pomocí místních modelů."
+  },
+  "Adaptive: uses a short pass when models agree and full verification otherwise.": {
+    "en": "Adaptive: uses a short pass when models agree and full verification otherwise.",
+    "ru": "Адаптивный: короткое распознавание при согласии моделей и полная проверка при расхождениях.",
+    "cs": "Adaptivní: krátké rozpoznání při shodě modelů, jinak úplné ověření."
+  },
+  "Slow and Adaptive require Slow mode. Install it in Settings to unlock them.": {
+    "en": "Slow and Adaptive require Slow mode. Install it in Settings to unlock them.",
+    "ru": "Медленный и Адаптивный требуют установки Slow mode. Установите его в настройках, чтобы открыть эти режимы.",
+    "cs": "Pomalý a Adaptivní vyžadují Slow mode. Nainstalujte jej v Nastavení a zpřístupněte tyto režimy."
+  },
+  "Move the slider or choose a mode below it. Slower modes add verification; all results still need review.": {
+    "en": "Move the slider or choose a mode below it. Slower modes add verification; all results still need review.",
+    "ru": "Передвиньте бегунок или выберите режим под ним. Более медленные режимы добавляют проверки; все результаты всё равно нужно сверять.",
+    "cs": "Posuňte jezdec nebo vyberte režim pod ním. Pomalejší režimy přidávají ověření; všechny výsledky je stále nutné zkontrolovat."
+  },
+  "Install extra models to unlock Slow and Adaptive.": {
+    "en": "Install extra models to unlock Slow and Adaptive.",
+    "ru": "Установите модели для Медленного и Адаптивного режимов.",
+    "cs": "Nainstalujte modely pro Pomalý a Adaptivní režim."
+  },
+  "Adjust document": {
+    "en": "Adjust document",
+    "ru": "Настроить документ",
+    "cs": "Upravit dokument"
+  },
+  "Apply the displayed value rule to the selected cells.": {
+    "en": "Apply the displayed value rule to the selected cells.",
+    "ru": "Применить показанное правило значений к выбранным ячейкам.",
+    "cs": "Použít zobrazené pravidlo hodnot na vybrané buňky."
+  },
+  "Apply the name, recognition type and export settings to the selected field.": {
+    "en": "Apply the name, recognition type and export settings to the selected field.",
+    "ru": "Применить название, тип распознавания и настройки экспорта к выбранному полю.",
+    "cs": "Použít název, typ rozpoznávání a nastavení exportu na vybrané pole."
+  },
+  "Apply these defaults to the selected column. Cell-region rules take priority.": {
+    "en": "Apply these defaults to the selected column. Cell-region rules take priority.",
+    "ru": "Применить эти настройки ко всему выбранному столбцу. Правила областей ячеек имеют приоритет.",
+    "cs": "Použít tato výchozí nastavení na vybraný sloupec. Pravidla oblastí buněk mají přednost."
+  },
+  "Apply these template changes only to the current document.": {
+    "en": "Apply these template changes only to the current document.",
+    "ru": "Применить изменения шаблона только к текущему документу.",
+    "cs": "Použít tyto změny šablony pouze na aktuální dokument."
+  },
+  "Check the grid, fields and value rules for errors before saving.": {
+    "en": "Check the grid, fields and value rules for errors before saving.",
+    "ru": "Проверить сетку, поля и правила значений на ошибки перед сохранением.",
+    "cs": "Před uložením zkontrolovat chyby v mřížce, polích a pravidlech hodnot."
+  },
+  "Choose a sample image or PDF and build a reusable template from its table.": {
+    "en": "Choose a sample image or PDF and build a reusable template from its table.",
+    "ru": "Выбрать образец изображения или PDF и создать по его таблице шаблон для повторного использования.",
+    "cs": "Vybrat vzorový obrázek nebo PDF a vytvořit z jeho tabulky opakovaně použitelnou šablonu."
+  },
+  "Choose cells, rows or columns to skip during recognition.": {
+    "en": "Choose cells, rows or columns to skip during recognition.",
+    "ru": "Выбрать ячейки, строки или столбцы, которые нужно пропускать при распознавании.",
+    "cs": "Vybrat buňky, řádky nebo sloupce, které se mají při rozpoznávání přeskočit."
+  },
+  "Clear the cell selection without changing any rules.": {
+    "en": "Clear the cell selection without changing any rules.",
+    "ru": "Снять выделение ячеек, не меняя правила.",
+    "cs": "Zrušit výběr buněk beze změny pravidel."
+  },
+  "Create an editable Excel form from the current template, with page size and print layout settings.": {
+    "en": "Create an editable Excel form from the current template, with page size and print layout settings.",
+    "ru": "Создать редактируемую форму Excel из текущего шаблона, настроив размер страницы и параметры печати.",
+    "cs": "Vytvořit upravitelný formulář Excel z aktuální šablony s nastavením velikosti stránky a rozložení tisku."
+  },
+  "Create an independent copy of the selected template.": {
+    "en": "Create an independent copy of the selected template.",
+    "ru": "Создать независимую копию выбранного шаблона.",
+    "cs": "Vytvořit nezávislou kopii vybrané šablony."
+  },
+  "Delete the selected template from the library after confirmation.": {
+    "en": "Delete the selected template from the library after confirmation.",
+    "ru": "Удалить выбранный шаблон из библиотеки после подтверждения.",
+    "cs": "Po potvrzení odstranit vybranou šablonu z knihovny."
+  },
+  "Detect table borders and guides again. Check the new grid before analysis.": {
+    "en": "Detect table borders and guides again. Check the new grid before analysis.",
+    "ru": "Заново определить границы таблицы и линии сетки. Перед анализом проверьте новую сетку.",
+    "cs": "Znovu rozpoznat okraje tabulky a čáry mřížky. Před analýzou novou mřížku zkontrolujte."
+  },
+  "Drag a rectangle around the table on the image to replace its boundary.": {
+    "en": "Drag a rectangle around the table on the image to replace its boundary.",
+    "ru": "Обвести таблицу прямоугольником на изображении, чтобы заменить её границу.",
+    "cs": "Nakreslit kolem tabulky na obrázku obdélník a nahradit tak její hranici."
+  },
+  "Draw a new rectangle for the selected field on the image.": {
+    "en": "Draw a new rectangle for the selected field on the image.",
+    "ru": "Нарисовать новый прямоугольник выбранного поля на изображении.",
+    "cs": "Nakreslit na obrázku nový obdélník pro vybrané pole."
+  },
+  "Draw an area outside the table for a date, name or other document field.": {
+    "en": "Draw an area outside the table for a date, name or other document field.",
+    "ru": "Нарисовать область вне таблицы для даты, имени или другого поля документа.",
+    "cs": "Nakreslit oblast mimo tabulku pro datum, jméno nebo jiné pole dokumentu."
+  },
+  "Edit the selected rule region.": {
+    "en": "Edit the selected rule region.",
+    "ru": "Изменить выбранную область правила.",
+    "cs": "Upravit vybranou oblast pravidla."
+  },
+  "Export printable Excel…": {
+    "en": "Export printable Excel…",
+    "ru": "Экспорт в Excel для печати…",
+    "cs": "Exportovat Excel pro tisk…"
+  },
+  "Export the selected library template as an editable printable Excel workbook.": {
+    "en": "Export the selected library template as an editable printable Excel workbook.",
+    "ru": "Экспортировать выбранный шаблон библиотеки в редактируемую книгу Excel для печати.",
+    "cs": "Exportovat vybranou šablonu knihovny jako upravitelný sešit Excel pro tisk."
+  },
+  "Fit the entire document in the preview.": {
+    "en": "Fit the entire document in the preview.",
+    "ru": "Показать весь документ в области просмотра.",
+    "cs": "Zobrazit celý dokument v náhledu."
+  },
+  "Fit the template guides to the detected table while keeping its rules.": {
+    "en": "Fit the template guides to the detected table while keeping its rules.",
+    "ru": "Подогнать линии шаблона к найденной таблице, сохранив правила.",
+    "cs": "Přizpůsobit čáry šablony rozpoznané tabulce a zachovat její pravidla."
+  },
+  "Grid geometry": {
+    "en": "Grid geometry",
+    "ru": "Геометрия сетки",
+    "cs": "Geometrie mřížky"
+  },
+  "Import a TableScan template file containing its grid and recognition rules.": {
+    "en": "Import a TableScan template file containing its grid and recognition rules.",
+    "ru": "Импортировать файл шаблона TableScan с сеткой и правилами распознавания.",
+    "cs": "Importovat soubor šablony TableScan obsahující mřížku a pravidla rozpoznávání."
+  },
+  "Load the selected saved template, including its grid, fields and rules.": {
+    "en": "Load the selected saved template, including its grid, fields and rules.",
+    "ru": "Загрузить выбранный сохранённый шаблон вместе с сеткой, полями и правилами.",
+    "cs": "Načíst vybranou uloženou šablonu včetně mřížky, polí a pravidel."
+  },
+  "Mark the four table corners to straighten a photograph before adjusting the grid.": {
+    "en": "Mark the four table corners to straighten a photograph before adjusting the grid.",
+    "ru": "Отметить четыре угла таблицы, чтобы выровнять фотографию перед настройкой сетки.",
+    "cs": "Označit čtyři rohy tabulky a narovnat fotografii před úpravou mřížky."
+  },
+  "Open the full value-rule editor for the selected cells.": {
+    "en": "Open the full value-rule editor for the selected cells.",
+    "ru": "Открыть полный редактор правил значений для выбранных ячеек.",
+    "cs": "Otevřít úplný editor pravidel hodnot pro vybrané buňky."
+  },
+  "Open the selected template to edit its grid, fields, rules and printable form.": {
+    "en": "Open the selected template to edit its grid, fields, rules and printable form.",
+    "ru": "Открыть выбранный шаблон для изменения сетки, полей, правил и формы для печати.",
+    "cs": "Otevřít vybranou šablonu a upravit její mřížku, pole, pravidla a formulář pro tisk."
+  },
+  "Remove the selected field from this template.": {
+    "en": "Remove the selected field from this template.",
+    "ru": "Удалить выбранное поле из этого шаблона.",
+    "cs": "Odstranit vybrané pole z této šablony."
+  },
+  "Remove the selected region rule. Column defaults will apply again.": {
+    "en": "Remove the selected region rule. Column defaults will apply again.",
+    "ru": "Удалить правило выбранной области. Снова будут действовать настройки столбца.",
+    "cs": "Odstranit pravidlo vybrané oblasti. Znovu se použijí výchozí nastavení sloupce."
+  },
+  "Rotate the document clockwise by 90 degrees.": {
+    "en": "Rotate the document clockwise by 90 degrees.",
+    "ru": "Повернуть документ на 90 градусов по часовой стрелке.",
+    "cs": "Otočit dokument o 90 stupňů po směru hodinových ručiček."
+  },
+  "Rotate the document counterclockwise by 90 degrees.": {
+    "en": "Rotate the document counterclockwise by 90 degrees.",
+    "ru": "Повернуть документ на 90 градусов против часовой стрелки.",
+    "cs": "Otočit dokument o 90 stupňů proti směru hodinových ručiček."
+  },
+  "Save Excel form…": {
+    "en": "Save Excel form…",
+    "ru": "Сохранить форму Excel…",
+    "cs": "Uložit formulář Excel…"
+  },
+  "Save the current grid, fields and rules in the template library for reuse.": {
+    "en": "Save the current grid, fields and rules in the template library for reuse.",
+    "ru": "Сохранить текущую сетку, поля и правила в библиотеке шаблонов для повторного использования.",
+    "cs": "Uložit aktuální mřížku, pole a pravidla do knihovny šablon pro další použití."
+  },
+  "Select all measurement cells, excluding headers and row labels.": {
+    "en": "Select all measurement cells, excluding headers and row labels.",
+    "ru": "Выделить все ячейки измерений, кроме заголовков и подписей строк.",
+    "cs": "Vybrat všechny buňky měření kromě záhlaví a popisků řádků."
+  },
+  "Set the value type, range and allowed values for this column.": {
+    "en": "Set the value type, range and allowed values for this column.",
+    "ru": "Настроить тип, диапазон и допустимые значения этого столбца.",
+    "cs": "Nastavit typ, rozsah a povolené hodnoty pro tento sloupec."
+  },
+  "Start Analysis": {
+    "en": "Start Analysis",
+    "ru": "Начать анализ",
+    "cs": "Spustit analýzu"
+  },
+  "Start recognition using the current grid, fields and rules. Results open for review when analysis finishes.": {
+    "en": "Start recognition using the current grid, fields and rules. Results open for review when analysis finishes.",
+    "ru": "Начать распознавание с текущей сеткой, полями и правилами. После анализа результаты откроются для проверки.",
+    "cs": "Spustit rozpoznávání s aktuální mřížkou, poli a pravidly. Po dokončení analýzy se výsledky otevřou ke kontrole."
+  },
+  "Suggest common document fields. Inspect their positions and names before saving.": {
+    "en": "Suggest common document fields. Inspect their positions and names before saving.",
+    "ru": "Предложить типичные поля документа. Перед сохранением проверьте их расположение и названия.",
+    "cs": "Navrhnout obvyklá pole dokumentu. Před uložením zkontrolujte jejich polohu a názvy."
+  },
+  "Template actions": {
+    "en": "Template actions",
+    "ru": "Действия с шаблоном",
+    "cs": "Akce se šablonou"
+  },
+  "Zoom in to inspect table guides and cells.": {
+    "en": "Zoom in to inspect table guides and cells.",
+    "ru": "Увеличить масштаб для проверки линий сетки и ячеек.",
+    "cs": "Přiblížit pro kontrolu čar mřížky a buněk."
+  },
+  "Zoom out to see more of the document.": {
+    "en": "Zoom out to see more of the document.",
+    "ru": "Уменьшить масштаб, чтобы видеть большую часть документа.",
+    "cs": "Oddálit pro zobrazení větší části dokumentu."
+  },
+  "Skip cells": {
+    "en": "Skip cells",
+    "ru": "Пропуск ячеек",
+    "cs": "Přeskočit buňky"
+  },
+  "1. Select cells on the page": {
+    "en": "1. Select cells on the page",
+    "ru": "1. Выберите ячейки на странице",
+    "cs": "1. Vyberte buňky na stránce"
+  },
+  "Deselect cells": {
+    "en": "Deselect cells",
+    "ru": "Снять выделение",
+    "cs": "Zrušit výběr buněk"
+  },
+  "2. Choose what to analyze": {
+    "en": "2. Choose what to analyze",
+    "ru": "2. Выберите, что анализировать",
+    "cs": "2. Zvolte, co analyzovat"
+  },
+  "Skip selected cells": {
+    "en": "Skip selected cells",
+    "ru": "Пропускать выбранные ячейки",
+    "cs": "Přeskočit vybrané buňky"
+  },
+  "Include selected cells": {
+    "en": "Include selected cells",
+    "ru": "Анализировать выбранные ячейки",
+    "cs": "Zahrnout vybrané buňky"
+  },
+  "Undo": {
+    "en": "Undo",
+    "ru": "Отменить",
+    "cs": "Zpět"
+  },
+  "Redo": {
+    "en": "Redo",
+    "ru": "Повторить",
+    "cs": "Znovu"
+  },
+  "Skipped areas": {
+    "en": "Skipped areas",
+    "ru": "Пропускаемые области",
+    "cs": "Přeskakované oblasti"
+  },
+  "Select an area to highlight its cells. Use Include listed area to remove it from this list.": {
+    "en": "Select an area to highlight its cells. Use Include listed area to remove it from this list.",
+    "ru": "Выберите область, чтобы выделить её ячейки. Кнопка «Анализировать область из списка» удаляет её из списка пропускаемых.",
+    "cs": "Vyberte oblast a zvýrazněte její buňky. Tlačítko Zahrnout oblast ze seznamu ji odstraní ze seznamu přeskakovaných oblastí."
+  },
+  "Include listed area": {
+    "en": "Include listed area",
+    "ru": "Анализировать область из списка",
+    "cs": "Zahrnout oblast ze seznamu"
+  },
+  "Include all cells": {
+    "en": "Include all cells",
+    "ru": "Анализировать все ячейки",
+    "cs": "Zahrnout všechny buňky"
+  },
+  "Select every cell in the current grid. This does not change which cells are skipped.": {
+    "en": "Select every cell in the current grid. This does not change which cells are skipped.",
+    "ru": "Выделить все ячейки текущей сетки. Список пропускаемых ячеек не изменится.",
+    "cs": "Vybrat všechny buňky aktuální mřížky. Přeskakované buňky se tím nezmění."
+  },
+  "Remove the selection highlight. Cells already marked to skip remain skipped.": {
+    "en": "Remove the selection highlight. Cells already marked to skip remain skipped.",
+    "ru": "Снять выделение. Ячейки, отмеченные для пропуска, по-прежнему будут пропускаться.",
+    "cs": "Zrušit zvýraznění výběru. Buňky označené k přeskočení zůstanou přeskakované."
+  },
+  "Do not recognize the selected cells. They remain blank in the exported results; surrounding values do not move.": {
+    "en": "Do not recognize the selected cells. They remain blank in the exported results; surrounding values do not move.",
+    "ru": "Не распознавать выбранные ячейки. В экспортированных результатах они останутся пустыми; соседние значения не сдвигаются.",
+    "cs": "Nerozpoznávat vybrané buňky. V exportovaných výsledcích zůstanou prázdné; okolní hodnoty se neposunou."
+  },
+  "Analyze the selected cells again. Other skipped cells stay unchanged, even within the same row or column.": {
+    "en": "Analyze the selected cells again. Other skipped cells stay unchanged, even within the same row or column.",
+    "ru": "Снова включить выбранные ячейки в анализ. Остальные пропускаемые ячейки не изменятся, даже в той же строке или столбце.",
+    "cs": "Znovu zahrnout vybrané buňky do analýzy. Ostatní přeskakované buňky se nezmění, ani ve stejném řádku či sloupci."
+  },
+  "Undo the last change to skipped cells in this grid.": {
+    "en": "Undo the last change to skipped cells in this grid.",
+    "ru": "Отменить последнее изменение пропускаемых ячеек в этой сетке.",
+    "cs": "Vrátit poslední změnu přeskakovaných buněk v této mřížce."
+  },
+  "Redo the last undone change to skipped cells.": {
+    "en": "Redo the last undone change to skipped cells.",
+    "ru": "Повторить последнее отменённое изменение пропускаемых ячеек.",
+    "cs": "Znovu provést poslední vrácenou změnu přeskakovaných buněk."
+  },
+  "Remove the selected row, column, or cell from the skip list. This also removes obsolete entries outside a resized grid.": {
+    "en": "Remove the selected row, column, or cell from the skip list. This also removes obsolete entries outside a resized grid.",
+    "ru": "Убрать выбранную строку, столбец или ячейку из списка пропускаемых. Так можно удалить и устаревшие записи за пределами изменённой сетки.",
+    "cs": "Odstranit vybraný řádek, sloupec nebo buňku ze seznamu přeskakovaných. Lze tak odstranit i neplatné položky mimo upravenou mřížku."
+  },
+  "Remove every skip rule in this table, including ignored columns. All cells become eligible for analysis. This can be undone.": {
+    "en": "Remove every skip rule in this table, including ignored columns. All cells become eligible for analysis. This can be undone.",
+    "ru": "Удалить все правила пропуска в таблице, включая игнорируемые столбцы. Все ячейки будут доступны для анализа. Действие можно отменить.",
+    "cs": "Odstranit všechna pravidla přeskakování v tabulce včetně ignorovaných sloupců. Všechny buňky se zahrnou do analýzy. Akci lze vrátit."
+  },
+  "Fill every selected cell with this constant text, including an empty value. These cells will not be recognized.": {
+    "en": "Fill every selected cell with this constant text, including an empty value. These cells will not be recognized.",
+    "ru": "Заполнить все выбранные ячейки этим постоянным текстом; допустимо пустое значение. Эти ячейки не будут распознаваться.",
+    "cs": "Vyplnit všechny vybrané buňky tímto stálým textem, případně prázdnou hodnotou. Tyto buňky se nebudou rozpoznávat."
+  },
+  "Remove constant values from the selected cells so OCR can read them. Cells marked to skip must also be included in the Skip cells tab.": {
+    "en": "Remove constant values from the selected cells so OCR can read them. Cells marked to skip must also be included in the Skip cells tab.",
+    "ru": "Удалить постоянные значения из выбранных ячеек, чтобы OCR мог их распознать. Пропускаемые ячейки также нужно включить в анализ на вкладке «Пропуск ячеек».",
+    "cs": "Odstranit stálé hodnoty z vybraných buněk, aby je mohlo přečíst OCR. Přeskakované buňky je nutné také zahrnout na kartě Přeskočit buňky."
+  },
+  "Fill the first header row with column names from Rules. Existing constants in that row are replaced.": {
+    "en": "Fill the first header row with column names from Rules. Existing constants in that row are replaced.",
+    "ru": "Заполнить первую строку заголовков названиями столбцов из правил. Текущие постоянные значения в этой строке будут заменены.",
+    "cs": "Vyplnit první řádek záhlaví názvy sloupců z pravidel. Stávající stálé hodnoty v tomto řádku budou nahrazeny."
+  },
+  "Remove the highlighted constant from this list. The cell can then be recognized unless it is marked to skip.": {
+    "en": "Remove the highlighted constant from this list. The cell can then be recognized unless it is marked to skip.",
+    "ru": "Удалить выделенное постоянное значение из списка. Ячейку можно будет распознать, если она не отмечена для пропуска.",
+    "cs": "Odstranit zvýrazněnou stálou hodnotu ze seznamu. Buňku pak lze rozpoznat, pokud není označena k přeskočení."
+  },
+  "Close batch preparation and open Settings to install extra models. Unsubmitted per-file edits in this dialog will be discarded.": {
+    "en": "Close batch preparation and open Settings to install extra models. Unsubmitted per-file edits in this dialog will be discarded.",
+    "ru": "Закрыть подготовку пакета и открыть настройки для установки дополнительных моделей. Неотправленные изменения отдельных файлов в этом окне будут отменены.",
+    "cs": "Zavřít přípravu dávky a otevřít nastavení pro instalaci dalších modelů. Neodeslané úpravy jednotlivých souborů v tomto dialogu budou zahozeny."
+  },
+  "Apply the selected protocol to every included file. Inspect each fitted grid before starting.": {
+    "en": "Apply the selected protocol to every included file. Inspect each fitted grid before starting.",
+    "ru": "Применить выбранный протокол ко всем включённым файлам. Перед запуском проверьте сетку каждого файла.",
+    "cs": "Použít vybraný protokol na všechny zahrnuté soubory. Před spuštěním zkontrolujte každou mřížku."
+  },
+  "Fit the selected document into the preview.": {
+    "en": "Fit the selected document into the preview.",
+    "ru": "Вписать выбранный документ в область предпросмотра.",
+    "cs": "Přizpůsobit vybraný dokument náhledu."
+  },
+  "Edit the grid, fields and rules for this file before adding it to the analysis queue.": {
+    "en": "Edit the grid, fields and rules for this file before adding it to the analysis queue.",
+    "ru": "Настроить сетку, поля и правила этого файла перед добавлением в очередь анализа.",
+    "cs": "Upravit mřížku, pole a pravidla tohoto souboru před přidáním do fronty analýzy."
+  },
+  "Close batch preparation without adding files to the queue.": {
+    "en": "Close batch preparation without adding files to the queue.",
+    "ru": "Закрыть подготовку пакета, не добавляя файлы в очередь.",
+    "cs": "Zavřít přípravu dávky bez přidání souborů do fronty."
+  },
+  "Queue the included files with their prepared templates and run them in the selected analysis mode.": {
+    "en": "Queue the included files with their prepared templates and run them in the selected analysis mode.",
+    "ru": "Добавить включённые файлы с подготовленными шаблонами в очередь и запустить их в выбранном режиме.",
+    "cs": "Zařadit zahrnuté soubory s připravenými šablonami do fronty a spustit je ve vybraném režimu."
   }
 }

@@ -15,6 +15,7 @@ from .ui_common import BLUE, MUTED, pixmap_from_bgr
 
 class OverlayRectItem(QGraphicsRectItem):
     def __init__(self, rect: QRectF, color: str, callback=None, label: str = "") -> None:
+        self._field_hit_margin = 8.0
         super().__init__(rect)
         self.callback = callback
         self.label = label
@@ -29,11 +30,31 @@ class OverlayRectItem(QGraphicsRectItem):
 
     def shape(self):
         if self.label:
-            return super().shape()
+            # The visible pen can be less than one screen pixel when zoomed
+            # out. Keep corner/edge handles clickable after pixel rounding.
+            path = QPainterPath()
+            path.addRect(self.rect().adjusted(-self._field_hit_margin, -self._field_hit_margin,
+                                             self._field_hit_margin, self._field_hit_margin))
+            return path
         path = QPainterPath(); path.addRect(self.rect())
         scale = self.scene().views()[0].transform().m11() if self.scene() and self.scene().views() else 1
         stroke = QPainterPathStroker(); stroke.setWidth(12 / max(scale, .01))
         return stroke.createStroke(path)
+
+    def boundingRect(self):
+        if getattr(self, 'label', ''):
+            return super().boundingRect().united(self.rect().adjusted(
+                -self._field_hit_margin, -self._field_hit_margin,
+                self._field_hit_margin, self._field_hit_margin))
+        return super().boundingRect()
+
+    def refresh_hit_margin(self):
+        if not self.label or not self.scene() or not self.scene().views():
+            return
+        margin = 8 / max(self.scene().views()[0].transform().m11(), .01)
+        if margin != self._field_hit_margin:
+            self.prepareGeometryChange()
+            self._field_hit_margin = margin
 
     def _edges(self, point):
         scale = self.scene().views()[0].transform().m11() if self.scene().views() else 1
@@ -241,9 +262,16 @@ class DocumentCanvas(QGraphicsView):
                                               self.template.row_guides[0]*image_height - band,
                                               width + band, height + band))
         self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
+        self._refresh_overlay_hit_margins()
 
     def zoom_by(self, factor: float) -> None:
         self.scale(factor, factor)
+        self._refresh_overlay_hit_margins()
+
+    def _refresh_overlay_hit_margins(self) -> None:
+        for item in self.scene().items():
+            if isinstance(item, OverlayRectItem):
+                item.refresh_hit_margin()
 
     def begin_draw(self, kind: str) -> None:
         self.draw_kind = kind
@@ -400,6 +428,7 @@ class DocumentCanvas(QGraphicsView):
                     item.setPen(QPen(QColor(region.color), 3))
                     item.setSelected(True)
                 self.scene().addItem(item)
+                item.refresh_hit_margin()
 
         self._update_active_overlay()
 
