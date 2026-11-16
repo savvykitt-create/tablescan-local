@@ -666,6 +666,7 @@ class TablePage(QWidget):
         layout.setContentsMargins(14, 18, 8, 8)
         form = QFormLayout()
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapAllRows)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.FieldsStayAtSizeHint)
         self.column_select = QComboBox()
         self.column_select.currentIndexChanged.connect(self._column_selected)
         self.column_name = QLineEdit()
