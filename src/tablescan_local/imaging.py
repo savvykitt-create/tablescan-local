@@ -70,6 +70,28 @@ def _projection_lines(mask: np.ndarray, axis: int, threshold_ratio: float) -> li
     return _cluster_indices(indices.tolist(), gap=2)
 
 
+def _column_lines(mask: np.ndarray) -> list[int]:
+    """Recover slightly bent rules that disappear in a full-height projection."""
+    full = _projection_lines(mask, axis=0, threshold_ratio=.45)
+    bands = [_projection_lines(band, axis=0, threshold_ratio=.55)
+             for band in np.array_split(mask, 7) if len(band)]
+    count = int(np.median([len(lines) for lines in bands]))
+    agreeing = [lines for lines in bands if len(lines) == count]
+    if count < 3 or len(agreeing) < 5:
+        return full
+    centers = np.rint(np.median(agreeing, axis=0)).astype(int)
+    # The same ordered boundaries must be present across the table. Never
+    # collapse genuine narrow columns or discard a boundary in a merged row.
+    drift = min(max(3, mask.shape[0] * .012), min(np.diff(centers)) * .4)
+    if np.max(np.abs(np.asarray(agreeing) - centers)) > drift:
+        return full
+    if any(min(abs(centers - line)) > drift for line in full):
+        return full
+    if len(full) == count and np.max(np.abs(np.asarray(full) - centers)) <= drift:
+        return full
+    return centers.tolist()
+
+
 def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
     """Recover a strongly supported regular grid under ink, never a fixed row count.
 
@@ -104,8 +126,8 @@ def regular_row_guides(lines: list[int]) -> tuple[list[int], bool]:
     return corrected, corrected != lines
 
 
-def _trim_metadata_edges(rows: list[int], columns: list[int], vertical: np.ndarray) -> list[int]:
-    """Drop a nearby metadata underline only when the table columns do not cross it."""
+def _trim_metadata_edges(rows, columns, horizontal, vertical) -> list[int]:
+    """Exclude attached metadata boxes whose rules stop short of the table edges."""
     rows = list(rows)
     if len(rows) < 4 or len(columns) < 3:
         return rows
@@ -117,10 +139,24 @@ def _trim_metadata_edges(rows: list[int], columns: list[int], vertical: np.ndarr
         # Merged headers can have only the two outer borders at their top.
         return (intersections[0] and intersections[-1]) or sum(intersections) >= len(columns) * .6
 
-    # Preserve genuine short headers: their vertical rules reach the boundary.
-    while len(rows) >= 4 and rows[1]-rows[0] < pitch*.7 and not crossed(rows[0]):
+    def outside(y: int, neighbor: int) -> bool:
+        if crossed(y):
+            return False
+        if abs(neighbor - y) < pitch * .7:
+            return True
+        # A metadata box can itself be a full row tall. A short rule
+        # without the corresponding vertical intersections is outside the grid.
+        inset = max(3, round((columns[-1] - columns[0]) * .04))
+        # A bowed full-width border can meet the sides at a different height
+        # from its projection peak. Stay inside the gap to the adjacent row.
+        radius = max(2, round(min(pitch, abs(neighbor - y)) * .4))
+        line = horizontal[max(0, y - radius):y + radius + 1]
+        return not (line[:, columns[0]:columns[0] + inset].any() and
+                    line[:, columns[-1] - inset:columns[-1] + 1].any())
+
+    while len(rows) >= 4 and outside(rows[0], rows[1]):
         rows.pop(0)
-    while len(rows) >= 4 and rows[-1]-rows[-2] < pitch*.7 and not crossed(rows[-1]):
+    while len(rows) >= 4 and outside(rows[-1], rows[-2]):
         rows.pop()
     return rows
 
@@ -201,8 +237,8 @@ def detect_grid(image: np.ndarray) -> GridDetection:
     roi_h = horizontal_flexible[y : y + table_height, x : x + table_width]
     roi_v = vertical_flexible[y : y + table_height, x : x + table_width]
     local_rows = _projection_lines(roi_h, axis=1, threshold_ratio=0.45)
-    local_columns = _projection_lines(roi_v, axis=0, threshold_ratio=0.45)
-    local_rows = _trim_metadata_edges(local_rows, local_columns, roi_v)
+    local_columns = _column_lines(roi_v)
+    local_rows = _trim_metadata_edges(local_rows, local_columns, roi_h, roi_v)
     local_rows, reconstructed = regular_row_guides(local_rows)
     recovered_from_margin = False
     if len(local_columns) >= 3 and len(local_rows) >= 9:
@@ -226,18 +262,27 @@ def detect_grid(image: np.ndarray) -> GridDetection:
                         recovered_from_margin = True
 
     def normalize_guides(lines: list[int], origin: int, extent: int, image_extent: int) -> list[float]:
-        if not lines or lines[0] > extent * 0.04:
-            lines.insert(0, 0)
-        if lines[-1] < extent * 0.96:
-            lines.append(extent - 1)
+        # Ink and adjacent metadata can extend the contour past a complete
+        # lattice. Use the bounding box only to provide a low-confidence draft.
+        if len(lines) < 3:
+            lines = list(lines)
+            if not lines or lines[0] > extent * .04:
+                lines.insert(0, 0)
+            if lines[-1] < extent * .96:
+                lines.append(extent - 1)
         unique = sorted({max(0, min(extent - 1, value)) for value in lines})
         return [(origin + value) / image_extent for value in unique]
 
     row_guides = normalize_guides(local_rows, y, table_height, height)
     column_guides = normalize_guides(local_columns, x, table_width, width)
-    uncertain = len(local_rows) < 3 or len(local_columns) < 3
+    # A few parallel rules at one end of a much larger contour can look like
+    # a regular short form when a phone is tilted. Require alignment first.
+    uncertain = (len(local_rows) < 3 or len(local_columns) < 3
+                 or local_rows[-1] - local_rows[0] < table_height * .65
+                 or local_columns[-1] - local_columns[0] < table_width * .65)
     return GridDetection(
-        table_rect=NormalizedRect.from_pixels((x, y, table_width, table_height), image.shape),
+        table_rect=NormalizedRect(column_guides[0], row_guides[0],
+                                  column_guides[-1] - column_guides[0], row_guides[-1] - row_guides[0]),
         row_guides=row_guides,
         column_guides=column_guides,
         warnings=([tr('Grid confidence is low. Align the photograph and check every guide before recognition.')] if uncertain else []) + ([tr('Some row boundaries were reconstructed. Check every blue guide.')] if reconstructed else []) + ([tr('Rows under heavy ink were recovered from the label column. Check those guides.')] if recovered_from_margin else []),

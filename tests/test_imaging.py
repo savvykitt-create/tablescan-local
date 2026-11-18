@@ -165,3 +165,31 @@ def test_slanted_vertical_rules_are_not_lost_in_scans():
     detection = detect_grid(image)
     assert len(detection.column_guides) - 1 == 10
     assert len(detection.row_guides) - 1 == 10
+
+
+def test_bowed_rules_remain_visible_on_a_high_resolution_phone_photo():
+    image = np.full((1800, 3000, 3), 235, np.uint8)
+    ys = np.linspace(300, 1500, 22).astype(int)
+    xs = np.linspace(150, 2700, 13).astype(int)
+    for y in ys:
+        cv2.line(image, (xs[0], y), (xs[-1], y), (60, 60, 60), 2)
+    yy = np.arange(ys[0], ys[-1] + 1)
+    for index, x in enumerate(xs):
+        amplitude = 0 if index in (0, len(xs) - 1) else 11
+        bend = amplitude * np.sin(2 * np.pi * (yy - yy[0]) / np.ptp(yy))
+        points = np.column_stack((x + bend, yy)).astype(np.int32)
+        cv2.polylines(image, [points], False, (60, 60, 60), 2)
+    grid = detect_grid(image)
+    assert not grid.warnings
+    np.testing.assert_allclose(np.array(grid.column_guides) * image.shape[1], xs, atol=3)
+    np.testing.assert_allclose(np.array(grid.row_guides) * image.shape[0], ys, atol=2)
+
+
+def test_connected_metadata_box_is_outside_the_measured_grid():
+    image = synthetic_table()
+    cv2.rectangle(image, (100, 75), (730, 130), (35, 35, 35), 2)
+    cv2.line(image, (100, 130), (100, 150), (35, 35, 35), 2)
+    grid = detect_grid(image)
+    assert not grid.warnings
+    np.testing.assert_allclose(np.array(grid.row_guides) * 800, np.arange(150, 651, 50), atol=2)
+    assert grid.table_rect.y == grid.row_guides[0]

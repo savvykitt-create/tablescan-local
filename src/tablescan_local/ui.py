@@ -31,7 +31,7 @@ from .pipeline import suggest_standard_fields
 from .recognition_worker import RecognitionWorker
 from .storage import LocalStore
 from .theme import apply_theme, set_theme_style
-from .template_matcher import TemplateMatch, rank_templates
+from .template_matcher import TemplateMatch, rank_document_templates
 from .template_fit import fit_document_template, fit_template
 from .analysis_queue import AnalysisQueue
 from .queue_dialog import AnalysisQueueDialog
@@ -187,6 +187,9 @@ class TemplateChoiceDialog(QDialog):
             )
             item.setData(Qt.ItemDataRole.UserRole, match.template.id)
             item.setData(Qt.ItemDataRole.UserRole + 1, match.score)
+            if match.fit_error:
+                item.setText(f"{match.template.name}\n{match.fit_error}")
+                item.setFlags(item.flags() & ~(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable))
             self.list.addItem(item)
         self.list.setCurrentRow(1 if matches and matches[0].score >= .55 else 0)
         self.list.itemDoubleClicked.connect(lambda _item: self.accept())
@@ -2065,7 +2068,7 @@ class MainWindow(QMainWindow):
                 detection = self._detect_or_manual(images[0])
             chosen_template = reused_template
             if reused_template is None:
-                matches = rank_templates(images[0].shape, detection, self.store.load_templates())
+                matches = rank_document_templates(images, detection, self.store.load_templates())
                 if matches:
                     chooser = TemplateChoiceDialog(matches, self)
                     if chooser.exec() != QDialog.DialogCode.Accepted:
@@ -2073,12 +2076,10 @@ class MainWindow(QMainWindow):
                         return
                     if chooser.selected_template_id:
                         selected_match = next((item for item in matches if item.template.id == chooser.selected_template_id), None)
-                        chosen_template = selected_match.template if selected_match else None
-            if chosen_template:
-                template = TableTemplate.from_dict(chosen_template.to_dict())
-                template.rotation_degrees = images.rotation
-                template.page_transforms = dict(images.transforms)
-                template = fit_document_template(template, images)
+            if selected_match:
+                template = selected_match.fitted or TableTemplate.from_dict(selected_match.template.to_dict())
+            elif chosen_template:
+                template = fit_document_template(chosen_template, images)
             else:
                 template = self._new_template(path, str(copied), images, detection)
             template.rotation_degrees = images.rotation
@@ -2282,22 +2283,19 @@ class MainWindow(QMainWindow):
                     images, detection = prepare_document(metadata["stored_source_path"], self.store.load_templates())
                 except ValueError:
                     detection = self._detect_or_manual(images[0])
-                matches = rank_templates(images[0].shape, detection, self.store.load_templates())
+                matches = rank_document_templates(images, detection, self.store.load_templates())
                 chosen = None
                 if matches and matches[0].score >= .55:
                     chooser = TemplateChoiceDialog(matches, self)
                     if chooser.exec() != QDialog.DialogCode.Accepted:
                         return
-                    chosen = next((m.template for m in matches if m.template.id == chooser.selected_template_id), None)
+                    chosen = next((m for m in matches if m.template.id == chooser.selected_template_id), None)
                 if chosen:
-                    chosen = TableTemplate.from_dict(chosen.to_dict())
-                    chosen.rotation_degrees = images.rotation
-                    chosen.page_transforms = dict(images.transforms)
-                    template = fit_document_template(chosen, images)
+                    template = chosen.fitted or TableTemplate.from_dict(chosen.template.to_dict())
                 else:
                     template = self._new_template(metadata["source_path"], metadata["stored_source_path"], images, detection)
-                    template.rotation_degrees = images.rotation
-                    template.page_transforms = dict(images.transforms)
+                template.rotation_degrees = images.rotation
+                template.page_transforms = dict(images.transforms)
                 self.store.save_draft(job_id, template)
             template.resize_grid(template.rows, template.columns)
             images = open_document(metadata["stored_source_path"], rotation=template.rotation_degrees, transforms=template.page_transforms)
@@ -2355,9 +2353,10 @@ class MainWindow(QMainWindow):
         template = TableTemplate.from_dict(template.to_dict())
         template.rotation_degrees = self.template.rotation_degrees if self.template else 0
         template.page_transforms = dict(self.template.page_transforms) if self.template else {}
+        from .photo_preparation import apply_saved_template
         try:
-            fitted = fit_document_template(template, images)
-        except ValueError as exc:
+            images, fitted = apply_saved_template(images, template)
+        except (ValueError, OSError) as exc:
             self.table_page.set_saved_templates(self.store.load_templates())
             QMessageBox.warning(self, tr('Подгонка требует проверки'), str(exc))
             return

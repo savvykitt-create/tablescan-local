@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from .i18n import tr, fmt, join_text
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from itertools import chain
 from math import exp
 
 from .domain import TableTemplate
-from .imaging import GridDetection
+from .imaging import GridDetection, detect_grid
+from .template_fit import fit_detected_pages
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,6 +16,8 @@ class TemplateMatch:
     template: TableTemplate
     score: float
     reasons: tuple[str, ...]
+    fitted: TableTemplate | None = None
+    fit_error: str = ''
 
 
 def latest_template_versions(templates: list[TableTemplate]) -> list[TableTemplate]:
@@ -52,6 +56,8 @@ def rank_templates(
     image_shape: tuple[int, ...],
     detection: GridDetection,
     templates: list[TableTemplate],
+    *,
+    remaining_pages=(),
 ) -> list[TemplateMatch]:
     """Rank the latest saved version in every family and explain each score."""
     height, width = image_shape[:2]
@@ -64,12 +70,13 @@ def rank_templates(
         column_score = _count_similarity(len(detection.column_guides) - 1, template.columns)
         rect_score = _rect_similarity(template, detection)
         row_shape = _guide_similarity(template.row_guides, detection.row_guides)
+        fitted = None
+        fit_error = ''
         if template.auto_fit_rows:
-            from .template_fit import fit_template
             try:
-                fit_template(template, detection, page_aspect)
-            except ValueError:
-                pass
+                fitted = fit_detected_pages(template, chain([(page_aspect, detection)], remaining_pages))
+            except ValueError as exc:
+                fit_error = str(exc)
             else:
                 row_score = row_shape = 1.0
         column_shape = _guide_similarity(template.column_guides, detection.column_guides)
@@ -84,7 +91,9 @@ def rank_templates(
         if title_candidates:
             # Title disambiguates compatible layouts, never rescues a bad grid.
             score *= 1.0 if template.id in title_candidates else .70
-        if detection.warnings:
+        if fit_error:
+            score *= .49
+        elif detection.warnings:
             score = min(score, .49)
         reasons = []
         if template.id in title_candidates:
@@ -101,8 +110,21 @@ def rank_templates(
             reasons.append(tr('пропорции страницы совпадают'))
         if rect_score > .85:
             reasons.append(tr('положение таблицы похоже'))
-        matches.append(TemplateMatch(template, round(max(0.0, min(1.0, score)), 4), tuple(reasons)))
-    matches = sorted(matches, key=lambda item: item.score, reverse=True)
-    if len(matches)>1 and abs(matches[0].score-matches[1].score)<.04:
-        matches = [TemplateMatch(m.template,m.score,(*m.reasons,tr('Similar layouts: confirm the protocol name.'))) for m in matches]
+        matches.append(TemplateMatch(template, round(max(0.0, min(1.0, score)), 4), tuple(reasons), fitted, fit_error))
+    matches.sort(key=lambda item: (not item.fit_error, item.score), reverse=True)
+    if len(matches)>1 and not matches[1].fit_error and abs(matches[0].score-matches[1].score)<.04:
+        matches = [replace(m, reasons=(*m.reasons,tr('Similar layouts: confirm the protocol name.'))) for m in matches]
     return matches
+
+
+def rank_document_templates(images, first_detection, templates):
+    remaining = []
+    if any(template.auto_fit_rows for template in templates):
+        for index in range(1, len(images)):
+            page = images[index]
+            try:
+                grid = detect_grid(page)
+            except ValueError:
+                grid = None
+            remaining.append((page.shape[1] / page.shape[0], grid))
+    return rank_templates(images[0].shape, first_detection, templates, remaining_pages=remaining)

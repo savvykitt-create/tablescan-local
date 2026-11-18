@@ -65,6 +65,19 @@ def test_page_edges_without_lattice_are_not_a_table():
     assert detect_grid(image).warnings
 
 
+def test_interior_lattice_returns_handles_on_the_outer_table_corners():
+    from tablescan_local.photo_geometry import _outer_grid_corners
+    image = photograph()
+    outer = np.float32([[118, 200], [1295, 222], [1312, 792], [92, 800]])
+    reference = np.float32([[100, 200], [1300, 200], [1300, 800], [100, 800]])
+    warp = cv2.getPerspectiveTransform(reference, outer)
+    interior = np.float32([[[160, 400], [960, 400], [960, 600], [160, 600]]])
+    scale = np.array([image.shape[1], image.shape[0]])
+    initial = cv2.perspectiveTransform(interior, warp)[0] / scale
+    corners = _outer_grid_corners(image, initial)
+    np.testing.assert_allclose(np.asarray(corners) * scale, outer, atol=4)
+
+
 @pytest.mark.parametrize('points',[
     [[.1,.1],[.9,.9],[.9,.1],[.1,.9]],
     [[.1,.1],[.1,.1],[.1,.1],[.1,.1]],
@@ -119,6 +132,21 @@ def test_document_orientation_uses_printed_title_and_persists_warp(tmp_path,monk
     assert pages.rotation==90
     assert pages.transforms
     assert len(d.row_guides)==22 and len(d.column_guides)==13
+
+
+def test_apply_saved_protocol_repairs_a_sideways_unaligned_draft(tmp_path):
+    from tablescan_local.photo_preparation import apply_saved_template
+    path = tmp_path / 'older-draft.png'
+    write_image(path, np.rot90(photograph(), -1))
+    grid = detect_grid(form())
+    template = TableTemplate('von', 'Von Frey', grid.table_rect, grid.row_guides,
+                             grid.column_guides, auto_fit_rows=True)
+    original = template.to_dict()
+    pages, fitted = apply_saved_template(open_document(path), template)
+    assert fitted.rotation_degrees == pages.rotation == 90
+    assert fitted.page_transforms == pages.transforms and pages.transforms
+    assert fitted.rows == 21 and fitted.columns == 12
+    assert template.to_dict() == original
 
 
 def test_four_corner_dialog_requires_preview_after_drag_and_cancel_is_safe(qtbot):

@@ -94,6 +94,42 @@ def _line_groups(lines, horizontal, center, gap=5):
     return [max(group,key=lambda r:r[1]) for group in groups]
 
 
+def _outer_grid_corners(image, interior):
+    """Use the interior lattice for deskewing, then locate its four outer crossings."""
+    from .imaging import detect_grid
+
+    transform = corner_transform(interior, image.shape)
+    plane = apply_transform(image, transform)
+    grid = detect_grid(plane)
+    if grid.warnings or len(grid.row_guides) < 4 or len(grid.column_guides) < 3:
+        return None
+
+    height, width = plane.shape[:2]
+    xs = np.asarray(grid.column_guides) * width
+    ys = np.asarray(grid.row_guides) * height
+    gray = cv2.cvtColor(plane, cv2.COLOR_BGR2GRAY)
+    ink = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 41, 11)
+    horizontal = cv2.morphologyEx(cv2.dilate(ink, np.ones((3, 1), np.uint8)),
+                                  cv2.MORPH_OPEN, np.ones((1, 19), np.uint8))
+    vertical = cv2.morphologyEx(cv2.dilate(ink, np.ones((1, 3), np.uint8)),
+                                cv2.MORPH_OPEN, np.ones((19, 1), np.uint8))
+    crossings = cv2.bitwise_and(horizontal, vertical)
+    corners = []
+    for col, row in ((0, 0), (-1, 0), (-1, -1), (0, -1)):
+        x, y = xs[col], ys[row]
+        dx = min(abs(xs[1 if col == 0 else -2] - x) * .4, width * .016)
+        dy = min(abs(ys[1 if row == 0 else -2] - y) * .4, height * .014)
+        left, top = max(0, round(x - dx)), max(0, round(y - dy))
+        yy, xx = np.nonzero(crossings[top:round(y + dy) + 1, left:round(x + dx) + 1])
+        if not len(xx):
+            return None
+        xx, yy = xx + left, yy + top
+        closest = np.argmin(((xx - x) / dx) ** 2 + ((yy - y) / dy) ** 2)
+        corners.append([xx[closest] / width, yy[closest] / height])
+    inverse = cv2.getPerspectiveTransform(np.float32(transform['target']), np.float32(interior))
+    return cv2.perspectiveTransform(np.float32([corners]), inverse)[0].tolist()
+
+
 def find_table_corners(image):
     """Find a repeated ruled lattice, excluding page edges and short handwriting."""
     h,w=image.shape[:2]
@@ -145,7 +181,9 @@ def find_table_corners(image):
     corners=[intersection(rows[0],vertical[0]),intersection(rows[0],vertical[-1]),
              intersection(rows[-1],vertical[-1]),intersection(rows[-1],vertical[0])]
     try:
-        corner_transform(corners,image.shape)
+        corners = _outer_grid_corners(small, corners)
+        if corners is not None:
+            corner_transform(corners, image.shape)
     except ValueError:
         return None
     return corners

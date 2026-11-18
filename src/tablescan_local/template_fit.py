@@ -73,15 +73,13 @@ def fit_template(template: TableTemplate, detection: GridDetection, page_aspect:
     return fitted
 
 
-def fit_document_template(template: TableTemplate, images, cancelled=lambda: False) -> TableTemplate:
-    if not template.auto_fit_rows:
-        return TableTemplate.from_dict(template.to_dict())
+def fit_detected_pages(template, pages) -> TableTemplate:
+    """Fit measured page grids, enforcing the single grid shared by a job."""
     first = None
-    # JobResult currently has one grid shared by all pages. Refuse mixed layouts.
-    for image in images:
-        if cancelled():
-            raise InterruptedError()
-        other = fit_template(template, detect_grid(image), image.shape[1]/image.shape[0])
+    for aspect, detection in pages:
+        if detection is None:
+            raise ValueError(tr('Grid could not be detected. Open the file and align the protocol manually.'))
+        other = fit_template(template, detection, aspect)
         if first is None:
             first = other
         elif other.rows != first.rows or any(
@@ -92,3 +90,16 @@ def fit_document_template(template: TableTemplate, images, cancelled=lambda: Fal
     if first is None:
         raise ValueError(tr('The document contains no pages.'))
     return first
+
+
+def fit_document_template(template: TableTemplate, images, cancelled=lambda: False) -> TableTemplate:
+    if not template.auto_fit_rows:
+        return TableTemplate.from_dict(template.to_dict())
+
+    def pages():
+        for image in images:
+            if cancelled():
+                raise InterruptedError()
+            yield image.shape[1] / image.shape[0], detect_grid(image)
+
+    return fit_detected_pages(template, pages())

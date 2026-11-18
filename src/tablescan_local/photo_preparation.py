@@ -99,3 +99,25 @@ def prepare_document(path, templates=(), *, rotation=None):
         if detection.transform:
             transforms[index]=detection.transform
     return open_document(path,rotation=angle,transforms=transforms), first
+
+
+def apply_saved_template(images, template):
+    """Retry a failed photograph fit from its original pixels for older drafts."""
+    from .documents import DocumentPages
+    from .template_fit import fit_document_template
+    from .template_matcher import rank_document_templates
+
+    try:
+        return images, fit_document_template(template, images)
+    except ValueError:
+        if not template.auto_fit_rows or not isinstance(images, DocumentPages) or images.path.suffix.lower() == '.pdf':
+            raise
+
+    prepared, first = prepare_document(images.path, [template])
+    match, = rank_document_templates(prepared, first, [template])
+    if match.fit_error:
+        raise ValueError(match.fit_error)
+    fitted = match.fitted
+    fitted.rotation_degrees = prepared.rotation
+    fitted.page_transforms = dict(prepared.transforms)
+    return prepared, fitted

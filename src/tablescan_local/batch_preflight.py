@@ -8,7 +8,6 @@ from PySide6.QtCore import QThread, Signal
 from .domain import TableTemplate
 from .i18n import tr
 from .imaging import detect_grid, open_document, rotate_document
-from .template_fit import fit_template
 from .template_matcher import rank_templates
 
 
@@ -42,20 +41,19 @@ def assess_geometry(template, pages, *, auto_fit=True, all_templates=()):
         if detection is None:
             return Compatibility(None, [], None, str(tr('Grid could not be detected. Open the file and align the protocol manually.')))
         match = rank_templates(shape, detection, [ranking_template])[0]
+        score = match.score
+        reasons.extend(str(r) for r in match.reasons)
         if all_templates:
             from .photo_preparation import title_matches
             if not title_matches(template,detection.title_text) and any(title_matches(t,detection.title_text) for t in all_templates):
-                from .template_matcher import TemplateMatch
-                match=TemplateMatch(match.template,match.score*.70,(*match.reasons,tr('Printed title points to another protocol')))
-        scores.append(round(match.score * 100))
-        reasons.extend(str(r) for r in match.reasons)
+                score *= .70
+                reasons.append(str(tr('Printed title points to another protocol')))
+        scores.append(round(score * 100))
         reasons.extend(str(w) for w in detection.warnings)
-        try:
-            fitted.append(fit_template(template, detection, shape[1] / shape[0])
-                          if auto_fit else TableTemplate.from_dict(template.to_dict()))
-        except ValueError as exc:
+        if match.fit_error:
             return Compatibility(min(scores), list(dict.fromkeys(reasons)), None,
-                                 str(tr('Page {p0}: {p1}', p0=index + 1, p1=str(exc))))
+                                 str(tr('Page {p0}: {p1}', p0=index + 1, p1=match.fit_error)))
+        fitted.append(match.fitted or TableTemplate.from_dict(template.to_dict()))
     if not fitted:
         return Compatibility(None, [], None, str(tr('The document contains no pages.')))
     first = fitted[0]
@@ -64,7 +62,7 @@ def assess_geometry(template, pages, *, auto_fit=True, all_templates=()):
             np.max(np.abs(np.array(a) - np.array(b))) > .002
             for a, b in ((first.row_guides, other.row_guides),
                          (first.column_guides, other.column_guides))) for other in fitted[1:]):
-        return Compatibility(min(scores), list(dict.fromkeys(reasons)), None,
+        return Compatibility(None, list(dict.fromkeys(reasons)), None,
                              str(tr('Pages have different grids. Split the document into separate files.')))
     # The inspected geometry is the geometry used by OCR. Do not fit again in
     # the worker, which could otherwise move manually inspected cells.

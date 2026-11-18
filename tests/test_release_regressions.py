@@ -70,10 +70,9 @@ def test_failed_import_keeps_complete_active_context(window, tmp_path, monkeypat
     elif failure == "cancel":
         from tablescan_local.ui import TemplateChoiceDialog
         window.store.save_template(window.template)
-        from types import SimpleNamespace
-        monkeypatch.setattr("tablescan_local.ui.rank_templates", lambda *_: [SimpleNamespace(
-            score=.9, template=window.template, reasons=[],
-        )])
+        from tablescan_local.template_matcher import TemplateMatch
+        monkeypatch.setattr("tablescan_local.ui.rank_document_templates",
+                            lambda *_: [TemplateMatch(window.template, .9, ())])
         monkeypatch.setattr(TemplateChoiceDialog, "exec", lambda *_: QDialog.DialogCode.Rejected)
     reused = deepcopy(window.template) if failure == "invalid_template" else None
     if reused:

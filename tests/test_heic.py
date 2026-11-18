@@ -79,7 +79,7 @@ def test_picker_drop_and_reopen_heic_in_alignment(tmp_path, monkeypatch, qtbot):
     monkeypatch.setenv('TABLESCAN_DATA_DIR', str(tmp_path / 'data'))
     _, window = ui.create_application()
     qtbot.addWidget(window)
-    monkeypatch.setattr(ui, 'rank_templates', lambda *args: [])
+    monkeypatch.setattr(ui, 'rank_document_templates', lambda *args: [])
     source = tmp_path / 'photo.HEIC'
     shutil.copyfile(FIXTURE, source)
     filters = []
